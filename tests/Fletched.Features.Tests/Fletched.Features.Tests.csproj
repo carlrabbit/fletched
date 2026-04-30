@@ -16,6 +16,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\src\Fletched.Emitters\Fletched.Emitters.csproj" />
     <ProjectReference Include="..\..\src\Fletched.Features\Fletched.Features.csproj" />
   </ItemGroup>
 
