@@ -1,0 +1,15 @@
+<Solution>
+  <Folder Name="/src/">
+    <Project Path="src/Fletched.Abstractions/Fletched.Abstractions.csproj" />
+    <Project Path="src/Fletched.Analyzers/Fletched.Analyzers.csproj" />
+    <Project Path="src/Fletched.Core/Fletched.Core.csproj" />
+    <Project Path="src/Fletched.Emitters/Fletched.Emitters.csproj" />
+    <Project Path="src/Fletched.Features/Fletched.Features.csproj" />
+    <Project Path="src/Fletched.Roslyn/Fletched.Roslyn.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj" />
+    <Project Path="tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj" />
+    <Project Path="tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj" />
+  </Folder>
+</Solution>
