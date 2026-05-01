@@ -9,6 +9,7 @@
   </Folder>
   <Folder Name="/tests/">
     <Project Path="tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj" />
+    <Project Path="tests/Fletched.Emitters.Tests/Fletched.Emitters.Tests.csproj" />
     <Project Path="tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj" />
     <Project Path="tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj" />
   </Folder>
