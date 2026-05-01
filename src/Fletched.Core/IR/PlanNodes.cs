@@ -21,3 +21,9 @@ public abstract record PlanInstruction : PlanNode;
 
 /// <summary>Base node for all planned IR block terminators.</summary>
 public abstract record PlanTerminator : PlanNode;
+
+/// <summary>Terminates a block by returning from the current program.</summary>
+public sealed record ReturnTerminator : PlanTerminator;
+
+/// <summary>Terminates a block with an unconditional jump to another block.</summary>
+public sealed record GotoTerminator(string Target) : PlanTerminator;

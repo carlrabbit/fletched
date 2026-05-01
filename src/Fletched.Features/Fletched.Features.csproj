@@ -7,9 +7,4 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <ProjectReference Include="..\Fletched.Abstractions\Fletched.Abstractions.csproj" />
-    <ProjectReference Include="..\Fletched.Core\Fletched.Core.csproj" />
-  </ItemGroup>
-
 </Project>

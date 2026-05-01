@@ -12,13 +12,12 @@
 
   <ItemGroup>
     <PackageReference Include="TUnit" Version="1.41.0" />
-    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="Microsoft.Testing.Extensions.CodeCoverage" Version="18.6.2" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\Fletched.Emitters\Fletched.Emitters.csproj" />
-    <ProjectReference Include="..\..\src\Fletched.Features\Fletched.Features.csproj" />
+    <ProjectReference Include="..\..\src\Fletched.Core\Fletched.Core.csproj" />
+    <ProjectReference Include="..\..\src\Fletched.Roslyn\Fletched.Roslyn.csproj" />
   </ItemGroup>
 
 </Project>
