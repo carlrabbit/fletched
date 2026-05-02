@@ -1,0 +1,83 @@
+using Microsoft.CodeAnalysis;
+
+namespace Fletched.Roslyn.Pipeline;
+
+/// <summary>
+/// Compile-time diagnostic descriptors for Fletched DSL errors and warnings.
+/// </summary>
+public static class DiagnosticsCatalog
+{
+    private const string Category = "Fletched";
+
+    public static readonly DiagnosticDescriptor InvalidPredicateBody = new(
+        "FLTCH001",
+        "Invalid predicate body",
+        "{0}",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedExpression = new(
+        "FLTCH002",
+        "Unsupported expression",
+        "Expression of kind '{0}' is not supported in a predicate body",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor TypeMismatch = new(
+        "FLTCH003",
+        "Type mismatch",
+        "Cannot unify '{0}' with '{1}'",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnboundTerminalVar = new(
+        "FLTCH004",
+        "Unbound terminal variable",
+        "Terminal variable '{0}' is not bound in all execution paths",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidFactType = new(
+        "FLTCH005",
+        "Invalid fact type",
+        "Type '{0}' marked with [Fact] must be a partial record struct",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidMemberAccess = new(
+        "FLTCH006",
+        "Invalid member access",
+        "Member '{0}' is not a readable property or field on a [Fact] type",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidConstraint = new(
+        "FLTCH007",
+        "Invalid constraint",
+        "Constraint method '{0}' must return bool and be side-effect free",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateVariable = new(
+        "FLTCH008",
+        "Duplicate variable",
+        "Variable '{0}' is already declared in this scope",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidPredicateCall = new(
+        "FLTCH009",
+        "Invalid predicate call",
+        "Predicate '{0}' was not found or argument types do not match",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+}

@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/Fletched.Core/Fletched.Core.csproj" />
+  <Project Path="src/Fletched.Roslyn/Fletched.Roslyn.csproj" />
+  <Project Path="tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj" />
+  <Project Path="tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj" />
+  <Project Path="tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj" />
+</Solution>
