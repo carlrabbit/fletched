@@ -12,7 +12,7 @@ public readonly struct LogicExpr<T>
 {
     internal readonly ExprNode? Node;
 
-    internal LogicExpr(ExprNode node) => Node = node;
+    public LogicExpr(ExprNode node) => Node = node;
 
     /// <summary>Creates a constant expression.</summary>
     public static LogicExpr<T> Constant(T value) =>
