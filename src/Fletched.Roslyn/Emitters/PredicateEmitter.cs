@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Text;
 using Microsoft.CodeAnalysis;
 using Fletched.Roslyn.Pipeline;
@@ -193,8 +196,8 @@ public sealed class PredicateEmitter
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
-                    foreach (var (label, id) in _labelIds)
-                        ctx.AppendLine($"case {id}: goto L_{label};");
+                    foreach (var kv in _labelIds)
+                        ctx.AppendLine($"case {kv.Value}: goto L_{kv.Key};");
                     ctx.AppendLine("default: goto End;");
                 }
                 ctx.AppendLine("}");

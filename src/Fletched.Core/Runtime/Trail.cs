@@ -1,3 +1,5 @@
+using System;
+
 namespace Fletched.Core.Runtime;
 
 /// <summary>Records a single variable binding for trail-based backtracking.</summary>
@@ -8,17 +10,16 @@ public struct TrailEntry
 }
 
 /// <summary>
-/// A stack-allocated trail of variable bindings.
-/// Uses a fixed-size <see cref="Span{T}"/> buffer supplied by the generated state struct.
+/// Heap-allocated trail of variable bindings used during predicate execution.
 /// </summary>
-public ref struct Trail
+public sealed class Trail
 {
-    private Span<TrailEntry> _entries;
+    private readonly TrailEntry[] _entries;
     private int _top;
 
-    public Trail(Span<TrailEntry> buffer)
+    public Trail(int capacity = 256)
     {
-        _entries = buffer;
+        _entries = new TrailEntry[capacity];
         _top = 0;
     }
 
@@ -31,11 +32,14 @@ public ref struct Trail
         _entries[_top++] = new TrailEntry { Slot = slot, WasBound = wasBound };
     }
 
+    /// <summary>Pops one entry from the trail (used for inline unwind in generated code).</summary>
+    public TrailEntry PopEntry() => _entries[--_top];
+
     /// <summary>
-    /// Pops the trail back to <paramref name="targetTop"/>, invoking
-    /// <paramref name="unbind"/> for each entry that is unwound.
+    /// Unwinds the trail back to <paramref name="targetTop"/>, invoking
+    /// <paramref name="unbind"/> for each entry that is undone.
     /// </summary>
-    public void UnwindTo(int targetTop, UnbindCallback unbind)
+    public void UnwindTo(int targetTop, Action<int, bool> unbind)
     {
         while (_top > targetTop)
         {
@@ -45,5 +49,3 @@ public ref struct Trail
     }
 }
 
-/// <summary>Callback used by <see cref="Trail.UnwindTo"/> to restore bound flags.</summary>
-public delegate void UnbindCallback(int slot, bool wasBound);

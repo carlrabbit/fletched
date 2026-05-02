@@ -1,8 +1,8 @@
+using System.Collections.Generic;
+using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace Fletched.Roslyn.Emitters;
-
-/// <summary>
 /// Generates Proxy&lt;T&gt; extension members for a [Fact] type,
 /// and a partial EngineContext with FactTable properties.
 /// </summary>
@@ -14,7 +14,7 @@ public sealed class FactEmitter
 
     public string EmitProxy(string ns)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         string fqName = _factType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string simpleName = _factType.Name;
 
@@ -53,7 +53,7 @@ public sealed class FactEmitter
 
     public string EmitEngineContextProperty(string ns)
     {
-        var sb = new System.Text.StringBuilder();
+        var sb = new StringBuilder();
         string fqName = _factType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string simpleName = _factType.Name;
         string propName = simpleName.EndsWith("s") ? simpleName : simpleName + "s";

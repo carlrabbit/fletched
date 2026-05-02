@@ -1,3 +1,5 @@
+using System;
+using System.Threading;
 using Fletched.Core.IR;
 
 namespace Fletched.Core;
@@ -9,7 +11,7 @@ public static class Logic
 {
     private static int _counter;
 
-    private static string NextName() => $"_w{System.Threading.Interlocked.Increment(ref _counter)}";
+    private static string NextName() => $"_w{Interlocked.Increment(ref _counter)}";
 
     /// <summary>Introduces one scoped fact variable of type <typeparamref name="T1"/>.</summary>
     public static LogicExpr<bool> With<T1>(Func<Proxy<T1>, LogicExpr<bool>> body)

@@ -1,3 +1,7 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
+
 namespace Fletched.Roslyn.Pipeline;
 
 /// <summary>Marker interface for optimization passes over a <see cref="PlanProgram"/>.</summary>
