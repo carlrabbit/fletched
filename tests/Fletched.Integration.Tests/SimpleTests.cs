@@ -26,7 +26,7 @@ public partial record struct AdminLogins
 {
     [PredicateBody]
     public static LogicExpr<bool> Body(TerminalVar<string> login) =>
-        Logic.With<User>(u => u.Login == login);
+        Logic.With<User>(u => u.Login == login && u.IsAdmin == true);
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -70,13 +70,13 @@ public class SimpleTests
     }
 
     [Test]
-    public async Task AdminLogins_ReturnsThreeLogins()
+    public async Task AdminLogins_ReturnsAdminLogins()
     {
         EngineContext ctx = BuildContext();
         System.Collections.Generic.List<AdminLoginsResult> results =
             default(AdminLogins).Execute(ctx).ToList();
 
-        await Assert.That(results.Count).IsEqualTo(3);
+        await Assert.That(results.Count).IsEqualTo(2);
     }
 
     [Test]

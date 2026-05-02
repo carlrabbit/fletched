@@ -233,10 +233,6 @@ public sealed class SemanticAnalyzer
             {
                 return AnalyzeWith(inv, method);
             }
-
-            // Check if this is a direct call to another [Predicate] type's constructor/factory
-            // Pattern: SomePredicateType(arg1, arg2, ...)
-            // The method might be a constructor invocation rewritten as a static call in Roslyn
         }
 
         // Check if the invocation target is itself a [Predicate]-annotated type
