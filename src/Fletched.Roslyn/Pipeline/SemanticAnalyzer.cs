@@ -234,6 +234,28 @@ public sealed class SemanticAnalyzer
                 return AnalyzeWith(inv, method);
             }
 
+            // Check if this is a direct call to another [Predicate] type's constructor/factory
+            // Pattern: SomePredicateType(arg1, arg2, ...)
+            // The method might be a constructor invocation rewritten as a static call in Roslyn
+        }
+
+        // Check if the invocation target is itself a [Predicate]-annotated type
+        // Pattern: SomePredicate(terminalVarArg) — recognized as a call expression
+        ITypeSymbol? calleeType = ResolvePredicateCallTarget(inv);
+        if (calleeType is INamedTypeSymbol predicateType)
+        {
+            var args = new List<SemanticExpr>();
+            foreach (ArgumentSyntax arg in inv.ArgumentList.Arguments)
+            {
+                SemanticExpr? argExpr = AnalyzeExpr(arg.Expression, null);
+                if (argExpr is null) return null;
+                args.Add(argExpr);
+            }
+            return new CallExpr(predicateType, args, boolType);
+        }
+
+        if (symbol is IMethodSymbol methodSymbol)
+        {
             // Otherwise treat as constraint
             var args = new List<SemanticExpr>();
             // For member invocations, the receiver is arg[0]
@@ -251,7 +273,7 @@ public sealed class SemanticAnalyzer
                 args.Add(argExpr);
             }
 
-            return new ConstraintExpr(method, args, boolType);
+            return new ConstraintExpr(methodSymbol, args, boolType);
         }
 
         // Try syntactic fallback for Logic.With<T>
@@ -264,6 +286,36 @@ public sealed class SemanticAnalyzer
             inv.GetLocation(),
             "Unresolved invocation");
         return null;
+    }
+
+    private ITypeSymbol? ResolvePredicateCallTarget(InvocationExpressionSyntax inv)
+    {
+        // Handle: SomePredicate(...) — identifier or member access resolving to a [Predicate] type
+        ITypeSymbol? candidate = null;
+
+        if (inv.Expression is IdentifierNameSyntax ident)
+        {
+            SymbolInfo si = _semanticModel.GetSymbolInfo(ident);
+            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
+        }
+        else if (inv.Expression is MemberAccessExpressionSyntax mem)
+        {
+            SymbolInfo si = _semanticModel.GetSymbolInfo(mem);
+            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
+        }
+
+        // Also try to resolve via the semantic model as a type symbol directly
+        if (candidate is null)
+        {
+            SymbolInfo si = _semanticModel.GetSymbolInfo(inv.Expression);
+            if (si.Symbol is INamedTypeSymbol t) candidate = t;
+        }
+
+        if (candidate is not INamedTypeSymbol namedCandidate) return null;
+
+        bool hasPredicate = namedCandidate.GetAttributes()
+            .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
+        return hasPredicate ? candidate : null;
     }
 
     private SemanticExpr? AnalyzeWith(InvocationExpressionSyntax inv, IMethodSymbol method)

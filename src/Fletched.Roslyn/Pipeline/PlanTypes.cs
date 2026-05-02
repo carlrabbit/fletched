@@ -23,6 +23,9 @@ public record IndexInitInstr(string IndexVar) : PlanInstruction;
 public record LoopBindInstr(int Slot, string IndexVar, ITypeSymbol FactType) : PlanInstruction;
 public record IndexIncrInstr(string IndexVar) : PlanInstruction;
 
+/// <summary>Call to another predicate — iterates its results and binds argument slots.</summary>
+public record CallInstr(INamedTypeSymbol PredicateType, IReadOnlyList<int> ArgumentSlots) : PlanInstruction;
+
 /// <summary>Base plan terminator.</summary>
 public abstract record PlanTerminator;
 public record GotoTerm(string TargetLabel) : PlanTerminator;

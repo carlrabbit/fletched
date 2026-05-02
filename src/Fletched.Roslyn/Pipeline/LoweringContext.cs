@@ -31,6 +31,9 @@ public sealed class LoweringContext
         return AllocateSlot(variable);
     }
 
+    /// <summary>Allocates an anonymous (temporary) slot not associated with any variable.</summary>
+    public int AllocateAnonymousSlot() => _slotCounter++;
+
     public string NextLabel(string hint = "L")
     {
         return $"{hint}_{_labelCounter++}";

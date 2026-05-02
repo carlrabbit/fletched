@@ -82,11 +82,7 @@ public sealed class PredicateEmitter
 
     private void EmitStateStruct(EmitContext ctx)
     {
-        // Collect all fact types referenced in loop bindings
-        var factTypes = new HashSet<string>();
-        CollectFactTypes(factTypes);
-
-        ctx.AppendLine($"internal ref struct {ctx.StateTypeName}");
+        ctx.AppendLine($"internal struct {ctx.StateTypeName}");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
@@ -95,17 +91,15 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"public {typeName} {name};");
                 ctx.AppendLine($"public bool {name}_bound;");
             }
-            // Trail buffer
+            // Trail — heap class; ref struct may hold a reference type field
             ctx.AppendLine($"public global::Fletched.Core.Runtime.Trail Trail;");
-            ctx.AppendLine("private global::Fletched.Core.Runtime.TrailEntry[] _trailBuf;");
             ctx.AppendLine();
             ctx.AppendLine($"public static {ctx.StateTypeName} Create()");
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
                 ctx.AppendLine($"var s = new {ctx.StateTypeName}();");
-                ctx.AppendLine("s._trailBuf = new global::Fletched.Core.Runtime.TrailEntry[256];");
-                ctx.AppendLine("s.Trail = new global::Fletched.Core.Runtime.Trail(s._trailBuf);");
+                ctx.AppendLine("s.Trail = new global::Fletched.Core.Runtime.Trail(256);");
                 ctx.AppendLine("return s;");
             }
             ctx.AppendLine("}");
@@ -122,22 +116,23 @@ public sealed class PredicateEmitter
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
-            ctx.AppendLine("Trail.UnwindTo(targetTop, (slot, wasBound) =>");
+            ctx.AppendLine("while (Trail.Top > targetTop)");
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                ctx.AppendLine("switch (slot)");
+                ctx.AppendLine("var _entry = Trail.PopEntry();");
+                ctx.AppendLine("switch (_entry.Slot)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
                     foreach (var (name, _, slot) in _slots)
                     {
-                        ctx.AppendLine($"case {slot}: {name}_bound = wasBound; break;");
+                        ctx.AppendLine($"case {slot}: {name}_bound = _entry.WasBound; break;");
                     }
                 }
                 ctx.AppendLine("}");
             }
-            ctx.AppendLine("});");
+            ctx.AppendLine("}");
         }
         ctx.AppendLine("}");
     }
@@ -291,7 +286,41 @@ public sealed class PredicateEmitter
             case IndexIncrInstr incr:
                 ctx.AppendLine($"{incr.IndexVar}++;");
                 break;
+
+            case CallInstr call:
+                EmitCall(call, ctx);
+                break;
         }
+    }
+
+    private void EmitCall(CallInstr call, EmitContext ctx)
+    {
+        // Invoke the referenced predicate's Execute method and iterate results.
+        // For each result we bind the argument slots and continue execution.
+        // If no results remain we fall through to Fail.
+        string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string resultVar = $"_callResult_{call.PredicateType.Name}";
+
+        ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).Execute(ctx))");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            // Bind caller argument slots from the call result fields.
+            // The result record fields are named after the predicate's terminal parameters
+            // and capitalized to match the generated Result record's constructor parameters.
+            string resultTypeName = $"{call.PredicateType.Name}Result";
+            for (int i = 0; i < call.ArgumentSlots.Count; i++)
+            {
+                int slot = call.ArgumentSlots[i];
+                string slotName = SlotName(slot);
+                string resultField = Capitalize(slotName);
+                ctx.AppendLine($"state.{slotName} = {resultVar}.{resultField};");
+                ctx.AppendLine($"state.{slotName}_bound = true;");
+            }
+            ctx.AppendLine("goto Success;");
+        }
+        ctx.AppendLine("}");
+        ctx.AppendLine("goto Fail;");
     }
 
     private void EmitUnify(UnifyInstr u, EmitContext ctx)
@@ -485,17 +514,4 @@ public sealed class PredicateEmitter
 
     private static string Capitalize(string s) =>
         s.Length == 0 ? s : char.ToUpperInvariant(s[0]) + s.Substring(1);
-
-    private void CollectFactTypes(HashSet<string> factTypes)
-    {
-        var allBlocks = new[] { _plan.Entry }.Concat(_plan.Blocks);
-        foreach (PlanBlock block in allBlocks)
-        {
-            foreach (PlanInstruction instr in block.Instructions)
-            {
-                if (instr is LoopBindInstr bind)
-                    factTypes.Add(bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
-            }
-        }
-    }
 }

@@ -15,10 +15,65 @@ public interface IPlanOptimization
 /// <summary>Ensures flat instruction sequences — no nested block references.</summary>
 public sealed class NormalizeSequence : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program) => program; // No-op at this stage
-}
+    public PlanProgram Apply(PlanProgram program)
+    {
+        // Merge adjacent blocks where the only link is an unconditional GotoTerm
+        // and the target block has exactly one inbound edge.
+        var allBlocks = new[] { program.Entry }.Concat(program.Blocks).ToList();
 
-/// <summary>Removes Unify(X, X) and folds constant–constant unifications.</summary>
+        // Count inbound edges for each label
+        var inbound = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (PlanBlock b in allBlocks)
+        {
+            foreach (string target in Successors(b.Terminator))
+            {
+                inbound.TryGetValue(target, out int count);
+                inbound[target] = count + 1;
+            }
+        }
+
+        // Merge pass: if a block ends with GotoTerm and target has exactly 1 inbound,
+        // inline the target's instructions into this block.
+        var merged = new HashSet<string>(StringComparer.Ordinal);
+        var result = new List<PlanBlock>(allBlocks.Count);
+
+        foreach (PlanBlock block in allBlocks)
+        {
+            if (merged.Contains(block.Label)) continue;
+
+            PlanBlock current = block;
+            while (current.Terminator is GotoTerm g &&
+                   (inbound.TryGetValue(g.TargetLabel, out int edgeCount) ? edgeCount : 0) == 1)
+            {
+                PlanBlock? target = allBlocks.FirstOrDefault(b => b.Label == g.TargetLabel);
+                if (target is null || merged.Contains(target.Label)) break;
+
+                // Merge target into current
+                current = new PlanBlock(
+                    current.Label,
+                    current.Instructions.Concat(target.Instructions).ToList(),
+                    target.Terminator);
+                merged.Add(target.Label);
+            }
+
+            result.Add(current);
+        }
+
+        if (result.Count == 0) return program;
+        return new PlanProgram(result[0], result.Skip(1).ToList(), program.SlotMap);
+    }
+
+    private static IEnumerable<string> Successors(PlanTerminator term)
+    {
+        return term switch
+        {
+            GotoTerm g => new[] { g.TargetLabel },
+            ChoiceTerm c => new[] { c.NextLabel, c.AlternativeLabel },
+            LoopCheckTerm l => new[] { l.BodyLabel, l.FailLabel },
+            _ => Array.Empty<string>()
+        };
+    }
+}
 public sealed class RemoveRedundantUnify : IPlanOptimization
 {
     public PlanProgram Apply(PlanProgram program)

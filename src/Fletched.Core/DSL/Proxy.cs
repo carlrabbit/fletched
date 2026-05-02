@@ -6,7 +6,7 @@ namespace Fletched.Core;
 /// </summary>
 public readonly struct Proxy<T>
 {
-    internal readonly string VariableName;
+    public readonly string VariableName;
 
     public Proxy(string variableName) => VariableName = variableName;
 }

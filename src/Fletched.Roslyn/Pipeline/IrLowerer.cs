@@ -76,6 +76,22 @@ public sealed class IrLowerer
                 return block;
             }
 
+            case CallExpr callExpr:
+            {
+                // Map argument expressions to slots
+                var argSlots = callExpr.Arguments
+                    .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
+                    .ToList();
+
+                string label = ctx.NextLabel("call");
+                startLabel = label;
+                var block = new PlanBlock(label,
+                    new[] { new CallInstr(callExpr.PredicateType, argSlots) },
+                    new SucceedTerm());
+                ctx.AddBlock(block);
+                return block;
+            }
+
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
                     null, expr.GetType().Name);
@@ -235,6 +251,14 @@ public sealed class IrLowerer
                 instructions.Add(new ConstraintInstr(c.Method,
                     c.Arguments.Select(a => LowerValue(a, ctx)).ToList()));
                 break;
+            case CallExpr call:
+            {
+                var argSlots = call.Arguments
+                    .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
+                    .ToList();
+                instructions.Add(new CallInstr(call.PredicateType, argSlots));
+                break;
+            }
             case ConjExpr conj:
                 foreach (SemanticExpr part in conj.Parts)
                     AppendInstructions(part, ctx, instructions);
