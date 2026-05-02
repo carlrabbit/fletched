@@ -1,0 +1,369 @@
+LoweringRules.md
+
+1. Overview
+
+Defines deterministic transformations from typed IR ("ExprNode") into Execution Plan ("PlanBlock", "PlanInstruction", "PlanTerminator").
+All symbolic constructs are eliminated; variables are resolved to slots and control flow is made explicit.
+
+---
+
+2. Core Concepts / Data Structures
+
+Input (IR)
+
+abstract record ExprNode;
+
+record ConjNode(IReadOnlyList<ExprNode> Parts);
+record DisjNode(ExprNode Left, ExprNode Right);
+record UnifyNode(ExprNode Left, ExprNode Right);
+record FieldNode(ExprNode Target, MemberInfo Member, Type Type);
+record VarNode(string Name, Type Type);
+record ConstNode(object? Value, Type Type);
+record ConstraintNode(MethodInfo Method, IReadOnlyList<ExprNode> Args);
+record WithNode(Type FactType, Lambda Body);
+record CallNode(Type PredicateType, IReadOnlyList<ExprNode> Args);
+
+---
+
+Output (Execution Plan)
+
+record PlanBlock(
+    string Label,
+    IReadOnlyList<PlanInstruction> Instructions,
+    PlanTerminator Terminator
+);
+
+abstract record PlanInstruction;
+
+record UnifyInstr(PlanValue Left, PlanValue Right);
+record ConstraintInstr(MethodInfo Method, IReadOnlyList<PlanValue> Args);
+record AssignInstr(int Slot, PlanValue Value);
+
+abstract record PlanTerminator;
+
+record Goto(string Target);
+record Choice(string Next, string Alternative);
+record Fail();
+record Succeed();
+
+---
+
+Values
+
+abstract record PlanValue;
+
+record SlotValue(int Slot, Type Type);
+record ConstValue(object? Value, Type Type);
+record FieldValue(PlanValue Target, MemberInfo Member, Type Type);
+
+---
+
+Slot Mapping
+
+Dictionary<VarNode, int> SlotMap;
+
+---
+
+3. Rules and Invariants
+
+3.1 Variable Resolution
+
+- Every "VarNode" maps to exactly one "SlotValue"
+- Slot identity is stable across the entire plan
+- No "VarNode" remains after lowering
+
+---
+
+3.2 Value Lowering
+
+VarNode        → SlotValue
+ConstNode      → ConstValue
+FieldNode      → FieldValue(Target', Member)
+
+Where "Target'" is recursively lowered.
+
+---
+
+3.3 Conjunction
+
+Conj(A, B, C) → Sequence(A, B, C)
+
+Lowering:
+
+- Flatten nested conjunctions
+- Emit instructions in order
+- No additional blocks introduced
+
+---
+
+3.4 Unification
+
+Unify(X, Y)
+
+Lowering:
+
+UnifyInstr(Lower(X), Lower(Y))
+
+Invariant:
+
+- No control flow is introduced
+- Failure handled at code generation
+
+---
+
+3.5 Constraint
+
+Constraint(M, args)
+
+Lowering:
+
+ConstraintInstr(M, Lower(args))
+
+Invariant:
+
+- No binding occurs
+- Pure boolean check
+
+---
+
+3.6 Disjunction
+
+Disj(A, B)
+
+Lowering:
+
+Create blocks:
+
+L_entry:
+  Choice(L_A, L_B)
+
+L_A:
+  ...A...
+  Succeed
+
+L_B:
+  ...B...
+  Succeed
+
+Rules:
+
+- A new entry block is created
+- Left and right branches are isolated
+- Each branch terminates independently
+
+---
+
+3.7 Fact Access ("WithNode")
+
+With<T>(body)
+
+Lowering:
+
+1. Allocate slot "s" for variable
+2. Create loop blocks:
+
+L_init:
+  index = 0
+  goto L_check
+
+L_check:
+  if index >= Data.Length → Fail
+  else → L_bind
+
+L_bind:
+  AssignInstr(s, Data[index])
+  Choice(L_body, L_next)
+
+L_body:
+  ...lower(body)...
+  Succeed
+
+L_next:
+  index++
+  goto L_check
+
+Rules:
+
+- Loop is represented as blocks + gotos
+- Choice point created per iteration
+- Binding occurs before body execution
+
+---
+
+3.8 Indexed Fact Access
+
+Condition:
+
+- A field of "T" is unified with a bound slot or constant
+
+Lowering replaces "FullScan" with:
+
+Lookup(key) → candidate set
+Iterate candidates instead of full data
+
+Invariant:
+
+- Same block structure as full scan
+- Data source differs only
+
+---
+
+3.9 Predicate Call
+
+Call(P, args)
+
+Lowering:
+
+L_call:
+  create frame
+  goto L_invoke
+
+L_invoke:
+  if MoveNext(frame) → L_success
+  else → Fail
+
+L_success:
+  Succeed
+
+Rules:
+
+- Arguments mapped to callee slots before invocation
+- Call produces multiple results via repeated entry to "L_invoke"
+- Call behaves as a choice point
+
+---
+
+3.10 Assignment
+
+Used only in:
+
+- fact binding
+- argument transfer
+
+AssignInstr(slot, value)
+
+Invariant:
+
+- Does not perform unification
+- Overwrites slot directly
+
+---
+
+3.11 Block Structure
+
+- Each block has exactly one terminator
+- No fallthrough between blocks
+- All control flow is explicit via "Goto", "Choice", "Fail", "Succeed"
+
+---
+
+3.12 Failure Propagation
+
+- No explicit failure nodes in instructions
+- Failure is represented by:
+  Fail()
+- All failing paths terminate in "Fail"
+
+---
+
+4. Execution / Behavior
+
+- Blocks are executed by label dispatch
+- "Choice" creates a backtracking continuation
+- "Fail" transfers control to the most recent choice point
+- "Succeed" produces a result and continues via backtracking
+- No implicit recursion or stack-based control flow is present
+
+---
+
+5. Examples
+
+---
+
+5.1 Conjunction
+
+IR
+
+Unify(user.Name, name) &&
+Unify(user.Login, admin.Login)
+
+Plan
+
+L0:
+  UnifyInstr(Field(user, Name), Slot(name))
+  UnifyInstr(Field(user, Login), Field(admin, Login))
+  Succeed
+
+---
+
+5.2 Disjunction
+
+IR
+
+A || B
+
+Plan
+
+L0:
+  Choice(L1, L2)
+
+L1:
+  ...A...
+  Succeed
+
+L2:
+  ...B...
+  Succeed
+
+---
+
+5.3 Fact Access
+
+IR
+
+With<User>(user => user.Name == name)
+
+Plan
+
+L0:
+  index = 0
+  goto L1
+
+L1:
+  if index >= Users.Length → Fail
+  else → L2
+
+L2:
+  AssignInstr(userSlot, Users[index])
+  Choice(L3, L4)
+
+L3:
+  UnifyInstr(Field(user, Name), Slot(name))
+  Succeed
+
+L4:
+  index++
+  goto L1
+
+---
+
+5.4 Predicate Call
+
+IR
+
+Call(AdminUsers, [name])
+
+Plan
+
+L0:
+  create frame
+  goto L1
+
+L1:
+  if MoveNext(frame) → L2
+  else → Fail
+
+L2:
+  Succeed
+
+---

@@ -1,0 +1,416 @@
+﻿SemanticModel.md
+
+
+
+
+---
+
+
+1. Overview
+
+
+Defines the semantic representation of DSL code after Roslyn analysis.
+Resolves symbols, types, and scopes into a structured, fully-typed model independent of syntax.
+
+
+
+
+---
+
+
+2. Core Concepts / Data Structures
+
+
+2.1 SemanticModel Root
+
+
+record SemanticModel(
+    IReadOnlyList<PredicateModel> Predicates
+);
+
+
+
+
+---
+
+
+2.2 PredicateModel
+
+
+record PredicateModel(
+    string Name,
+    MethodSymbol BodyMethod,
+    IReadOnlyList<VariableSymbol> Parameters,
+    SemanticExpr Body
+);
+
+
+
+
+---
+
+
+2.3 VariableSymbol
+
+
+enum VariableKind
+{
+    Terminal,
+    Local
+}
+
+
+record VariableSymbol(
+    string Name,
+    Type Type,
+    VariableKind Kind
+);
+
+
+
+
+---
+
+
+2.4 SemanticExpr
+
+
+abstract record SemanticExpr(Type Type);
+
+
+
+
+---
+
+
+2.4.1 Variable Reference
+
+
+record VarExpr(VariableSymbol Variable)
+    : SemanticExpr(Variable.Type);
+
+
+
+
+---
+
+
+2.4.2 Constant
+
+
+record ConstExpr(object? Value, Type Type)
+    : SemanticExpr(Type);
+
+
+
+
+---
+
+
+2.4.3 Field Access
+
+
+record FieldExpr(
+    SemanticExpr Target,
+    MemberInfo Member,
+    Type FieldType
+) : SemanticExpr(FieldType);
+
+
+
+
+---
+
+
+2.4.4 Unification
+
+
+record UnifyExpr(
+    SemanticExpr Left,
+    SemanticExpr Right
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+2.4.5 Conjunction
+
+
+record ConjExpr(
+    IReadOnlyList<SemanticExpr> Parts
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+2.4.6 Disjunction
+
+
+record DisjExpr(
+    SemanticExpr Left,
+    SemanticExpr Right
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+2.4.7 Constraint
+
+
+record ConstraintExpr(
+    MethodInfo Method,
+    IReadOnlyList<SemanticExpr> Arguments
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+2.4.8 Fact Scope (With)
+
+
+record WithExpr(
+    IReadOnlyList<VariableSymbol> Variables,
+    SemanticExpr Body
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+2.4.9 Predicate Call
+
+
+record CallExpr(
+    Type PredicateType,
+    IReadOnlyList<SemanticExpr> Arguments
+) : SemanticExpr(typeof(bool));
+
+
+
+
+---
+
+
+3. Rules and Invariants
+
+
+Every SemanticExpr has a fully resolved Type.
+
+
+All variables are represented by VariableSymbol.
+
+
+Each VariableSymbol is uniquely identified within a predicate.
+
+
+TerminalVar<T> parameters are mapped to VariableKind.Terminal.
+
+
+Variables introduced by With<T...> are mapped to VariableKind.Local.
+
+
+All member accesses are resolved to MemberInfo.
+
+
+No unresolved identifiers exist in the model.
+
+
+UnifyExpr operands must have compatible types.
+
+
+ConstraintExpr.Method must be a static or instance method with resolved MethodInfo.
+
+
+ConjExpr.Parts is flattened (no nested conjunctions).
+
+
+WithExpr introduces a new variable scope.
+
+
+Variables inside WithExpr.Body must reference either:
+
+
+declared WithExpr.Variables
+
+
+outer scope variables
+
+
+
+
+CallExpr arguments must match predicate parameter count and types.
+
+
+No control flow beyond ConjExpr and DisjExpr is represented.
+
+
+
+
+
+
+---
+
+
+4. Execution / Behavior
+
+
+The semantic model is constructed by traversing Roslyn syntax trees.
+
+
+Symbol resolution is performed using Roslyn semantic APIs.
+
+
+Lambda parameters in With<T...> are mapped to VariableSymbol instances.
+
+
+Operator == is translated into UnifyExpr.
+
+
+Operator && is translated into ConjExpr.
+
+
+Operator || is translated into DisjExpr.
+
+
+Method calls not mapped to predicates are translated into ConstraintExpr.
+
+
+Member access expressions are translated into FieldExpr.
+
+
+Predicate invocations are translated into CallExpr.
+
+
+
+
+
+
+---
+
+
+5. Examples
+
+
+
+
+---
+
+
+Example 1 — Field Unification
+
+
+Input DSL
+
+
+user.Name == name
+
+
+Semantic Model
+
+
+UnifyExpr(
+    FieldExpr(
+        VarExpr(user),
+        MemberInfo(User.Name),
+        typeof(string)
+    ),
+    VarExpr(name)
+)
+
+
+
+
+---
+
+
+Example 2 — Conjunction
+
+
+Input DSL
+
+
+user.Name == name && user.Login == admin.Login
+
+
+Semantic Model
+
+
+ConjExpr([
+    UnifyExpr(
+        FieldExpr(VarExpr(user), MemberInfo(User.Name), typeof(string)),
+        VarExpr(name)
+    ),
+    UnifyExpr(
+        FieldExpr(VarExpr(user), MemberInfo(User.Login), typeof(string)),
+        FieldExpr(VarExpr(admin), MemberInfo(Admin.Login), typeof(string))
+    )
+])
+
+
+
+
+---
+
+
+Example 3 — With Scope
+
+
+Input DSL
+
+
+With<User, Admin>((user, admin) =>
+    user.Login == admin.Login
+)
+
+
+Semantic Model
+
+
+WithExpr(
+    Variables: [
+        VariableSymbol("user", typeof(User), Local),
+        VariableSymbol("admin", typeof(Admin), Local)
+    ],
+    Body:
+        UnifyExpr(
+            FieldExpr(VarExpr(user), MemberInfo(User.Login), typeof(string)),
+            FieldExpr(VarExpr(admin), MemberInfo(Admin.Login), typeof(string))
+        )
+)
+
+
+
+
+---
+
+
+Example 4 — Predicate Call
+
+
+Input DSL
+
+
+AdminUsers(name)
+
+
+Semantic Model
+
+
+CallExpr(
+    typeof(AdminUsers),
+    [ VarExpr(name) ]
+)

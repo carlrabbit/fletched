@@ -1,0 +1,371 @@
+CodeGeneration.md
+
+1. Overview
+
+Transforms the Execution Plan into C# source code using deterministic, fully inlined, label-based control flow.
+All generated code is type-specialized and contains no runtime interpretation or reflection.
+
+
+---
+
+2. Core Concepts / Data Structures
+
+2.1 Emitter Interface
+
+interface IEmitter
+{
+    void Emit(EmitContext context);
+}
+
+
+---
+
+2.2 EmitContext
+
+sealed class EmitContext
+{
+    public StringBuilder Code;
+    public Dictionary<string, string> LabelMap;
+    public int IndentLevel;
+}
+
+
+---
+
+2.3 State Reference
+
+All generated code operates on a typed state:
+
+ref struct <PredicateName>_State
+
+Access pattern:
+
+state.<field>
+state.<field>_bound
+
+
+---
+
+2.4 Label Representation
+
+string Label;
+
+Generated as:
+
+L_<Label>:
+
+
+---
+
+2.5 Slot Mapping
+
+Slots are resolved to fields:
+
+SlotValue(SlotId) → state.<field>
+
+
+---
+
+2.6 Plan Mapping
+
+Plan Element	Generated Code
+
+PlanBlock	Label + statements
+PlanInstruction	Inline statements
+PlanTerminator	goto / control flow
+
+
+
+---
+
+3. Rules and Invariants
+
+All control flow is emitted using goto and labels
+
+No recursion in generated methods
+
+No reflection or dynamic dispatch in generated code
+
+All unification is inlined
+
+No allocation inside hot paths except user-defined data
+
+Each PlanBlock produces exactly one label
+
+Each PlanBlock ends with exactly one control transfer
+
+State is passed by ref
+
+All variables are accessed via typed fields
+
+All conditions branch to a single Fail label on failure
+
+Choice points are explicitly emitted and stored on a stack
+
+No nested scopes for control flow; all blocks are flat
+
+
+
+---
+
+4. Execution / Behavior
+
+4.1 Method Structure
+
+IEnumerable<TResult> Execute(EngineContext ctx)
+{
+    var state = new <PredicateName>_State();
+    var cps = new Stack<ChoicePoint>();
+
+Start:
+    goto L_Entry;
+
+Fail:
+    goto Resume;
+
+Resume:
+    if (!Backtrack(ref state, cps))
+        yield break;
+    goto <resume_label>;
+
+Success:
+    yield return Project(state);
+    goto Resume;
+
+L_Entry:
+    ...
+}
+
+
+---
+
+4.2 PlanBlock Emission
+
+L_<Label>:
+    <Instructions>
+    <Terminator>
+
+
+---
+
+4.3 Unify Instruction
+
+if (!state.<slot>_bound)
+{
+    state.Trail.Push(<SlotId>);
+    state.<slot> = <value>;
+    state.<slot>_bound = true;
+}
+else if (state.<slot> != <value>)
+{
+    goto Fail;
+}
+
+
+---
+
+4.4 Constraint Instruction
+
+if (!<method_call>)
+{
+    goto Fail;
+}
+
+
+---
+
+4.5 Field Access
+
+state.<target>.<member>
+
+
+---
+
+4.6 Choice Point Emission
+
+cps.Push(new ChoicePoint
+{
+    Label = L_<Alternative>,
+    TrailTop = state.TrailTop
+});
+goto L_<Primary>;
+
+
+---
+
+4.7 Loop Emission (Full Scan)
+
+int idx = 0;
+
+L_LoopCheck:
+if (idx >= ctx.<Table>.Data.Length)
+    goto Fail;
+
+cps.Push(new ChoicePoint
+{
+    Label = L_LoopNext,
+    TrailTop = state.TrailTop
+});
+
+state.<slot> = ctx.<Table>.Data[idx];
+state.<slot>_bound = true;
+
+goto L_LoopBody;
+
+L_LoopNext:
+state.Trail.UnwindTo(ref state, cp.TrailTop);
+idx++;
+goto L_LoopCheck;
+
+
+---
+
+4.8 Loop Emission (Indexed)
+
+if (!ctx.<Table>.Index.TryGetValue(state.<key>, out var indices))
+    goto Fail;
+
+int idx = 0;
+
+L_IndexCheck:
+if (idx >= indices.Count)
+    goto Fail;
+
+cps.Push(new ChoicePoint
+{
+    Label = L_IndexNext,
+    TrailTop = state.TrailTop
+});
+
+state.<slot> = ctx.<Table>.Data[indices[idx]];
+state.<slot>_bound = true;
+
+goto L_IndexBody;
+
+L_IndexNext:
+state.Trail.UnwindTo(ref state, cp.TrailTop);
+idx++;
+goto L_IndexCheck;
+
+
+---
+
+4.9 Predicate Call
+
+var frame = new <Predicate>_Frame(...);
+
+L_Call:
+if (!frame.MoveNext(ref state))
+    goto Fail;
+
+goto L_Continue;
+
+L_CallResume:
+goto L_Call;
+
+
+---
+
+4.10 Terminators
+
+Goto
+
+goto L_<Target>;
+
+
+---
+
+Succeed
+
+goto Success;
+
+
+---
+
+Fail
+
+goto Fail;
+
+
+---
+
+5. Examples
+
+5.1 Unify (Plan → Code)
+
+Plan
+
+Unify(Field(user, Name), Slot(name))
+
+Generated
+
+if (!state.name_bound)
+{
+    state.Trail.Push(SlotId.Name);
+    state.name = state.user.Name;
+    state.name_bound = true;
+}
+else if (state.name != state.user.Name)
+{
+    goto Fail;
+}
+
+
+---
+
+5.2 Disjunction
+
+Plan
+
+Disjunction(A, B)
+
+Generated
+
+cps.Push(new ChoicePoint
+{
+    Label = L_B,
+    TrailTop = state.TrailTop
+});
+goto L_A;
+
+L_A:
+    ...
+    goto Success;
+
+L_B:
+    state.Trail.UnwindTo(ref state, cp.TrailTop);
+    ...
+    goto Success;
+
+
+---
+
+5.3 Fact Loop
+
+Plan
+
+Loop(User, slot=user)
+
+Generated
+
+int idx = 0;
+
+L_Check:
+if (idx >= ctx.Users.Data.Length)
+    goto Fail;
+
+cps.Push(new ChoicePoint
+{
+    Label = L_Next,
+    TrailTop = state.TrailTop
+});
+
+state.user = ctx.Users.Data[idx];
+state.user_bound = true;
+
+goto L_Body;
+
+L_Next:
+state.Trail.UnwindTo(ref state, cp.TrailTop);
+idx++;
+goto L_Check;

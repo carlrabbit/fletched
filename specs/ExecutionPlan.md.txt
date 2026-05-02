@@ -1,0 +1,322 @@
+ExecutionPlan.md
+
+
+---
+
+1. Overview
+
+The Execution Plan defines a lowered, control-flow–explicit representation of a predicate.
+It consists of labeled blocks with linear instructions and explicit control transfer.
+
+
+---
+
+2. Core Concepts / Data Structures
+
+2.1 PlanProgram
+
+record PlanProgram(
+    PlanBlock Entry,
+    IReadOnlyList<PlanBlock> Blocks
+);
+
+
+---
+
+2.2 PlanBlock
+
+record PlanBlock(
+    string Label,
+    IReadOnlyList<PlanInstruction> Instructions,
+    PlanTerminator Terminator
+);
+
+
+---
+
+2.3 PlanInstruction
+
+abstract record PlanInstruction;
+
+Unification
+
+record UnifyInstr(
+    PlanValue Left,
+    PlanValue Right
+) : PlanInstruction;
+
+Constraint
+
+record ConstraintInstr(
+    MethodInfo Method,
+    IReadOnlyList<PlanValue> Arguments
+) : PlanInstruction;
+
+Assignment (loop binding / temporary)
+
+record AssignInstr(
+    int Slot,
+    PlanValue Value
+) : PlanInstruction;
+
+
+---
+
+2.4 PlanTerminator
+
+abstract record PlanTerminator;
+
+Unconditional jump
+
+record Goto(string TargetLabel) : PlanTerminator;
+
+Choice point (disjunction)
+
+record Choice(
+    string NextLabel,
+    string AlternativeLabel,
+    int TrailSlot
+) : PlanTerminator;
+
+Success
+
+record Succeed() : PlanTerminator;
+
+Failure
+
+record Fail() : PlanTerminator;
+
+
+---
+
+2.5 PlanValue
+
+abstract record PlanValue;
+
+Slot reference
+
+record SlotValue(int Slot, Type Type) : PlanValue;
+
+Constant
+
+record ConstValue(object? Value, Type Type) : PlanValue;
+
+Field access
+
+record FieldValue(
+    PlanValue Target,
+    MemberInfo Member,
+    Type Type
+) : PlanValue;
+
+
+---
+
+2.6 Data Access
+
+Loop (encoded via blocks)
+
+record LoopContext(
+    int Slot,
+    PlanDataSource Source
+);
+
+Data source
+
+abstract record PlanDataSource;
+
+record FullScanSource(Type FactType) : PlanDataSource;
+
+record IndexedSource(
+    Type FactType,
+    MemberInfo KeyMember,
+    int KeySlot
+) : PlanDataSource;
+
+
+---
+
+2.7 Predicate Call
+
+record CallInstr(
+    Type PredicateType,
+    IReadOnlyList<int> ArgumentSlots
+) : PlanInstruction;
+
+
+---
+
+3. Rules and Invariants
+
+Each PlanBlock has exactly one entry point and one terminator.
+
+Instructions execute sequentially without branching.
+
+All control flow is expressed via PlanTerminator.
+
+All variables are resolved to integer slots.
+
+PlanValue contains no symbolic variables.
+
+FieldValue.Target must resolve to a slot or another field.
+
+Choice must reference valid block labels.
+
+Fail transfers control to the runtime backtracking mechanism.
+
+Succeed produces a result and transfers to resume logic.
+
+No implicit control flow is allowed inside instructions.
+
+Loops are represented as multiple blocks with Goto.
+
+Predicate calls are represented as instructions and require external frame handling.
+
+
+
+---
+
+4. Execution / Behavior
+
+Execution starts at PlanProgram.Entry.
+
+Instructions are executed in order within a block.
+
+Terminators determine the next block or runtime action:
+
+Goto transfers control to the target block.
+
+Choice:
+
+pushes a choice point with AlternativeLabel
+
+continues execution at NextLabel
+
+
+Fail triggers backtracking.
+
+Succeed yields a result and resumes via backtracking.
+
+
+Backtracking restores state using the trail and jumps to stored labels.
+
+Loop behavior is implemented via:
+
+initialization block
+
+condition block
+
+body block
+
+continuation block
+
+
+
+
+---
+
+5. Examples
+
+
+---
+
+5.1 Unification
+
+IR
+
+user.Name == name
+
+Plan
+
+Block L0:
+  Instructions:
+    Unify(
+      Field(Slot(user), Name),
+      Slot(name)
+    )
+  Terminator:
+    Succeed
+
+
+---
+
+5.2 Disjunction
+
+IR
+
+A || B
+
+Plan
+
+Block L0:
+  Terminator:
+    Choice(NextLabel = L_A, AlternativeLabel = L_B, TrailSlot = t0)
+
+Block L_A:
+  Instructions:
+    A
+  Terminator:
+    Succeed
+
+Block L_B:
+  Instructions:
+    B
+  Terminator:
+    Succeed
+
+
+---
+
+5.3 Fact Loop (Full Scan)
+
+IR
+
+User(user)
+
+Plan
+
+Block L0:
+  Instructions:
+    index = 0
+  Terminator:
+    Goto L_Check
+
+Block L_Check:
+  Terminator:
+    if index >= Users.Length → Fail
+    else → Goto L_Bind
+
+Block L_Bind:
+  Instructions:
+    Assign(userSlot, Users[index])
+  Terminator:
+    Choice(NextLabel = L_Body, AlternativeLabel = L_Next, TrailSlot = t0)
+
+Block L_Body:
+  Instructions:
+    ...
+  Terminator:
+    Succeed
+
+Block L_Next:
+  Instructions:
+    index = index + 1
+  Terminator:
+    Goto L_Check
+
+
+---
+
+5.4 Predicate Call
+
+IR
+
+AdminUsers(name)
+
+Plan
+
+Block L0:
+  Instructions:
+    Call(AdminUsers, [nameSlot])
+  Terminator:
+    Succeed

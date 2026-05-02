@@ -1,0 +1,477 @@
+﻿1. README.md
+
+
+Purpose
+Defines the project scope, goals, and high-level architecture.
+
+
+Key contents
+
+
+Project goals and non-goals
+
+
+High-level architecture overview (DSL → IR → Plan → Codegen → Execution)
+
+
+Core concepts (Fact, Predicate, LogicExpr)
+
+
+Design principles (compiled, typed, .NET interop)
+
+
+Example end-to-end usage
+
+
+
+
+
+
+---
+
+
+2. DSL.md
+
+
+Purpose
+Specifies the embedded C# DSL surface and its semantics.
+
+
+Key contents
+
+
+[Fact], [Predicate], [PredicateBody]
+
+
+TerminalVar<T>, With<T...>
+
+
+Operator semantics (== = unification, &&, ||)
+
+
+Allowed expressions and constraints
+
+
+DSL restrictions and invariants
+
+
+
+
+
+
+---
+
+
+3. SemanticModel.md
+
+
+Purpose
+Defines how Roslyn syntax is interpreted into a semantic model.
+
+
+Key contents
+
+
+Symbol resolution (types, members, variables)
+
+
+Mapping DSL constructs → semantic nodes
+
+
+Handling of lambdas and variable scopes
+
+
+Member access resolution (MemberInfo)
+
+
+Validation rules and diagnostics
+
+
+
+
+
+
+---
+
+
+4. IR.md
+
+
+Purpose
+Defines the typed intermediate representation of logical expressions.
+
+
+Key contents
+
+
+ExprNode hierarchy (Unify, Conj, Disj, Field, Const, Var, Constraint)
+
+
+Type propagation rules
+
+
+Representation of variables before slot assignment
+
+
+Expression normalization (flattening conjunctions)
+
+
+IR invariants
+
+
+
+
+
+
+---
+
+
+5. ExecutionPlan.md
+
+
+Purpose
+Defines the lowered execution plan used for code generation.
+
+
+Key contents
+
+
+PlanBlock, PlanInstruction, PlanTerminator
+
+
+Control flow model (labels, gotos, choice points)
+
+
+PlanValue (Slot, Const, Field)
+
+
+Instruction types (Unify, Constraint, Assign)
+
+
+Loop and call representation
+
+
+
+
+
+
+---
+
+
+6. LoweringRules.md
+
+
+Purpose
+Specifies deterministic transformations from IR → Execution Plan.
+
+
+Key contents
+
+
+Conjunction → sequence of instructions
+
+
+Disjunction → blocks + choice points
+
+
+Fact access → loop blocks
+
+
+Predicate call → call blocks / frames
+
+
+Variable → slot mapping
+
+
+Index selection rules
+
+
+
+
+
+
+---
+
+
+7. CodeGeneration.md
+
+
+Purpose
+Defines how execution plans are translated into C# source code.
+
+
+Key contents
+
+
+Emitter structure and responsibilities
+
+
+Mapping PlanBlocks → labels and statements
+
+
+Inline unification generation
+
+
+Control flow emission (goto, labels)
+
+
+Generated method structure
+
+
+Naming and symbol generation rules
+
+
+
+
+
+
+---
+
+
+8. StateModel.md
+
+
+Purpose
+Defines the runtime state representation for predicate execution.
+
+
+Key contents
+
+
+Generated typed state struct layout
+
+
+Variable fields and _bound flags
+
+
+Slot identity mapping
+
+
+Lifetime and initialization rules
+
+
+Memory layout considerations
+
+
+
+
+
+
+---
+
+
+9. Unification.md
+
+
+Purpose
+Defines the semantics and implementation of unification.
+
+
+Key contents
+
+
+Slot–value unification
+
+
+Slot–slot unification
+
+
+Type-specialized equality
+
+
+Binding rules and failure conditions
+
+
+Optional aliasing model (union-find)
+
+
+
+
+
+
+---
+
+
+10. Backtracking.md
+
+
+Purpose
+Defines backtracking mechanics and choice point handling.
+
+
+Key contents
+
+
+Choice point structure
+
+
+Trail structure and unwind semantics
+
+
+Fail/Resume control flow
+
+
+Integration with generated labels
+
+
+Interaction with loops and calls
+
+
+
+
+
+
+---
+
+
+11. FactStorage.md
+
+
+Purpose
+Defines how facts are stored and accessed at runtime.
+
+
+Key contents
+
+
+Fact table structures
+
+
+Full scan vs indexed access
+
+
+Index structures (e.g., dictionaries)
+
+
+Data layout and access patterns
+
+
+Integration with execution plan loops
+
+
+
+
+
+
+---
+
+
+12. PredicateInvocation.md
+
+
+Purpose
+Defines how predicates are invoked and composed.
+
+
+Key contents
+
+
+Call semantics
+
+
+Argument passing (slot/value mapping)
+
+
+Frame/state machine structure
+
+
+Multi-result iteration (MoveNext)
+
+
+Integration with backtracking
+
+
+
+
+
+
+---
+
+
+13. ResultProjection.md
+
+
+Purpose
+Defines how query results are materialized and returned.
+
+
+Key contents
+
+
+Mapping TerminalVar<T> to output
+
+
+Generated result types
+
+
+Projection rules
+
+
+Yield semantics (IEnumerable<T>)
+
+
+Future extensibility for explicit projection
+
+
+
+
+
+
+---
+
+
+14. Optimization.md
+
+
+Purpose
+Defines compile-time and runtime optimizations.
+
+
+Key contents
+
+
+Index selection
+
+
+Goal ordering (basic planning)
+
+
+Redundant operation elimination
+
+
+Inlining vs call decisions
+
+
+Field access and temporary hoisting
+
+
+
+
+
+
+---
+
+
+15. Diagnostics.md
+
+
+Purpose
+Defines error handling, validation, and developer feedback.
+
+
+Key contents
+
+
+Compile-time diagnostics (invalid DSL usage)
+
+
+Type errors and unsupported constructs
+
+
+Source generator error reporting
+
+
+Debug/trace hooks (optional)
+
+
+Plan/IR inspection outputs

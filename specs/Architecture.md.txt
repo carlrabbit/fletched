@@ -1,0 +1,484 @@
+﻿Architecture.md
+
+
+1. Overview
+
+
+Defines the end-to-end compilation and execution architecture from embedded DSL to generated execution code.
+The system is a staged pipeline producing fully compiled, typed, backtracking-capable execution methods.
+
+
+---
+
+
+2. Core Concepts / Data Structures
+
+
+Pipeline
+
+
+DSL (C# + attributes)
+→ Semantic Model
+→ IR (ExprNode)
+→ Execution Plan (PlanBlock)
+→ Code Generation
+→ Compiled Execution Method
+
+
+---
+
+
+Semantic Layer
+
+
+abstract record SemanticNode;
+
+
+- Represents resolved DSL constructs
+- Contains symbols, types, and member bindings
+
+
+---
+
+
+IR Layer
+
+
+abstract record ExprNode;
+
+
+record VarNode(string Name, Type Type) : ExprNode;
+record ConstNode(object? Value, Type Type) : ExprNode;
+record FieldNode(ExprNode Target, MemberInfo Member, Type Type) : ExprNode;
+
+
+record UnifyNode(ExprNode Left, ExprNode Right) : ExprNode;
+record ConjNode(IReadOnlyList<ExprNode> Parts) : ExprNode;
+record DisjNode(ExprNode Left, ExprNode Right) : ExprNode;
+
+
+record ConstraintNode(MethodInfo Method, IReadOnlyList<ExprNode> Args) : ExprNode;
+
+
+---
+
+
+Execution Plan Layer
+
+
+record PlanBlock(
+    string Label,
+    IReadOnlyList<PlanInstruction> Instructions,
+    PlanTerminator Terminator
+);
+
+
+---
+
+
+Instructions
+
+
+abstract record PlanInstruction;
+
+
+record UnifyInstr(PlanValue Left, PlanValue Right) : PlanInstruction;
+
+
+record ConstraintInstr(
+    MethodInfo Method,
+    IReadOnlyList<PlanValue> Args
+) : PlanInstruction;
+
+
+record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
+
+
+---
+
+
+Terminators
+
+
+abstract record PlanTerminator;
+
+
+record Goto(string Target) : PlanTerminator;
+
+
+record Choice(string NextLabel, string AlternativeLabel) : PlanTerminator;
+
+
+record Succeed() : PlanTerminator;
+
+
+record Fail() : PlanTerminator;
+
+
+---
+
+
+Values
+
+
+abstract record PlanValue;
+
+
+record SlotValue(int Slot, Type Type) : PlanValue;
+
+
+record ConstValue(object? Value, Type Type) : PlanValue;
+
+
+record FieldValue(
+    PlanValue Target,
+    MemberInfo Member,
+    Type Type
+) : PlanValue;
+
+
+---
+
+
+State Model
+
+
+ref struct State
+{
+    // per-variable fields
+    public T value;
+    public bool value_bound;
+
+
+    // per-predicate
+    public Trail Trail;
+}
+
+
+---
+
+
+Runtime Structures
+
+
+struct ChoicePoint
+{
+    public int LabelId;
+    public int TrailTop;
+}
+
+
+struct Trail
+{
+    Span<SlotId> Entries;
+    int Top;
+}
+
+
+---
+
+
+Fact Storage
+
+
+sealed class FactTable<T>
+{
+    public T[] Data;
+}
+
+
+---
+
+
+Predicate Frame
+
+
+struct PredicateFrame
+{
+    int state;
+
+
+    bool MoveNext(ref State state);
+}
+
+
+---
+
+
+3. Rules and Invariants
+
+
+General
+
+
+- All DSL constructs must be fully resolved before IR generation
+- IR contains no control flow side effects
+- Execution Plan contains no symbolic variables
+
+
+---
+
+
+IR
+
+
+- All variables are typed
+- Conjunctions are flattened
+- Field access is resolved to "MemberInfo"
+- No slot indices exist in IR
+
+
+---
+
+
+Execution Plan
+
+
+- All variables are mapped to slots
+- All control flow is explicit via "PlanTerminator"
+- "PlanInstruction" must not alter control flow
+- Each "PlanBlock" has exactly one terminator
+- All block labels are unique
+
+
+---
+
+
+State
+
+
+- Each slot maps to exactly one typed field
+- Each field has a corresponding "_bound" flag
+- Binding must be recorded in "Trail" before mutation
+- Unbound state must be representable
+
+
+---
+
+
+Unification
+
+
+- Unification is symmetric
+- Binding occurs only when target slot is unbound
+- Bound values must be compared using type-specific equality
+- Failure must immediately transfer control to "Fail"
+
+
+---
+
+
+Backtracking
+
+
+- Every choice point stores:
+  - continuation label
+  - trail position
+- Trail must be unwound before resuming alternative execution
+- No state mutation is allowed without trail registration
+
+
+---
+
+
+Fact Access
+
+
+- Fact iteration must be represented as explicit control flow
+- Indexed access must only be used when key is bound
+- Full scan must be used as fallback
+
+
+---
+
+
+Predicate Invocation
+
+
+- Predicate calls must support multiple results
+- Execution state must be resumable
+- Caller state must not be corrupted by callee failure
+
+
+---
+
+
+4. Execution / Behavior
+
+
+Control Flow Model
+
+
+Start → Block → ... → Succeed
+                 ↘ Fail → Resume → Alternative
+
+
+---
+
+
+Execution Loop
+
+
+while (true)
+{
+    ExecuteBlocks(ref state);
+
+
+    yield return Project(state);
+
+
+    if (!Backtrack(ref state))
+        yield break;
+}
+
+
+---
+
+
+Backtracking
+
+
+bool Backtrack(ref State state)
+{
+    if (!choicePoints.TryPop(out var cp))
+        return false;
+
+
+    state.Trail.UnwindTo(cp.TrailTop);
+    goto cp.Label;
+}
+
+
+---
+
+
+Unification (Typed)
+
+
+if (!state.name_bound)
+{
+    state.Trail.Push(NameSlot);
+    state.name = value;
+    state.name_bound = true;
+}
+else if (state.name != value)
+{
+    goto Fail;
+}
+
+
+---
+
+
+Disjunction
+
+
+cps.Push(new ChoicePoint { Label = L_B, TrailTop = state.TrailTop });
+goto L_A;
+
+
+L_B:
+state.Trail.UnwindTo(...);
+
+
+---
+
+
+Fact Loop
+
+
+int index = 0;
+
+
+L_Check:
+if (index >= data.Length) goto Fail;
+
+
+cps.Push(new ChoicePoint { Label = L_Next, TrailTop = state.TrailTop });
+
+
+state.user = data[index];
+state.user_bound = true;
+
+
+goto Body;
+
+
+L_Next:
+index++;
+goto L_Check;
+
+
+---
+
+
+5. Examples
+
+
+DSL
+
+
+[Predicate]
+partial record struct AdminUsers
+{
+    [PredicateBody]
+    LogicExpr<bool> Body(TerminalVar<string> name) =>
+        With<User, Admin>((user, admin) =>
+            user.Name == name &&
+            user.Login == admin.Login
+        );
+}
+
+
+---
+
+
+IR
+
+
+Conj
+├── Unify(Field(user, Name), name)
+└── Unify(Field(user, Login), Field(admin, Login))
+
+
+---
+
+
+Execution Plan (simplified)
+
+
+Block L0:
+  Unify user.Name ↔ name
+  Unify user.Login ↔ admin.Login
+  → Succeed
+
+
+---
+
+
+Generated Code (simplified)
+
+
+L0:
+if (!state.name_bound)
+{
+    state.Trail.Push(NameSlot);
+    state.name = state.user.Name;
+    state.name_bound = true;
+}
+else if (state.name != state.user.Name)
+{
+    goto Fail;
+}
+
+
+if (state.user.Login != state.admin.Login)
+{
+    goto Fail;
+}
+
+
+goto Success;
+
+
+---

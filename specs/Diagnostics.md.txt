@@ -1,0 +1,240 @@
+Diagnostics.md
+
+1. Overview
+
+Defines compile-time diagnostics, validation rules, and debug inspection outputs for the DSL, IR, and execution plan. Diagnostics are produced exclusively during source generation.
+
+---
+
+2. Core Concepts / Data Structures
+
+Diagnostic Descriptor
+
+enum DiagnosticSeverity
+{
+    Info,
+    Warning,
+    Error
+}
+
+record DiagnosticDescriptor(
+    string Id,
+    string Title,
+    string MessageFormat,
+    DiagnosticSeverity Severity
+);
+
+---
+
+Diagnostic Instance
+
+record Diagnostic(
+    DiagnosticDescriptor Descriptor,
+    Location Location,
+    string Message
+);
+
+---
+
+Diagnostic Registry
+
+static class DiagnosticsCatalog
+{
+    public static readonly DiagnosticDescriptor InvalidPredicateBody;
+    public static readonly DiagnosticDescriptor UnsupportedExpression;
+    public static readonly DiagnosticDescriptor TypeMismatch;
+    public static readonly DiagnosticDescriptor UnboundTerminalVar;
+    public static readonly DiagnosticDescriptor InvalidFactType;
+    public static readonly DiagnosticDescriptor InvalidMemberAccess;
+    public static readonly DiagnosticDescriptor InvalidConstraint;
+    public static readonly DiagnosticDescriptor DuplicateVariable;
+    public static readonly DiagnosticDescriptor InvalidPredicateCall;
+}
+
+---
+
+Debug Output Structures
+
+record IrDebugView(string Text);
+record PlanDebugView(string Text);
+
+---
+
+3. Rules and Invariants
+
+General
+
+- Diagnostics are emitted only during source generation.
+- No runtime diagnostics are generated.
+- All errors prevent code generation for the affected predicate.
+- Warnings do not prevent code generation.
+- Each diagnostic must reference a precise "Location".
+
+---
+
+DSL Validation
+
+- "[PredicateBody]" method must return "LogicExpr<T>"
+  → otherwise: "InvalidPredicateBody"
+
+- Only supported operators are allowed ("==", "&&", "||")
+  → otherwise: "UnsupportedExpression"
+
+- "TerminalVar<T>" must appear only as method parameters
+  → otherwise: "InvalidPredicateBody"
+
+- All "TerminalVar<T>" must be bound in all execution paths
+  → otherwise: "UnboundTerminalVar"
+
+---
+
+Type Rules
+
+- Unification operands must have compatible types
+  → otherwise: "TypeMismatch"
+
+- Constraint method arguments must match method signature
+  → otherwise: "InvalidConstraint"
+
+---
+
+Fact Rules
+
+- "[Fact]" types must be "record struct"
+  → otherwise: "InvalidFactType"
+
+- Fact members must be readable properties or fields
+  → otherwise: "InvalidMemberAccess"
+
+---
+
+Variable Rules
+
+- Variable names must be unique within scope
+  → otherwise: "DuplicateVariable"
+
+- Variables must not escape their defining scope
+  → otherwise: "InvalidPredicateBody"
+
+---
+
+Predicate Invocation
+
+- Called predicate must exist and be annotated with "[Predicate]"
+  → otherwise: "InvalidPredicateCall"
+
+- Argument count and types must match definition
+  → otherwise: "InvalidPredicateCall"
+
+---
+
+4. Execution / Behavior
+
+Diagnostic Emission
+
+- Diagnostics are collected during:
+  
+  - SemanticModel construction
+  - IR construction
+  - Lowering to Execution Plan
+
+- Emission API:
+
+void Report(Diagnostic diagnostic);
+
+---
+
+Generation Guard
+
+if (HasErrors)
+{
+    SkipCodeGeneration(predicate);
+}
+
+---
+
+Debug Output Generation
+
+- IR and Execution Plan may be emitted as debug artifacts:
+
+IrDebugView GenerateIrView(ExprNode root);
+PlanDebugView GeneratePlanView(PlanProgram plan);
+
+- Output format is deterministic and stable.
+
+---
+
+5. Examples
+
+Invalid Predicate Body
+
+Input
+
+bool Body(TerminalVar<string> name) => true;
+
+Diagnostic
+
+Id: InvalidPredicateBody
+Message: PredicateBody must return LogicExpr<T>
+
+---
+
+Type Mismatch
+
+Input
+
+user.Name == 42
+
+Diagnostic
+
+Id: TypeMismatch
+Message: Cannot unify string with int
+
+---
+
+Unbound TerminalVar
+
+Input
+
+LogicExpr<bool> Body(TerminalVar<string> name) =>
+    With<User>(user => user.Login == "admin");
+
+Diagnostic
+
+Id: UnboundTerminalVar
+Message: Terminal variable 'name' is not bound in all execution paths
+
+---
+
+Invalid Predicate Call
+
+Input
+
+UnknownPredicate(name)
+
+Diagnostic
+
+Id: InvalidPredicateCall
+Message: Predicate 'UnknownPredicate' not found
+
+---
+
+IR Debug Output
+
+Unify(
+  Field(Slot(user), Name),
+  Slot(name)
+)
+
+---
+
+Plan Debug Output
+
+L0:
+  Unify user.Name name
+  Goto L1
+
+L1:
+  Succeed
+
+---
