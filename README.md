@@ -129,7 +129,7 @@ This project explores a different point in the design space:
 
 ---
 
-More detailed design documents (IR, execution model, trade-offs) are available in the repository.
+More detailed design documents (IR, execution model, trade-offs) are available in the repository under specs/.
 
 # Name origin - Claude 
 
