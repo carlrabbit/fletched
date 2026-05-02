@@ -1,0 +1,11 @@
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.csproj.AssemblyReference.cache
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.AssemblyInfoInputs.cache
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.AssemblyInfo.cs
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.csproj.CoreCompileInputs.cache
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.sourcelink.json
+/home/runner/work/fletched/fletched/src/Fletched.Core/bin/Debug/netstandard2.0/Fletched.Core.deps.json
+/home/runner/work/fletched/fletched/src/Fletched.Core/bin/Debug/netstandard2.0/Fletched.Core.dll
+/home/runner/work/fletched/fletched/src/Fletched.Core/bin/Debug/netstandard2.0/Fletched.Core.pdb
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.dll
+/home/runner/work/fletched/fletched/src/Fletched.Core/obj/Debug/netstandard2.0/Fletched.Core.pdb

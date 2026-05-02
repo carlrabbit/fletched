@@ -1,0 +1,14 @@
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.csproj.AssemblyReference.cache
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.GeneratedMSBuildEditorConfig.editorconfig
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.AssemblyInfoInputs.cache
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.AssemblyInfo.cs
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.csproj.CoreCompileInputs.cache
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.sourcelink.json
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/bin/Debug/netstandard2.0/Fletched.Roslyn.deps.json
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/bin/Debug/netstandard2.0/Fletched.Roslyn.dll
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/bin/Debug/netstandard2.0/Fletched.Roslyn.pdb
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/bin/Debug/netstandard2.0/Fletched.Core.dll
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/bin/Debug/netstandard2.0/Fletched.Core.pdb
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.0776FE2D.Up2Date
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.dll
+/home/runner/work/fletched/fletched/src/Fletched.Roslyn/obj/Debug/netstandard2.0/Fletched.Roslyn.pdb

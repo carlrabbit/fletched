@@ -279,7 +279,7 @@
       },
       "Fletched.Core/1.0.0": {
         "type": "project",
-        "framework": "Unsupported,Version=v0.0",
+        "framework": ".NETStandard,Version=v2.0",
         "compile": {
           "bin/placeholder/Fletched.Core.dll": {}
         },
@@ -1501,16 +1501,5 @@
         "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/10.0.201/RuntimeIdentifierGraph.json"
       }
     }
-  },
-  "logs": [
-    {
-      "code": "NU1201",
-      "level": "Error",
-      "message": "Project Fletched.Core is not compatible with netstandard2.0 (.NETStandard,Version=v2.0). Project Fletched.Core supports: net10.0 (.NETCoreApp,Version=v10.0)",
-      "libraryId": "Fletched.Core",
-      "targetGraphs": [
-        "netstandard2.0"
-      ]
-    }
-  ]
+  }
 }
