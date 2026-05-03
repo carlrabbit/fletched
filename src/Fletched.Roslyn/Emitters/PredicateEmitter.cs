@@ -160,7 +160,7 @@ public sealed class PredicateEmitter
 
     private void EmitExecuteMethod(EmitContext ctx)
     {
-        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{_model.Name}Result> Execute(global::Fletched.Core.Runtime.EngineContext ctx)");
+        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{_model.Name}Result> Execute(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
@@ -187,6 +187,8 @@ public sealed class PredicateEmitter
                 using (ctx.Indent())
                     ctx.AppendLine("goto End;");
                 ctx.AppendLine("state.Unwind(_cp.TrailTop);");
+                ctx.AppendMetricIncrement("BacktrackCount");
+                ctx.AppendLine("observer?.OnBacktrack();");
                 ctx.AppendLine("switch (_cp.LabelId)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
@@ -271,6 +273,8 @@ public sealed class PredicateEmitter
 
             case IndexInitInstr init:
                 ctx.AppendLine($"{init.IndexVar} = 0;");
+                ctx.AppendMetricIncrement("FactScans");
+                ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
                 break;
 
             case LoopBindInstr bind:
@@ -305,7 +309,9 @@ public sealed class PredicateEmitter
         string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string resultVar = $"_callResult_{call.PredicateType.Name}";
 
-        ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).Execute(ctx))");
+        ctx.AppendMetricIncrement("PredicateInvocations");
+        ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
+        ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).Execute(ctx, observer))");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
@@ -407,6 +413,8 @@ public sealed class PredicateEmitter
     private void EmitSlotConstUnify(string slotName, string value, EmitContext ctx)
     {
         int slot = _slots.First(s => s.Name == slotName).Slot;
+        ctx.AppendMetricIncrement("UnifyAttempts");
+        ctx.AppendLine($"observer?.OnUnify({slot});");
         ctx.AppendLine($"if (!state.{slotName}_bound)");
         ctx.AppendLine("{");
         using (ctx.Indent())
@@ -416,13 +424,23 @@ public sealed class PredicateEmitter
             ctx.AppendLine($"state.{slotName}_bound = true;");
         }
         ctx.AppendLine("}");
-        ctx.AppendLine($"else if (!object.Equals(state.{slotName}, {value})) goto Fail;");
+        ctx.AppendLine($"else if (!object.Equals(state.{slotName}, {value}))");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendMetricIncrement("UnifyFailures");
+            ctx.AppendLine($"observer?.OnUnifyFailure({slot});");
+            ctx.AppendLine("goto Fail;");
+        }
+        ctx.AppendLine("}");
     }
 
     private void EmitSlotSlotUnify(string a, string b, EmitContext ctx)
     {
         int slotA = _slots.First(s => s.Name == a).Slot;
         int slotB = _slots.First(s => s.Name == b).Slot;
+        ctx.AppendMetricIncrement("UnifyAttempts");
+        ctx.AppendLine($"observer?.OnUnify({slotA});");
         ctx.AppendLine($"if (!state.{a}_bound && !state.{b}_bound) {{ /* both unbound - no-op */ }}");
         ctx.AppendLine($"else if (!state.{a}_bound)");
         ctx.AppendLine("{");
@@ -442,7 +460,15 @@ public sealed class PredicateEmitter
             ctx.AppendLine($"state.{b}_bound = true;");
         }
         ctx.AppendLine("}");
-        ctx.AppendLine($"else if (!object.Equals(state.{a}, state.{b})) goto Fail;");
+        ctx.AppendLine($"else if (!object.Equals(state.{a}, state.{b}))");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendMetricIncrement("UnifyFailures");
+            ctx.AppendLine($"observer?.OnUnifyFailure({slotA});");
+            ctx.AppendLine("goto Fail;");
+        }
+        ctx.AppendLine("}");
     }
 
     private void EmitConstraint(ConstraintInstr c, EmitContext ctx)
@@ -496,6 +522,8 @@ public sealed class PredicateEmitter
             case ChoiceTerm choice:
             {
                 int altId = _labelIds.TryGetValue(choice.AlternativeLabel, out int id) ? id : -1;
+                ctx.AppendMetricIncrement("ChoicePointCount");
+                ctx.AppendLine("observer?.OnChoicePoint();");
                 ctx.AppendLine($"cps.Push(new global::Fletched.Core.Runtime.ChoicePoint {{ LabelId = {altId}, TrailTop = state.Trail.Top }});");
                 ctx.AppendLine($"goto L_{choice.NextLabel};");
                 break;

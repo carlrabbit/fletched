@@ -267,7 +267,7 @@ public sealed class IrLowerer
 
             // L_init: index = 0, goto L_check
             ctx.AddBlock(new PlanBlock(initLabel,
-                new PlanInstruction[] { new IndexInitInstr(idxVar) },
+                new PlanInstruction[] { new IndexInitInstr(idxVar, variable.Type) },
                 new GotoTerm(checkLabel)));
 
             // L_check: if idx >= Data.Length → Fail else → L_bind

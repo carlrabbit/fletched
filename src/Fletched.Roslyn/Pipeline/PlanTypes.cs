@@ -31,7 +31,12 @@ public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
 public record CompInstr(CompOp Op, PlanValue Left, PlanValue Right) : PlanInstruction;
 
 /// <summary>Loop-specific instructions (generator-internal).</summary>
-public record IndexInitInstr(string IndexVar) : PlanInstruction;
+public record IndexInitInstr(string IndexVar,
+    /// <summary>
+    /// The fact type being scanned. Provided to the emitter so it can include the
+    /// type name in <c>IExecutionObserver.OnFactScan</c> observer callbacks.
+    /// </summary>
+    ITypeSymbol FactType) : PlanInstruction;
 public record LoopBindInstr(int Slot, string IndexVar, ITypeSymbol FactType) : PlanInstruction;
 public record IndexIncrInstr(string IndexVar) : PlanInstruction;
 

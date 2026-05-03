@@ -4,4 +4,6 @@
   <Project Path="tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj" />
   <Project Path="tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj" />
   <Project Path="tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj" />
+  <Project Path="tests/Fletched.Performance.Tests/Fletched.Performance.Tests.csproj" />
+  <Project Path="benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj" />
 </Solution>
