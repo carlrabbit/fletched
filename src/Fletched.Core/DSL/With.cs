@@ -58,4 +58,18 @@ public static class Logic
     /// </summary>
     public static LogicExpr<bool> AllDistinct<T>(LogicExpr<T[]> values) =>
         new(new AllDistinctNode(values.Node!, typeof(T)));
+
+    /// <summary>
+    /// Creates an empty logical list of type <typeparamref name="T"/>.
+    /// Produces a <see cref="ListEmptyNode"/> in the IR.
+    /// </summary>
+    public static LogicExpr<LogicList<T>> Empty<T>() =>
+        new(new ListEmptyNode(typeof(T)));
+
+    /// <summary>
+    /// Creates a cons cell logical list with the given head and tail.
+    /// Produces a <see cref="ListConsNode"/> in the IR.
+    /// </summary>
+    public static LogicExpr<LogicList<T>> Cons<T>(LogicExpr<T> head, LogicExpr<LogicList<T>> tail) =>
+        new(new ListConsNode(head.Node!, tail.Node!));
 }

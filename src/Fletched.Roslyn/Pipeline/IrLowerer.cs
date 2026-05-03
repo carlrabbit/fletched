@@ -359,6 +359,13 @@ public sealed class IrLowerer
                     SymbolDisplayString(f.FieldType));
             case ArithExpr a:
                 return new ArithValue(a.Op, LowerValue(a.Left, ctx), LowerValue(a.Right, ctx));
+            case ListEmptyExpr e:
+                return new ListEmptyValue(SymbolDisplayString(e.ElementType));
+            case ListConsExpr c:
+                return new ListConsValue(
+                    LowerValue(c.Head, ctx),
+                    LowerValue(c.Tail, ctx),
+                    SymbolDisplayString(c.ElementType));
             default:
                 return new ConstValue(null, "object");
         }
