@@ -51,7 +51,7 @@ jobs:
         if: always()
         uses: danielpalme/ReportGenerator-GitHub-Action@5.5.1
         with:
-          reports: './TestResults/*.cobertura.xml'
+          reports: 'tests/**/bin/Release/net10.0/TestResults/*.cobertura.xml'
           targetdir: './TestResults/coverage-report'
           reporttypes: 'Html'
 
