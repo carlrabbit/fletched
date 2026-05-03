@@ -187,10 +187,15 @@ public sealed class IrLowerer
 
     private PlanBlock? LowerWith(WithExpr with, LoweringContext ctx, out string? startLabel)
     {
-        // Each variable in the With gets its own slot + loop
-        // For multiple variables, we nest loops
+        // Each variable in the With gets its own slot + loop.
+        // For multiple variables we nest loops: the outer loop's "body" block
+        // simply redirects to the next inner loop's init, and only the innermost
+        // body block contains the actual predicate body instructions.
         startLabel = null;
         string? outerStart = null;
+
+        var bodyLabels = new List<string>();
+        var initLabels = new List<string>();
 
         foreach (VariableSymbol variable in with.Variables)
         {
@@ -203,6 +208,9 @@ public sealed class IrLowerer
             string idxVar = ctx.NextIndexVar();
 
             if (outerStart is null) outerStart = initLabel;
+
+            bodyLabels.Add(bodyLabel);
+            initLabels.Add(initLabel);
 
             // L_init: index = 0, goto L_check
             ctx.AddBlock(new PlanBlock(initLabel,
@@ -218,23 +226,25 @@ public sealed class IrLowerer
                 new PlanInstruction[] { new LoopBindInstr(slot, idxVar, variable.Type) },
                 new ChoiceTerm(bodyLabel, nextLabel, slot)));
 
-            // L_body: lower body, then Succeed
-            // The body block is inserted after the loop preamble
-            string bodyBlockLabel = bodyLabel;
-            ctx.PushLoopContext(bodyBlockLabel, nextLabel, idxVar);
-
             // L_next: idx++, goto L_check
             ctx.AddBlock(new PlanBlock(nextLabel,
                 new PlanInstruction[] { new IndexIncrInstr(idxVar) },
                 new GotoTerm(checkLabel)));
         }
 
-        // Now lower the body inside the loop context
+        // Chain nested loops: each outer body block redirects to the next inner loop's init.
+        for (int i = 0; i < bodyLabels.Count - 1; i++)
+        {
+            ctx.AddBlock(new PlanBlock(bodyLabels[i],
+                Array.Empty<PlanInstruction>(),
+                new GotoTerm(initLabels[i + 1])));
+        }
+
+        // The innermost body block holds the actual predicate body instructions.
         var bodyInstructions = new List<PlanInstruction>();
         AppendInstructions(with.Body, ctx, bodyInstructions);
 
-        string bodyLabel2 = ctx.PopLoopContext() ?? ctx.NextLabel("body");
-        ctx.AddBlock(new PlanBlock(bodyLabel2, bodyInstructions, new SucceedTerm()));
+        ctx.AddBlock(new PlanBlock(bodyLabels[bodyLabels.Count - 1], bodyInstructions, new SucceedTerm()));
 
         startLabel = outerStart;
         return ctx.FindBlock(outerStart!);
