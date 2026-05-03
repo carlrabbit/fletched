@@ -30,21 +30,21 @@ jobs:
         run: >
           dotnet run --no-build -c Release
           --project tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
+          --coverage --coverage-output-format cobertura
           --coverage-output ./TestResults/Fletched.Core.Tests.cobertura.xml
 
       - name: Test — Features
         run: >
           dotnet run --no-build -c Release
           --project tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
+          --coverage --coverage-output-format cobertura
           --coverage-output ./TestResults/Fletched.Features.Tests.cobertura.xml
 
       - name: Test — Integration
         run: >
           dotnet run --no-build -c Release
           --project tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
+          --coverage --coverage-output-format cobertura
           --coverage-output ./TestResults/Fletched.Integration.Tests.cobertura.xml
 
       - name: Generate coverage report
