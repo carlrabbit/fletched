@@ -73,73 +73,101 @@ public partial record struct DisjunctionScan
     // These values were captured from the current pipeline output.
     // Update them intentionally when the generator changes in a meaningful way.
 
-    private static readonly PerformanceBaseline SimpleScanBaseline =
-        PipelineHelper.ComputeBaseline("Perf.SimpleScan", SimpleScanSource);
+    // Lazy so that each baseline is only computed when a relevant test runs.
+    private static readonly Lazy<PerformanceBaseline> LazySimpleScan =
+        new(() => PipelineHelper.ComputeBaseline("Perf.SimpleScan", SimpleScanSource));
 
-    private static readonly PerformanceBaseline FilteredScanBaseline =
-        PipelineHelper.ComputeBaseline("Perf.FilteredScan", FilteredScanSource);
+    private static readonly Lazy<PerformanceBaseline> LazyFilteredScan =
+        new(() => PipelineHelper.ComputeBaseline("Perf.FilteredScan", FilteredScanSource));
 
-    private static readonly PerformanceBaseline DisjunctionBaseline =
-        PipelineHelper.ComputeBaseline("Perf.DisjunctionScan", DisjunctionSource);
+    private static readonly Lazy<PerformanceBaseline> LazyDisjunction =
+        new(() => PipelineHelper.ComputeBaseline("Perf.DisjunctionScan", DisjunctionSource));
+
+    // Captured values; update intentionally if the generator pipeline changes.
+    private const int SimpleScanExpectedIRNodeCount = 5;
+    private const int SimpleScanExpectedInstructions = 4;
+
+    private const int FilteredScanExpectedIRNodeCount = 10;
+    private const int FilteredScanExpectedInstructions = 5;
+
+    private const int DisjunctionExpectedIRNodeCount = 20;
+    private const int DisjunctionExpectedInstructions = 7;
 
     // ── SimpleScan baseline ──────────────────────────────────────────────────
 
     [Test]
-    public async Task SimpleScan_IRNodeCount_MatchesBaseline()
+    public async Task SimpleScan_IRNodeCount_MatchesExpected()
     {
-        await Assert.That(SimpleScanBaseline.IRNodeCount)
-            .IsEqualTo(SimpleScanBaseline.IRNodeCount); // self-check: baseline computed once
+        await Assert.That(LazySimpleScan.Value.IRNodeCount)
+            .IsEqualTo(SimpleScanExpectedIRNodeCount);
     }
 
     [Test]
-    public async Task SimpleScan_IRNodeCount_IsPositive()
+    public async Task SimpleScan_PlanInstructionCount_MatchesExpected()
     {
-        await Assert.That(SimpleScanBaseline.IRNodeCount).IsGreaterThan(0);
-    }
-
-    [Test]
-    public async Task SimpleScan_PlanInstructionCount_IsPositive()
-    {
-        await Assert.That(SimpleScanBaseline.PlanInstructionCount).IsGreaterThan(0);
+        await Assert.That(LazySimpleScan.Value.PlanInstructionCount)
+            .IsEqualTo(SimpleScanExpectedInstructions);
     }
 
     [Test]
     public async Task SimpleScan_GeneratedLOC_IsPositive()
     {
-        await Assert.That(SimpleScanBaseline.GeneratedLOC).IsGreaterThan(0);
+        await Assert.That(LazySimpleScan.Value.GeneratedLOC).IsGreaterThan(0);
     }
 
     // ── FilteredScan baseline ────────────────────────────────────────────────
 
     [Test]
-    public async Task FilteredScan_HasMoreInstructionsThanSimpleScan()
+    public async Task FilteredScan_IRNodeCount_MatchesExpected()
     {
-        // A predicate with an extra constraint must produce at least as many instructions.
-        await Assert.That(FilteredScanBaseline.PlanInstructionCount)
-            .IsGreaterThanOrEqualTo(SimpleScanBaseline.PlanInstructionCount);
+        await Assert.That(LazyFilteredScan.Value.IRNodeCount)
+            .IsEqualTo(FilteredScanExpectedIRNodeCount);
     }
 
     [Test]
-    public async Task FilteredScan_IRNodeCount_IsPositive()
+    public async Task FilteredScan_PlanInstructionCount_MatchesExpected()
     {
-        await Assert.That(FilteredScanBaseline.IRNodeCount).IsGreaterThan(0);
+        await Assert.That(LazyFilteredScan.Value.PlanInstructionCount)
+            .IsEqualTo(FilteredScanExpectedInstructions);
+    }
+
+    [Test]
+    public async Task FilteredScan_HasMoreInstructionsThanSimpleScan()
+    {
+        // A predicate with an extra constraint must produce at least as many instructions.
+        await Assert.That(LazyFilteredScan.Value.PlanInstructionCount)
+            .IsGreaterThanOrEqualTo(LazySimpleScan.Value.PlanInstructionCount);
     }
 
     // ── Disjunction baseline ─────────────────────────────────────────────────
 
     [Test]
+    public async Task Disjunction_IRNodeCount_MatchesExpected()
+    {
+        await Assert.That(LazyDisjunction.Value.IRNodeCount)
+            .IsEqualTo(DisjunctionExpectedIRNodeCount);
+    }
+
+    [Test]
+    public async Task Disjunction_PlanInstructionCount_MatchesExpected()
+    {
+        await Assert.That(LazyDisjunction.Value.PlanInstructionCount)
+            .IsEqualTo(DisjunctionExpectedInstructions);
+    }
+
+    [Test]
     public async Task Disjunction_HasMoreInstructionsThanSimpleScan()
     {
         // Disjunction requires choice-point machinery and two branches.
-        await Assert.That(DisjunctionBaseline.PlanInstructionCount)
-            .IsGreaterThan(SimpleScanBaseline.PlanInstructionCount);
+        await Assert.That(LazyDisjunction.Value.PlanInstructionCount)
+            .IsGreaterThan(LazySimpleScan.Value.PlanInstructionCount);
     }
 
     [Test]
     public async Task Disjunction_IRNodeCount_IsHigherThanSimpleScan()
     {
-        await Assert.That(DisjunctionBaseline.IRNodeCount)
-            .IsGreaterThan(SimpleScanBaseline.IRNodeCount);
+        await Assert.That(LazyDisjunction.Value.IRNodeCount)
+            .IsGreaterThan(LazySimpleScan.Value.IRNodeCount);
     }
 
     // ── Regression guard ─────────────────────────────────────────────────────
@@ -152,7 +180,7 @@ public partial record struct DisjunctionScan
         PerformanceBaseline current =
             PipelineHelper.ComputeBaseline("Perf.SimpleScan", SimpleScanSource);
 
-        double threshold = SimpleScanBaseline.GeneratedLOC * 0.9;
+        double threshold = LazySimpleScan.Value.GeneratedLOC * 0.9;
         await Assert.That(current.GeneratedLOC).IsGreaterThanOrEqualTo((int)threshold);
     }
 }

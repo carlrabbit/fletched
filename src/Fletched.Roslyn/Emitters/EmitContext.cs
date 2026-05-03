@@ -36,6 +36,18 @@ public sealed class EmitContext
     /// </summary>
     public void AppendDirective(string directive) => Code.AppendLine(directive);
 
+    /// <summary>
+    /// Emits a <c>#if METRICS … #endif</c> block that increments a counter on
+    /// <see cref="global::Fletched.Core.Performance.EngineMetrics"/>. Use this instead of
+    /// repeating the three-line pattern throughout the emitter.
+    /// </summary>
+    public void AppendMetricIncrement(string counterName)
+    {
+        AppendDirective("#if METRICS");
+        AppendLine($"global::Fletched.Core.Performance.EngineMetrics.{counterName}.Add(1);");
+        AppendDirective("#endif");
+    }
+
     public IDisposable Indent()
     {
         IndentLevel++;
