@@ -475,3 +475,31 @@ Debug/trace hooks (optional)
 
 
 Plan/IR inspection outputs
+
+
+---
+
+
+16. Lists.md
+
+
+Purpose
+Defines built-in list operations, including the Map projection.
+
+
+Key contents
+
+
+Map DSL surface and semantics
+
+
+MapNode IR representation
+
+
+MapInstr execution plan instruction
+
+
+Lowering rules for Map
+
+
+Integration with AllDistinct and other collection constraints

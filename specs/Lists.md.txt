@@ -1,0 +1,139 @@
+Lists.md
+
+
+---
+
+1. Overview
+
+Defines the Map operation — a built-in list projection that transforms a typed collection
+by applying a selector to each element.
+Map integrates with other built-in constraints (e.g. AllDistinct) via the IR layer.
+
+
+---
+
+2. Core Concepts / Data Structures
+
+DSL Surface
+
+LogicExpr<TResult[]> Map<T, TResult>(LogicExpr<T[]> collection, Func<Proxy<T>, LogicExpr<TResult>> selector);
+
+
+---
+
+IR Node
+
+record MapNode(
+    ExprNode Collection,
+    VarNode ElementVar,
+    ExprNode SelectorBody,
+    Type SourceType,
+    Type ResultType
+) : ExprNode;
+
+- Collection: the source collection expression (of type T[])
+- ElementVar: the lambda parameter variable (type T) used inside SelectorBody
+- SelectorBody: the selector expression evaluated once per element
+- SourceType: element type of the input collection (T)
+- ResultType: element type of the output collection (TResult)
+
+
+---
+
+Execution Plan Instruction
+
+record MapInstr(
+    int CollectionSlot,
+    MemberInfo Member,
+    int ResultSlot,
+    Type SourceType,
+    Type ResultType
+) : PlanInstruction;
+
+- CollectionSlot: slot index of the source array (T[])
+- Member: the member accessed on each source element
+- ResultSlot: slot index where the projected array (TResult[]) is stored
+- SourceType: element type of the input collection
+- ResultType: element type of the output collection
+
+
+---
+
+3. Rules and Invariants
+
+1. Collection MUST have an array type (T[]).
+
+
+2. ElementVar.Type MUST equal SourceType.
+
+
+3. SelectorBody MUST produce a value of ResultType.
+
+
+4. Map does not bind any logical variables — it is a pure projection.
+
+
+5. Map does not fail — it always produces a result array of the same length as the input.
+
+
+6. Map is deterministic and side-effect free.
+
+
+7. The ElementVar name is freshly generated per Map call and does not escape the selector scope.
+
+
+---
+
+4. Execution / Behavior
+
+Lowering
+
+Map(collection, elem => selector(elem))
+→ MapNode(collection, elemVar, selectorBody, SourceType, ResultType)
+→ MapInstr(collectionSlot, member, resultSlot, SourceType, ResultType)
+
+
+---
+
+Runtime Semantics
+
+TResult[] MapArray<T, TResult>(T[] source, Func<T, TResult> selector)
+{
+    var result = new TResult[source.Length];
+    for (int i = 0; i < source.Length; i++)
+        result[i] = selector(source[i]);
+    return result;
+}
+
+
+---
+
+5. Examples
+
+DSL
+
+AllDistinct(Map(board, s => s.Student))
+
+
+---
+
+IR
+
+AllDistinctNode(
+    Collection = MapNode(
+        Collection = Var(board),
+        ElementVar = Var(elem, typeof(Seat)),
+        SelectorBody = Field(Var(elem), Seat.Student),
+        SourceType = typeof(Seat),
+        ResultType = typeof(int)
+    ),
+    ElementType = typeof(int)
+)
+
+
+---
+
+Plan
+
+MapInstr(boardSlot, Seat.Student, resultSlot, typeof(Seat), typeof(int))
+AllDistinctInstr([resultSlot], typeof(int))

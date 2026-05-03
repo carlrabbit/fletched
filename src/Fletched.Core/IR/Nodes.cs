@@ -37,6 +37,14 @@ public record CallNode(Type PredicateType, IReadOnlyList<ExprNode> Arguments) : 
 /// <summary>Built-in AllDistinct constraint: all elements in the collection must be pairwise distinct.</summary>
 public record AllDistinctNode(ExprNode Collection, Type ElementType) : ExprNode;
 
+/// <summary>Projects each element of a collection using a selector expression.</summary>
+/// <param name="Collection">The source collection expression (of type <c>T[]</c>).</param>
+/// <param name="ElementVar">The lambda parameter variable representing each element.</param>
+/// <param name="SelectorBody">The selector expression evaluated for each element.</param>
+/// <param name="SourceType">The element type of the input collection (<c>T</c> in <c>T[]</c>).</param>
+/// <param name="ResultType">The element type of the output collection (<c>TResult</c> in <c>TResult[]</c>).</param>
+public record MapNode(ExprNode Collection, VarNode ElementVar, ExprNode SelectorBody, Type SourceType, Type ResultType) : ExprNode;
+
 /// <summary>Arithmetic operation kind used in the DSL.</summary>
 public enum ArithOp { Add, Subtract }
 

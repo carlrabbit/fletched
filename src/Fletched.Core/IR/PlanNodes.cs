@@ -38,6 +38,16 @@ public record CallInstr(Type PredicateType, IReadOnlyList<int> ArgumentSlots) : 
 /// <summary>Built-in AllDistinct constraint: fails if any two bound slots hold equal values.</summary>
 public record AllDistinctInstr(IReadOnlyList<int> Slots, Type ElementType) : PlanInstruction;
 
+/// <summary>
+/// Projects each element of a collection slot via a member access, storing the resulting array in a result slot.
+/// </summary>
+/// <param name="CollectionSlot">The slot index of the source array (<c>T[]</c>).</param>
+/// <param name="Member">The member accessed on each element to produce the projected value.</param>
+/// <param name="ResultSlot">The slot index where the projected array (<c>TResult[]</c>) is stored.</param>
+/// <param name="SourceType">The element type of the input collection (<c>T</c>).</param>
+/// <param name="ResultType">The element type of the output collection (<c>TResult</c>).</param>
+public record MapInstr(int CollectionSlot, MemberInfo Member, int ResultSlot, Type SourceType, Type ResultType) : PlanInstruction;
+
 // ─── PlanTerminator hierarchy ──────────────────────────────────────────────
 
 /// <summary>Base class for block terminators.</summary>

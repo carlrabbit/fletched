@@ -58,4 +58,24 @@ public static class Logic
     /// </summary>
     public static LogicExpr<bool> AllDistinct<T>(LogicExpr<T[]> values) =>
         new(new AllDistinctNode(values.Node!, typeof(T)));
+
+    /// <summary>
+    /// Projects each element of a collection using a field selector.
+    /// Returns a <see cref="LogicExpr{T}"/> of array type containing one projected value per source element.
+    /// </summary>
+    /// <typeparam name="T">The element type of the source collection.</typeparam>
+    /// <typeparam name="TResult">The element type of the projected collection.</typeparam>
+    /// <param name="collection">The source collection expression.</param>
+    /// <param name="selector">A selector applied to each element via a proxy.</param>
+    public static LogicExpr<TResult[]> Map<T, TResult>(LogicExpr<T[]> collection, Func<Proxy<T>, LogicExpr<TResult>> selector)
+    {
+        var elementProxy = new Proxy<T>(NextName());
+        LogicExpr<TResult> selectorExpr = selector(elementProxy);
+        return new LogicExpr<TResult[]>(new MapNode(
+            collection.Node!,
+            new VarNode(elementProxy.VariableName, typeof(T)),
+            selectorExpr.Node!,
+            typeof(T),
+            typeof(TResult)));
+    }
 }
