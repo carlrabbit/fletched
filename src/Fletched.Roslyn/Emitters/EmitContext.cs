@@ -30,6 +30,12 @@ public sealed class EmitContext
         Code.AppendLine(line);
     }
 
+    /// <summary>
+    /// Emits a preprocessor directive at column zero (no indentation), as required by the
+    /// C# specification.
+    /// </summary>
+    public void AppendDirective(string directive) => Code.AppendLine(directive);
+
     public IDisposable Indent()
     {
         IndentLevel++;

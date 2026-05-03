@@ -1,0 +1,71 @@
+name: Performance Testing
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  performance-tests:
+    name: Performance Tests
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:10.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore
+        run: dotnet restore Fletched.slnx
+
+      - name: Build
+        run: dotnet build Fletched.slnx -c Release --no-restore
+
+      - name: Test — Performance
+        run: >
+          dotnet run --no-build -c Release
+          --project tests/Fletched.Performance.Tests/Fletched.Performance.Tests.csproj
+          -- --coverage --coverage-output-format cobertura
+          --coverage-output ./Fletched.Performance.Tests.cobertura.xml
+
+      - name: Upload performance test report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: performance-test-report
+          path: tests/Fletched.Performance.Tests/bin/Release/net10.0/TestResults/*.html
+          if-no-files-found: warn
+
+  benchmarks:
+    name: Benchmarks
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:10.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Restore
+        run: dotnet restore benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj
+
+      - name: Build (Release)
+        run: >
+          dotnet build benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj
+          -c Release --no-restore
+
+      - name: Run benchmarks
+        run: >
+          dotnet run --no-build -c Release
+          --project benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj
+          -- --filter '*' --exporters json --artifacts ./BenchmarkResults
+
+      - name: Upload benchmark results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results
+          path: BenchmarkResults/**
+          if-no-files-found: warn
