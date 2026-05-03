@@ -265,6 +265,18 @@ public sealed class SemanticAnalyzer
             {
                 return AnalyzeWith(inv, method);
             }
+
+            // Check if it's Logic.Empty<T>()
+            if (method.Name == "Empty" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeListEmpty(method);
+            }
+
+            // Check if it's Logic.Cons<T>(head, tail)
+            if (method.Name == "Cons" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeListCons(inv, method);
+            }
         }
 
         // Check if the invocation target is itself a [Predicate]-annotated type
@@ -581,5 +593,53 @@ public sealed class SemanticAnalyzer
             }
         }
         return false;
+    }
+
+    /// <summary>Analyzes a <c>Logic.Empty&lt;T&gt;()</c> call and returns a <see cref="ListEmptyExpr"/>.</summary>
+    private SemanticExpr? AnalyzeListEmpty(IMethodSymbol method)
+    {
+        if (method.TypeArguments.Length != 1)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, null,
+                "Logic.Empty<T>() requires exactly one type argument");
+            return null;
+        }
+
+        ITypeSymbol elementType = method.TypeArguments[0];
+        // Return type is LogicExpr<LogicList<T>>; unwrap to get LogicList<T>
+        ITypeSymbol listType = method.ReturnType is INamedTypeSymbol ret && ret.TypeArguments.Length == 1
+            ? ret.TypeArguments[0]
+            : method.ReturnType;
+
+        return new ListEmptyExpr(elementType, listType);
+    }
+
+    /// <summary>Analyzes a <c>Logic.Cons&lt;T&gt;(head, tail)</c> call and returns a <see cref="ListConsExpr"/>.</summary>
+    private SemanticExpr? AnalyzeListCons(InvocationExpressionSyntax inv, IMethodSymbol method)
+    {
+        if (method.TypeArguments.Length != 1)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, inv.GetLocation(),
+                "Logic.Cons<T>() requires exactly one type argument");
+            return null;
+        }
+
+        if (inv.ArgumentList.Arguments.Count != 2)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, inv.GetLocation(),
+                "Logic.Cons<T>() requires exactly two arguments (head, tail)");
+            return null;
+        }
+
+        ITypeSymbol elementType = method.TypeArguments[0];
+        ITypeSymbol listType = method.ReturnType is INamedTypeSymbol ret && ret.TypeArguments.Length == 1
+            ? ret.TypeArguments[0]
+            : method.ReturnType;
+
+        SemanticExpr? head = AnalyzeExpr(inv.ArgumentList.Arguments[0].Expression, null);
+        SemanticExpr? tail = AnalyzeExpr(inv.ArgumentList.Arguments[1].Expression, null);
+        if (head is null || tail is null) return null;
+
+        return new ListConsExpr(head, tail, elementType, listType);
     }
 }

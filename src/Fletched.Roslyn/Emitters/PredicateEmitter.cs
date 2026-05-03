@@ -334,6 +334,8 @@ public sealed class PredicateEmitter
         bool rightIsSlot = u.Right is SlotValue;
         bool leftIsConst = u.Left is ConstValue;
         bool rightIsConst = u.Right is ConstValue;
+        bool leftIsListLiteral = u.Left is ListConsValue or ListEmptyValue;
+        bool rightIsListLiteral = u.Right is ListConsValue or ListEmptyValue;
 
         if (leftIsSlot && rightIsConst)
         {
@@ -374,6 +376,21 @@ public sealed class PredicateEmitter
         else if (u.Left is FieldValue && u.Right is FieldValue)
         {
             ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) goto Fail;");
+        }
+        else if (leftIsSlot && rightIsListLiteral)
+        {
+            string slotName = SlotName(((SlotValue)u.Left).Slot);
+            EmitSlotConstUnify(slotName, EmitValue(u.Right), ctx);
+        }
+        else if (leftIsListLiteral && rightIsSlot)
+        {
+            string slotName = SlotName(((SlotValue)u.Right).Slot);
+            EmitSlotConstUnify(slotName, EmitValue(u.Left), ctx);
+        }
+        else if ((u.Left is FieldValue && rightIsListLiteral) ||
+                 (leftIsListLiteral && u.Right is FieldValue))
+        {
+            ctx.AppendLine($"if (!object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})) goto Fail;");
         }
         else if (u.Left is ArithValue || u.Right is ArithValue)
         {
@@ -512,6 +529,10 @@ public sealed class PredicateEmitter
             ArithValue av => av.Op == ArithOp.Add
                 ? $"({EmitValue(av.Left)} + {EmitValue(av.Right)})"
                 : $"({EmitValue(av.Left)} - {EmitValue(av.Right)})",
+            ListEmptyValue lev =>
+                $"new global::Fletched.Core.LogicListEmpty<{lev.ElementTypeName}>()",
+            ListConsValue lcv =>
+                $"new global::Fletched.Core.LogicListCons<{lcv.ElementTypeName}>({EmitValue(lcv.Head)}, {EmitValue(lcv.Tail)})",
             _ => "default"
         };
     }

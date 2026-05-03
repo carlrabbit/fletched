@@ -15,6 +15,12 @@ public record FieldValue(PlanValue Target, string MemberName, string TypeName) :
 /// <summary>Arithmetic expression value (+, - in DSL).</summary>
 public record ArithValue(ArithOp Op, PlanValue Left, PlanValue Right) : PlanValue;
 
+/// <summary>Empty logical list value.</summary>
+public record ListEmptyValue(string ElementTypeName) : PlanValue;
+
+/// <summary>Cons cell logical list value.</summary>
+public record ListConsValue(PlanValue Head, PlanValue Tail, string ElementTypeName) : PlanValue;
+
 /// <summary>Base plan instruction.</summary>
 public abstract record PlanInstruction;
 public record UnifyInstr(PlanValue Left, PlanValue Right) : PlanInstruction;

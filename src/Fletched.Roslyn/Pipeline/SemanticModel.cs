@@ -63,6 +63,14 @@ public record CompExpr(CompOp Op, SemanticExpr Left, SemanticExpr Right, ITypeSy
 public record ArithExpr(ArithOp Op, SemanticExpr Left, SemanticExpr Right)
     : SemanticExpr(Left.Type);
 
+/// <summary>Empty logical list of element type <see cref="ElementType"/>.</summary>
+public record ListEmptyExpr(ITypeSymbol ElementType, ITypeSymbol ListType)
+    : SemanticExpr(ListType);
+
+/// <summary>Cons cell: head element prepended to a tail list.</summary>
+public record ListConsExpr(SemanticExpr Head, SemanticExpr Tail, ITypeSymbol ElementType, ITypeSymbol ListType)
+    : SemanticExpr(ListType);
+
 // ─── PredicateModel ────────────────────────────────────────────────────────
 
 /// <summary>Fully-resolved model of a single [Predicate] type.</summary>
