@@ -34,6 +34,9 @@ public record WithNode(IReadOnlyList<VarNode> Variables, ExprNode Body) : ExprNo
 /// <summary>Call to another predicate.</summary>
 public record CallNode(Type PredicateType, IReadOnlyList<ExprNode> Arguments) : ExprNode;
 
+/// <summary>Built-in AllDistinct constraint: all elements in the collection must be pairwise distinct.</summary>
+public record AllDistinctNode(ExprNode Collection, Type ElementType) : ExprNode;
+
 /// <summary>Flattens nested <see cref="ConjNode"/> trees into a single flat list.</summary>
 public static class ConjNormalizer
 {
