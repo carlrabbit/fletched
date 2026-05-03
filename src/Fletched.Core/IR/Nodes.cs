@@ -37,6 +37,12 @@ public record CallNode(Type PredicateType, IReadOnlyList<ExprNode> Arguments) : 
 /// <summary>Built-in AllDistinct constraint: all elements in the collection must be pairwise distinct.</summary>
 public record AllDistinctNode(ExprNode Collection, Type ElementType) : ExprNode;
 
+/// <summary>Represents the empty logical list of element type <see cref="ElementType"/>.</summary>
+public record ListEmptyNode(Type ElementType) : ExprNode;
+
+/// <summary>Represents a cons cell with a head expression and a tail list expression.</summary>
+public record ListConsNode(ExprNode Head, ExprNode Tail) : ExprNode;
+
 /// <summary>Arithmetic operation kind used in the DSL.</summary>
 public enum ArithOp { Add, Subtract }
 
