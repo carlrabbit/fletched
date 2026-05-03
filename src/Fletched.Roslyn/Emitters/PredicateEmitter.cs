@@ -287,6 +287,10 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"{incr.IndexVar}++;");
                 break;
 
+            case CompInstr comp:
+                EmitComp(comp, ctx);
+                break;
+
             case CallInstr call:
                 EmitCall(call, ctx);
                 break;
@@ -371,6 +375,11 @@ public sealed class PredicateEmitter
         {
             ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) goto Fail;");
         }
+        else if (u.Left is ArithValue || u.Right is ArithValue)
+        {
+            // Arithmetic expression on either side: use direct numeric equality.
+            ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) goto Fail;");
+        }
         else
         {
             // Generic fallback: emit as equality check
@@ -443,6 +452,22 @@ public sealed class PredicateEmitter
         }
     }
 
+    private void EmitComp(CompInstr comp, EmitContext ctx)
+    {
+        string left = EmitValue(comp.Left);
+        string right = EmitValue(comp.Right);
+        string op = comp.Op switch
+        {
+            CompOp.NotEqual => "!=",
+            CompOp.LessThan => "<",
+            CompOp.GreaterThan => ">",
+            CompOp.LessThanOrEqual => "<=",
+            CompOp.GreaterThanOrEqual => ">=",
+            _ => "!="
+        };
+        ctx.AppendLine($"if (!({left} {op} {right})) goto Fail;");
+    }
+
     private void EmitTerminator(PlanTerminator term, string blockLabel, EmitContext ctx)
     {
         switch (term)
@@ -484,6 +509,9 @@ public sealed class PredicateEmitter
             SlotValue sv => $"state.{SlotName(sv.Slot)}",
             ConstValue cv => EmitConstant(cv.Value),
             FieldValue fv => $"{EmitValue(fv.Target)}.{fv.MemberName}",
+            ArithValue av => av.Op == ArithOp.Add
+                ? $"({EmitValue(av.Left)} + {EmitValue(av.Right)})"
+                : $"({EmitValue(av.Left)} - {EmitValue(av.Right)})",
             _ => "default"
         };
     }

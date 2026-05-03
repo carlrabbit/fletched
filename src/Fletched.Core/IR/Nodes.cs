@@ -37,6 +37,12 @@ public record CallNode(Type PredicateType, IReadOnlyList<ExprNode> Arguments) : 
 /// <summary>Built-in AllDistinct constraint: all elements in the collection must be pairwise distinct.</summary>
 public record AllDistinctNode(ExprNode Collection, Type ElementType) : ExprNode;
 
+/// <summary>Arithmetic operation kind used in the DSL.</summary>
+public enum ArithOp { Add, Subtract }
+
+/// <summary>Binary arithmetic expression (+, - in DSL). Produces a value of the same type.</summary>
+public record ArithNode(ArithOp Op, ExprNode Left, ExprNode Right) : ExprNode;
+
 /// <summary>Flattens nested <see cref="ConjNode"/> trees into a single flat list.</summary>
 public static class ConjNormalizer
 {
