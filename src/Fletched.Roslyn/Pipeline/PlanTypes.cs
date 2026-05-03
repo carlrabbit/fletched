@@ -12,11 +12,17 @@ public record SlotValue(int Slot, string TypeName) : PlanValue;
 public record ConstValue(object? Value, string TypeName) : PlanValue;
 public record FieldValue(PlanValue Target, string MemberName, string TypeName) : PlanValue;
 
+/// <summary>Arithmetic expression value (+, - in DSL).</summary>
+public record ArithValue(ArithOp Op, PlanValue Left, PlanValue Right) : PlanValue;
+
 /// <summary>Base plan instruction.</summary>
 public abstract record PlanInstruction;
 public record UnifyInstr(PlanValue Left, PlanValue Right) : PlanInstruction;
 public record ConstraintInstr(IMethodSymbol Method, IReadOnlyList<PlanValue> Arguments) : PlanInstruction;
 public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
+
+/// <summary>Comparison instruction (!=, &lt;, &gt;, &lt;=, &gt;= in DSL).</summary>
+public record CompInstr(CompOp Op, PlanValue Left, PlanValue Right) : PlanInstruction;
 
 /// <summary>Loop-specific instructions (generator-internal).</summary>
 public record IndexInitInstr(string IndexVar) : PlanInstruction;

@@ -49,7 +49,7 @@ public sealed class IrLowerer
                 return LowerConj(conjExpr, ctx, out startLabel);
 
             case DisjExpr disjExpr:
-                return LowerDisj(disjExpr, ctx, out startLabel);
+                return LowerDisj(disjExpr, ctx, out startLabel, continuationLabel: null);
 
             case UnifyExpr unifyExpr:
             {
@@ -71,6 +71,17 @@ public sealed class IrLowerer
                 startLabel = label;
                 var block = new PlanBlock(label,
                     new[] { new ConstraintInstr(constraintExpr.Method, args) },
+                    new SucceedTerm());
+                ctx.AddBlock(block);
+                return block;
+            }
+
+            case CompExpr compExpr:
+            {
+                string label = ctx.NextLabel("main");
+                startLabel = label;
+                var block = new PlanBlock(label,
+                    new PlanInstruction[] { new CompInstr(compExpr.Op, LowerValue(compExpr.Left, ctx), LowerValue(compExpr.Right, ctx)) },
                     new SucceedTerm());
                 ctx.AddBlock(block);
                 return block;
@@ -103,50 +114,88 @@ public sealed class IrLowerer
     {
         startLabel = null;
         if (conj.Parts.Count == 0) return null;
+        return LowerConjParts(conj.Parts, 0, ctx, out startLabel);
+    }
 
-        string label = ctx.NextLabel("conj");
-        startLabel = label;
+    /// <summary>
+    /// Lowers a slice of conjunction parts starting at <paramref name="fromIndex"/>.
+    /// When a <see cref="DisjExpr"/> is encountered, the remaining parts are lowered
+    /// recursively first so their entry label can be used as the disjunction's continuation.
+    /// </summary>
+    private PlanBlock? LowerConjParts(
+        IReadOnlyList<SemanticExpr> parts, int fromIndex,
+        LoweringContext ctx, out string? startLabel)
+    {
+        startLabel = null;
+        if (fromIndex >= parts.Count) return null;
 
+        string blockLabel = ctx.NextLabel("conj");
+        startLabel = blockLabel;
         var instructions = new List<PlanInstruction>();
 
-        foreach (SemanticExpr part in conj.Parts)
+        for (int i = fromIndex; i < parts.Count; i++)
         {
+            SemanticExpr part = parts[i];
+
             switch (part)
             {
                 case UnifyExpr u:
                     instructions.Add(new UnifyInstr(LowerValue(u.Left, ctx), LowerValue(u.Right, ctx)));
                     break;
+
                 case ConstraintExpr c:
                     instructions.Add(new ConstraintInstr(c.Method,
                         c.Arguments.Select(a => LowerValue(a, ctx)).ToList()));
                     break;
+
+                case CompExpr comp:
+                    instructions.Add(new CompInstr(comp.Op,
+                        LowerValue(comp.Left, ctx), LowerValue(comp.Right, ctx)));
+                    break;
+
                 case WithExpr w:
                 {
-                    // Close out current instructions block, then chain into the with loop
                     if (instructions.Count > 0)
                     {
-                        string prevLabel = startLabel ?? ctx.NextLabel("conj_pre");
-                        if (startLabel is null) startLabel = prevLabel;
-                        ctx.AddBlock(new PlanBlock(prevLabel, instructions.ToList(), new GotoTerm(ctx.PeekNextLabel("with"))));
+                        // PeekNextLabel("init") matches the first label that LowerWith allocates.
+                        ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
+                            new GotoTerm(ctx.PeekNextLabel("init"))));
                         instructions.Clear();
                     }
-                    var withBlock = LowerWith(w, ctx, out string? wStart);
-                    // The with starts a new chain; re-anchor
+                    LowerWith(w, ctx, out string? wStart);
                     if (wStart is not null) startLabel ??= wStart;
                     break;
                 }
+
                 case DisjExpr d:
                 {
+                    // Pre-allocate the disjunction entry label BEFORE lowering the remaining
+                    // parts, so the GotoTerm from the current block is stable.
+                    string disjEntry = ctx.NextLabel("disj");
+
                     if (instructions.Count > 0)
                     {
-                        string prevLabel = label;
-                        ctx.AddBlock(new PlanBlock(prevLabel, instructions.ToList(), new GotoTerm(ctx.PeekNextLabel("disj"))));
+                        ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
+                            new GotoTerm(disjEntry)));
                         instructions.Clear();
                     }
-                    LowerDisj(d, ctx, out string? dStart);
-                    if (dStart is not null) startLabel ??= dStart;
-                    break;
+                    else
+                    {
+                        // No prior instructions: disjunction itself is the entry point.
+                        startLabel = disjEntry;
+                    }
+
+                    // Lower the remaining parts to obtain the continuation label.
+                    string? contLabel = null;
+                    if (i + 1 < parts.Count)
+                        LowerConjParts(parts, i + 1, ctx, out contLabel);
+
+                    // Emit the disjunction blocks with the continuation.
+                    LowerDisj(d, ctx, out _, contLabel, disjEntry);
+
+                    return ctx.FindBlock(startLabel!);
                 }
+
                 default:
                     _reporter.Error(DiagnosticsCatalog.UnsupportedExpression, null, part.GetType().Name);
                     return null;
@@ -154,16 +203,15 @@ public sealed class IrLowerer
         }
 
         if (instructions.Count > 0)
-        {
-            ctx.AddBlock(new PlanBlock(label, instructions, new SucceedTerm()));
-        }
+            ctx.AddBlock(new PlanBlock(blockLabel, instructions, new SucceedTerm()));
 
-        return ctx.FindBlock(startLabel ?? label);
+        return ctx.FindBlock(startLabel ?? blockLabel);
     }
 
-    private PlanBlock? LowerDisj(DisjExpr disj, LoweringContext ctx, out string? startLabel)
+    private PlanBlock? LowerDisj(DisjExpr disj, LoweringContext ctx, out string? startLabel,
+        string? continuationLabel = null, string? preallocatedEntry = null)
     {
-        string entryLabel = ctx.NextLabel("disj");
+        string entryLabel = preallocatedEntry ?? ctx.NextLabel("disj");
         string leftLabel = ctx.NextLabel("disj_l");
         string rightLabel = ctx.NextLabel("disj_r");
         startLabel = entryLabel;
@@ -172,15 +220,20 @@ public sealed class IrLowerer
         ctx.AddBlock(new PlanBlock(entryLabel, Array.Empty<PlanInstruction>(),
             new ChoiceTerm(leftLabel, rightLabel, -1)));
 
+        PlanTerminator leftTerm = continuationLabel is not null
+            ? new GotoTerm(continuationLabel) : (PlanTerminator)new SucceedTerm();
+        PlanTerminator rightTerm = continuationLabel is not null
+            ? new GotoTerm(continuationLabel) : (PlanTerminator)new SucceedTerm();
+
         // Left branch
         var leftInstructions = new List<PlanInstruction>();
         AppendInstructions(disj.Left, ctx, leftInstructions);
-        ctx.AddBlock(new PlanBlock(leftLabel, leftInstructions, new SucceedTerm()));
+        ctx.AddBlock(new PlanBlock(leftLabel, leftInstructions, leftTerm));
 
         // Right branch
         var rightInstructions = new List<PlanInstruction>();
         AppendInstructions(disj.Right, ctx, rightInstructions);
-        ctx.AddBlock(new PlanBlock(rightLabel, rightInstructions, new SucceedTerm()));
+        ctx.AddBlock(new PlanBlock(rightLabel, rightInstructions, rightTerm));
 
         return ctx.FindBlock(entryLabel);
     }
@@ -241,10 +294,20 @@ public sealed class IrLowerer
         }
 
         // The innermost body block holds the actual predicate body instructions.
-        var bodyInstructions = new List<PlanInstruction>();
-        AppendInstructions(with.Body, ctx, bodyInstructions);
+        // Use full LowerExpr to support DisjExpr and nested WithExpr inside the body.
+        string innermostBody = bodyLabels[bodyLabels.Count - 1];
+        LowerExpr(with.Body, ctx, out string? bodyStart);
 
-        ctx.AddBlock(new PlanBlock(bodyLabels[bodyLabels.Count - 1], bodyInstructions, new SucceedTerm()));
+        if (bodyStart is not null && bodyStart != innermostBody)
+        {
+            // Redirect the innermost body block to the lowered body entry.
+            ctx.AddBlock(new PlanBlock(innermostBody, Array.Empty<PlanInstruction>(),
+                new GotoTerm(bodyStart)));
+        }
+        else if (bodyStart is null)
+        {
+            ctx.AddBlock(new PlanBlock(innermostBody, Array.Empty<PlanInstruction>(), new SucceedTerm()));
+        }
 
         startLabel = outerStart;
         return ctx.FindBlock(outerStart!);
@@ -260,6 +323,10 @@ public sealed class IrLowerer
             case ConstraintExpr c:
                 instructions.Add(new ConstraintInstr(c.Method,
                     c.Arguments.Select(a => LowerValue(a, ctx)).ToList()));
+                break;
+            case CompExpr comp:
+                instructions.Add(new CompInstr(comp.Op,
+                    LowerValue(comp.Left, ctx), LowerValue(comp.Right, ctx)));
                 break;
             case CallExpr call:
             {
@@ -290,6 +357,8 @@ public sealed class IrLowerer
             case FieldExpr f:
                 return new FieldValue(LowerValue(f.Target, ctx), f.Member.Name,
                     SymbolDisplayString(f.FieldType));
+            case ArithExpr a:
+                return new ArithValue(a.Op, LowerValue(a.Left, ctx), LowerValue(a.Right, ctx));
             default:
                 return new ConstValue(null, "object");
         }

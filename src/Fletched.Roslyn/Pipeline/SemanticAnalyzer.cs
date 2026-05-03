@@ -201,6 +201,38 @@ public sealed class SemanticAnalyzer
                 return new DisjExpr(left, right, boolType);
             }
 
+            // ── Comparison operators ───────────────────────────────────────────
+            case SyntaxKind.NotEqualsExpression:
+            case SyntaxKind.LessThanExpression:
+            case SyntaxKind.GreaterThanExpression:
+            case SyntaxKind.LessThanOrEqualExpression:
+            case SyntaxKind.GreaterThanOrEqualExpression:
+            {
+                SemanticExpr? left = AnalyzeExpr(bin.Left, null);
+                SemanticExpr? right = AnalyzeExpr(bin.Right, null);
+                if (left is null || right is null) return null;
+                CompOp op = bin.Kind() switch
+                {
+                    SyntaxKind.NotEqualsExpression => CompOp.NotEqual,
+                    SyntaxKind.LessThanExpression => CompOp.LessThan,
+                    SyntaxKind.GreaterThanExpression => CompOp.GreaterThan,
+                    SyntaxKind.LessThanOrEqualExpression => CompOp.LessThanOrEqual,
+                    _ => CompOp.GreaterThanOrEqual,
+                };
+                return new CompExpr(op, left, right, boolType);
+            }
+
+            // ── Arithmetic operators ───────────────────────────────────────────
+            case SyntaxKind.AddExpression:
+            case SyntaxKind.SubtractExpression:
+            {
+                SemanticExpr? left = AnalyzeExpr(bin.Left, null);
+                SemanticExpr? right = AnalyzeExpr(bin.Right, null);
+                if (left is null || right is null) return null;
+                ArithOp op = bin.Kind() == SyntaxKind.AddExpression ? ArithOp.Add : ArithOp.Subtract;
+                return new ArithExpr(op, left, right);
+            }
+
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
                     bin.GetLocation(),

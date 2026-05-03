@@ -34,6 +34,47 @@ public readonly struct LogicExpr<T>
                 .MakeGenericMethod(typeof(T)),
             new ExprNode[] { left.Node!, right.Node! }));
 
+    // ── Comparisons ───────────────────────────────────────────────────────────
+    // C# requires < with >, and <= with >= to be defined as pairs.
+
+    /// <summary>Less-than constraint (&lt; in DSL).</summary>
+    public static LogicExpr<bool> operator <(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ConstraintNode(
+            typeof(LogicExprHelpers).GetMethod(nameof(LogicExprHelpers.LessThan))!
+                .MakeGenericMethod(typeof(T)),
+            new ExprNode[] { left.Node!, right.Node! }));
+
+    /// <summary>Greater-than constraint (&gt; in DSL).</summary>
+    public static LogicExpr<bool> operator >(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ConstraintNode(
+            typeof(LogicExprHelpers).GetMethod(nameof(LogicExprHelpers.GreaterThan))!
+                .MakeGenericMethod(typeof(T)),
+            new ExprNode[] { left.Node!, right.Node! }));
+
+    /// <summary>Less-than-or-equal constraint (&lt;= in DSL).</summary>
+    public static LogicExpr<bool> operator <=(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ConstraintNode(
+            typeof(LogicExprHelpers).GetMethod(nameof(LogicExprHelpers.LessThanOrEqual))!
+                .MakeGenericMethod(typeof(T)),
+            new ExprNode[] { left.Node!, right.Node! }));
+
+    /// <summary>Greater-than-or-equal constraint (&gt;= in DSL).</summary>
+    public static LogicExpr<bool> operator >=(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ConstraintNode(
+            typeof(LogicExprHelpers).GetMethod(nameof(LogicExprHelpers.GreaterThanOrEqual))!
+                .MakeGenericMethod(typeof(T)),
+            new ExprNode[] { left.Node!, right.Node! }));
+
+    // ── Arithmetic ────────────────────────────────────────────────────────────
+
+    /// <summary>Arithmetic addition (+ in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator +(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Add, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic subtraction (- in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator -(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Subtract, left.Node!, right.Node!));
+
     // ── Conjunction / Disjunction ─────────────────────────────────────────────
     // C# expands `a && b` as: LogicExpr<T>.false(a) ? a : (a & b)
     // So we need true/false operators plus & and | for && and || to work.
@@ -59,4 +100,8 @@ public readonly struct LogicExpr<T>
 internal static class LogicExprHelpers
 {
     public static bool NotEqual<T>(T a, T b) => !Equals(a, b);
+    public static bool LessThan<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) < 0;
+    public static bool GreaterThan<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) > 0;
+    public static bool LessThanOrEqual<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) <= 0;
+    public static bool GreaterThanOrEqual<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) >= 0;
 }

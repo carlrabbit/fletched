@@ -49,6 +49,20 @@ public record WithExpr(IReadOnlyList<VariableSymbol> Variables, SemanticExpr Bod
 public record CallExpr(INamedTypeSymbol PredicateType, IReadOnlyList<SemanticExpr> Arguments, ITypeSymbol BoolType)
     : SemanticExpr(BoolType);
 
+/// <summary>Comparison operator kind.</summary>
+public enum CompOp { NotEqual, LessThan, GreaterThan, LessThanOrEqual, GreaterThanOrEqual }
+
+/// <summary>Arithmetic operator kind.</summary>
+public enum ArithOp { Add, Subtract }
+
+/// <summary>Binary comparison constraint (!=, &lt;, &gt;, &lt;=, &gt;= in DSL).</summary>
+public record CompExpr(CompOp Op, SemanticExpr Left, SemanticExpr Right, ITypeSymbol BoolType)
+    : SemanticExpr(BoolType);
+
+/// <summary>Binary arithmetic expression (+, - in DSL). Produces a value of the same type as its operands.</summary>
+public record ArithExpr(ArithOp Op, SemanticExpr Left, SemanticExpr Right)
+    : SemanticExpr(Left.Type);
+
 // ─── PredicateModel ────────────────────────────────────────────────────────
 
 /// <summary>Fully-resolved model of a single [Predicate] type.</summary>

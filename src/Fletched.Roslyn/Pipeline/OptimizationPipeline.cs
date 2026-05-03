@@ -35,6 +35,10 @@ public sealed class NormalizeSequence : IPlanOptimization
         // Merge pass: if a block ends with GotoTerm and target has exactly 1 inbound,
         // inline the target's instructions into this block.
         var merged = new HashSet<string>(StringComparer.Ordinal);
+        // Track blocks that have already been added to the result as standalone blocks.
+        // A block that is already emitted must not be consumed/inlined by a later block,
+        // because that would duplicate it and leave a dangling goto to the merged-away label.
+        var alreadyEmitted = new HashSet<string>(StringComparer.Ordinal);
         var result = new List<PlanBlock>(allBlocks.Count);
 
         foreach (PlanBlock block in allBlocks)
@@ -46,7 +50,10 @@ public sealed class NormalizeSequence : IPlanOptimization
                    (inbound.TryGetValue(g.TargetLabel, out int edgeCount) ? edgeCount : 0) == 1)
             {
                 PlanBlock? target = allBlocks.FirstOrDefault(b => b.Label == g.TargetLabel);
-                if (target is null || merged.Contains(target.Label)) break;
+                // Stop if target was already merged away, or was already emitted as a
+                // standalone block (merging it again would remove it from the output
+                // while keeping the GotoTerm in the earlier block unresolved).
+                if (target is null || merged.Contains(target.Label) || alreadyEmitted.Contains(target.Label)) break;
 
                 // Merge target into current
                 current = new PlanBlock(
@@ -56,6 +63,7 @@ public sealed class NormalizeSequence : IPlanOptimization
                 merged.Add(target.Label);
             }
 
+            alreadyEmitted.Add(current.Label);
             result.Add(current);
         }
 
