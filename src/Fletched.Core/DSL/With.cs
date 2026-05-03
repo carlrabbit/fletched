@@ -51,4 +51,11 @@ public static class Logic
             },
             result.Node!));
     }
+
+    /// <summary>
+    /// Built-in AllDistinct constraint: asserts that all elements in the collection are pairwise distinct.
+    /// Returns a boolean <see cref="LogicExpr{T}"/> that fails if any two bound elements are equal.
+    /// </summary>
+    public static LogicExpr<bool> AllDistinct<T>(LogicExpr<T[]> values) =>
+        new(new AllDistinctNode(values.Node!, typeof(T)));
 }
