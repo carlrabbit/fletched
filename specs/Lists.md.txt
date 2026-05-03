@@ -1,0 +1,296 @@
+1. Overview
+
+Lists are represented as immutable logical structures with zero runtime allocation during execution.
+All list operations are compiled into structural unification and field access over typed state.
+
+
+---
+
+2. Core Concepts / Data Structures
+
+2.1 Logical List Type
+
+abstract record LogicList<T>;
+
+Used only at DSL and type level. No runtime allocation required.
+
+
+---
+
+2.2 IR Nodes
+
+record ListEmptyNode(Type ElementType) : ExprNode;
+
+record ListConsNode(
+    ExprNode Head,
+    ExprNode Tail
+) : ExprNode;
+
+
+---
+
+2.3 Typed State Representation
+
+Lists are stored as values in typed state fields:
+
+ref struct State
+{
+    public LogicList<T> list;
+    public bool list_bound;
+}
+
+In optimized execution, no LogicList<T> instances are constructed.
+
+
+---
+
+2.4 Internal Structural Access
+
+List values are accessed structurally:
+
+bool IsEmpty(LogicList<T> list);
+T GetHead(LogicList<T> list);
+LogicList<T> GetTail(LogicList<T> list);
+
+These are compile-time resolved and inlined.
+
+
+---
+
+2.5 Pattern Construction API
+
+LogicExpr<LogicList<T>> Empty<T>();
+
+LogicExpr<LogicList<T>> Cons<T>(
+    LogicExpr<T> head,
+    LogicExpr<LogicList<T>> tail
+);
+
+
+---
+
+3. Rules and Invariants
+
+3.1 Structural Equality
+
+Two lists unify iff:
+
+both are empty, or
+
+both are cons cells and:
+
+heads unify
+
+tails unify
+
+
+
+
+---
+
+3.2 Shape Compatibility
+
+Left	Right	Result
+
+Empty	Empty	success
+Cons	Cons	recurse
+Empty	Cons	fail
+Cons	Empty	fail
+
+
+
+---
+
+3.3 Variable Binding
+
+Unbound variable unified with list → binds to list structure
+
+Bound variable unified with list → structural comparison
+
+
+
+---
+
+3.4 No Allocation
+
+Cons and Empty are never instantiated at runtime during execution
+
+All list operations are compiled into structural checks
+
+
+
+---
+
+3.5 Immutability
+
+Lists are immutable
+
+No mutation of list structure is permitted
+
+
+
+---
+
+3.6 Type Consistency
+
+All list elements must match T
+
+Head and tail types are statically enforced
+
+
+
+---
+
+4. Execution / Behavior
+
+4.1 Unification: Variable vs Cons
+
+IR:
+
+Unify(list, Cons(head, tail))
+
+Generated:
+
+if (!state.list_bound)
+{
+    state.Trail.Push(SlotId.List);
+    state.list = ConstructList(state.head, state.tail);
+    state.list_bound = true;
+}
+else
+{
+    if (!IsCons(state.list))
+        goto Fail;
+
+    var h = GetHead(state.list);
+    var t = GetTail(state.list);
+
+    if (!Unify(ref state, headSlot, h))
+        goto Fail;
+
+    if (!Unify(ref state, tailSlot, t))
+        goto Fail;
+}
+
+
+---
+
+4.2 Unification: Cons vs Cons
+
+IR:
+
+Unify(Cons(h1, t1), Cons(h2, t2))
+
+Generated:
+
+if (!Unify(ref state, h1Slot, h2Value))
+    goto Fail;
+
+if (!Unify(ref state, t1Slot, t2Value))
+    goto Fail;
+
+
+---
+
+4.3 Unification: Empty
+
+IR:
+
+Unify(list, Empty)
+
+Generated:
+
+if (!state.list_bound)
+{
+    state.Trail.Push(SlotId.List);
+    state.list = EmptyValue<T>();
+    state.list_bound = true;
+}
+else if (!IsEmpty(state.list))
+{
+    goto Fail;
+}
+
+
+---
+
+4.4 Structural Access (Compiled)
+
+var head = state.list.Head;
+var tail = state.list.Tail;
+
+Compiled to direct field access or equivalent inlined logic.
+
+
+---
+
+5. Examples
+
+5.1 DSL
+
+list == Cons(1, Cons(2, Empty<int>()))
+
+
+---
+
+5.2 IR
+
+Unify(
+  list,
+  Cons(
+    Const(1),
+    Cons(
+      Const(2),
+      Empty
+    )
+  )
+)
+
+
+---
+
+5.3 Generated Code
+
+if (!state.list_bound)
+{
+    state.Trail.Push(SlotId.List);
+    state.list = ConstructList(1, ConstructList(2, EmptyValue<int>()));
+    state.list_bound = true;
+}
+else
+{
+    var l1 = state.list;
+
+    if (!IsCons(l1)) goto Fail;
+    var h1 = GetHead(l1);
+    var t1 = GetTail(l1);
+
+    if (h1 != 1) goto Fail;
+
+    if (!IsCons(t1)) goto Fail;
+    var h2 = GetHead(t1);
+    var t2 = GetTail(t1);
+
+    if (h2 != 2) goto Fail;
+
+    if (!IsEmpty(t2)) goto Fail;
+}
+
+
+---
+
+5.4 Pattern Matching
+
+DSL:
+
+list == Cons(head, tail)
+
+Generated:
+
+if (!IsCons(state.list)) goto Fail;
+
+var h = GetHead(state.list);
+var t = GetTail(state.list);
+
+if (!Unify(ref state, headSlot, h)) goto Fail;
+if (!Unify(ref state, tailSlot, t)) goto Fail;
