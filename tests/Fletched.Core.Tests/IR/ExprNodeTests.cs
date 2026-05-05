@@ -85,4 +85,29 @@ public class ExprNodeTests
         await Assert.That(unify.Left).IsEqualTo(left);
         await Assert.That(unify.Right).IsEqualTo(right);
     }
+
+    [Test]
+    public async Task NotNode_WrapsGoal()
+    {
+        var goal = new VarNode("x", typeof(bool));
+        var not = new NotNode(goal);
+        await Assert.That(not.Goal).IsEqualTo(goal);
+    }
+
+    [Test]
+    public async Task NotNode_Equality()
+    {
+        var goal = new ConstNode(true, typeof(bool));
+        var a = new NotNode(goal);
+        var b = new NotNode(goal);
+        await Assert.That(a).IsEqualTo(b);
+    }
+
+    [Test]
+    public async Task NotNode_DifferentGoals_NotEqual()
+    {
+        var a = new NotNode(new VarNode("x", typeof(bool)));
+        var b = new NotNode(new VarNode("y", typeof(bool)));
+        await Assert.That(a).IsNotEqualTo(b);
+    }
 }

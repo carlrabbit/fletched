@@ -63,6 +63,10 @@ public record CompExpr(CompOp Op, SemanticExpr Left, SemanticExpr Right, ITypeSy
 public record ArithExpr(ArithOp Op, SemanticExpr Left, SemanticExpr Right)
     : SemanticExpr(Left.Type);
 
+/// <summary>Negation-as-failure: Not(G) succeeds iff G produces no solutions.</summary>
+public record NotExpr(SemanticExpr Goal, ITypeSymbol BoolType)
+    : SemanticExpr(BoolType);
+
 /// <summary>Empty logical list of element type <see cref="ElementType"/>.</summary>
 public record ListEmptyExpr(ITypeSymbol ElementType, ITypeSymbol ListType)
     : SemanticExpr(ListType);
