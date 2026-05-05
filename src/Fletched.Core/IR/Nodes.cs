@@ -49,6 +49,9 @@ public enum ArithOp { Add, Subtract }
 /// <summary>Binary arithmetic expression (+, - in DSL). Produces a value of the same type.</summary>
 public record ArithNode(ArithOp Op, ExprNode Left, ExprNode Right) : ExprNode;
 
+/// <summary>Negation-as-failure: succeeds iff Goal produces no solutions.</summary>
+public record NotNode(ExprNode Goal) : ExprNode;
+
 /// <summary>Flattens nested <see cref="ConjNode"/> trees into a single flat list.</summary>
 public static class ConjNormalizer
 {

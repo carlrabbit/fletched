@@ -298,6 +298,10 @@ public sealed class PredicateEmitter
             case CallInstr call:
                 EmitCall(call, ctx);
                 break;
+
+            case NotInstr not:
+                EmitNot(not, ctx);
+                break;
         }
     }
 
@@ -331,6 +335,89 @@ public sealed class PredicateEmitter
         }
         ctx.AppendLine("}");
         ctx.AppendLine("goto Fail;");
+    }
+
+    private int _notCounter;
+
+    private void EmitNot(NotInstr not, EmitContext ctx)
+    {
+        if (not.SubGoalInstructions.Count == 0) return;
+
+        // Single predicate call: check if any result matches the bound argument values.
+        if (not.SubGoalInstructions.Count == 1 && not.SubGoalInstructions[0] is CallInstr call)
+        {
+            string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+            string notFoundVar = $"_notFound_{_notCounter++}";
+            string resultVar = $"_notResult_{call.PredicateType.Name}";
+            ctx.AppendLine($"bool {notFoundVar} = false;");
+            ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).Execute(ctx, null))");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                // Filter results by current bound values of the argument slots.
+                var conditions = new List<string>();
+                for (int i = 0; i < call.ArgumentSlots.Count; i++)
+                {
+                    string slotName = SlotName(call.ArgumentSlots[i]);
+                    string resultField = Capitalize(slotName);
+                    conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
+                }
+                string guard = conditions.Count > 0
+                    ? string.Join(" && ", conditions)
+                    : "true";
+                ctx.AppendLine($"if ({guard}) {{ {notFoundVar} = true; break; }}");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine($"if ({notFoundVar}) goto Fail;");
+            return;
+        }
+
+        // For inline instructions (unify/constraint/comp), build a compound boolean condition.
+        // If ALL conditions hold, the subgoal succeeded → Not fails → goto Fail.
+        var inlineConditions = new List<string>();
+        foreach (PlanInstruction instr in not.SubGoalInstructions)
+        {
+            switch (instr)
+            {
+                case UnifyInstr u:
+                    inlineConditions.Add($"object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})");
+                    break;
+
+                case CompInstr c:
+                    string op = c.Op switch
+                    {
+                        CompOp.NotEqual => "!=",
+                        CompOp.LessThan => "<",
+                        CompOp.GreaterThan => ">",
+                        CompOp.LessThanOrEqual => "<=",
+                        CompOp.GreaterThanOrEqual => ">=",
+                        _ => "!="
+                    };
+                    inlineConditions.Add($"({EmitValue(c.Left)} {op} {EmitValue(c.Right)})");
+                    break;
+
+                case ConstraintInstr c2:
+                    if (c2.Method.IsStatic)
+                    {
+                        string typeName = c2.Method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+                        string callArgs = string.Join(", ", c2.Arguments.Select(EmitValue));
+                        inlineConditions.Add($"{typeName}.{c2.Method.Name}({callArgs})");
+                    }
+                    else if (c2.Arguments.Count > 0)
+                    {
+                        string receiver = EmitValue(c2.Arguments[0]);
+                        string callArgs = string.Join(", ", c2.Arguments.Skip(1).Select(EmitValue));
+                        string argStr = callArgs.Length > 0 ? callArgs : "";
+                        inlineConditions.Add($"{receiver}.{c2.Method.Name}({argStr})");
+                    }
+                    break;
+            }
+        }
+
+        if (inlineConditions.Count == 1)
+            ctx.AppendLine($"if ({inlineConditions[0]}) goto Fail;");
+        else if (inlineConditions.Count > 1)
+            ctx.AppendLine($"if ({string.Join(" && ", inlineConditions)}) goto Fail;");
     }
 
     private void EmitUnify(UnifyInstr u, EmitContext ctx)

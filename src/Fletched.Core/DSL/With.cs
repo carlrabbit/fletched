@@ -72,4 +72,12 @@ public static class Logic
     /// </summary>
     public static LogicExpr<LogicList<T>> Cons<T>(LogicExpr<T> head, LogicExpr<LogicList<T>> tail) =>
         new(new ListConsNode(head.Node!, tail.Node!));
+
+    /// <summary>
+    /// Negation-as-failure. <c>Not(G)</c> succeeds iff <c>G</c> produces no solutions.
+    /// All variables referenced inside <c>goal</c> must be bound before this expression is evaluated.
+    /// Produces a <see cref="NotNode"/> in the IR.
+    /// </summary>
+    public static LogicExpr<bool> Not(LogicExpr<bool> goal) =>
+        new(new NotNode(goal.Node!));
 }

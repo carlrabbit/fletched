@@ -43,6 +43,9 @@ public record IndexIncrInstr(string IndexVar) : PlanInstruction;
 /// <summary>Call to another predicate — iterates its results and binds argument slots.</summary>
 public record CallInstr(INamedTypeSymbol PredicateType, IReadOnlyList<int> ArgumentSlots) : PlanInstruction;
 
+/// <summary>Negation-as-failure instruction. Succeeds iff the subgoal produces no solutions.</summary>
+public record NotInstr(IReadOnlyList<PlanInstruction> SubGoalInstructions) : PlanInstruction;
+
 /// <summary>Base plan terminator.</summary>
 public abstract record PlanTerminator;
 public record GotoTerm(string TargetLabel) : PlanTerminator;

@@ -266,6 +266,12 @@ public sealed class SemanticAnalyzer
                 return AnalyzeWith(inv, method);
             }
 
+            // Check if it's Logic.Not(goal)
+            if (method.Name == "Not" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeNot(inv);
+            }
+
             // Check if it's Logic.Empty<T>()
             if (method.Name == "Empty" && method.ContainingType?.Name == "Logic")
             {
@@ -641,5 +647,23 @@ public sealed class SemanticAnalyzer
         if (head is null || tail is null) return null;
 
         return new ListConsExpr(head, tail, elementType, listType);
+    }
+
+    /// <summary>Analyzes a <c>Logic.Not(goal)</c> call and returns a <see cref="NotExpr"/>.</summary>
+    private SemanticExpr? AnalyzeNot(InvocationExpressionSyntax inv)
+    {
+        ITypeSymbol boolType = _semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+
+        if (inv.ArgumentList.Arguments.Count != 1)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, inv.GetLocation(),
+                "Logic.Not() requires exactly one argument");
+            return null;
+        }
+
+        SemanticExpr? goal = AnalyzeExpr(inv.ArgumentList.Arguments[0].Expression, boolType);
+        if (goal is null) return null;
+
+        return new NotExpr(goal, boolType);
     }
 }

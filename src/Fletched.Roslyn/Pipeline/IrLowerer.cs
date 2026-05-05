@@ -103,6 +103,19 @@ public sealed class IrLowerer
                 return block;
             }
 
+            case NotExpr notExpr:
+            {
+                var subGoalInstructions = new List<PlanInstruction>();
+                AppendInstructions(notExpr.Goal, ctx, subGoalInstructions);
+                string label = ctx.NextLabel("not");
+                startLabel = label;
+                var block = new PlanBlock(label,
+                    new[] { new NotInstr(subGoalInstructions) },
+                    new SucceedTerm());
+                ctx.AddBlock(block);
+                return block;
+            }
+
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
                     null, expr.GetType().Name);
@@ -194,6 +207,14 @@ public sealed class IrLowerer
                     LowerDisj(d, ctx, out _, contLabel, disjEntry);
 
                     return ctx.FindBlock(startLabel!);
+                }
+
+                case NotExpr not:
+                {
+                    var subGoalInstructions = new List<PlanInstruction>();
+                    AppendInstructions(not.Goal, ctx, subGoalInstructions);
+                    instructions.Add(new NotInstr(subGoalInstructions));
+                    break;
                 }
 
                 default:
@@ -340,6 +361,13 @@ public sealed class IrLowerer
                 foreach (SemanticExpr part in conj.Parts)
                     AppendInstructions(part, ctx, instructions);
                 break;
+            case NotExpr not:
+            {
+                var subGoalInstructions = new List<PlanInstruction>();
+                AppendInstructions(not.Goal, ctx, subGoalInstructions);
+                instructions.Add(new NotInstr(subGoalInstructions));
+                break;
+            }
             // WithExpr and DisjExpr inside a body are complex — handled by full LowerExpr
             default:
                 break;
