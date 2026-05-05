@@ -246,17 +246,39 @@ public sealed class IrLowerer
         PlanTerminator rightTerm = continuationLabel is not null
             ? new GotoTerm(continuationLabel) : (PlanTerminator)new SucceedTerm();
 
-        // Left branch
-        var leftInstructions = new List<PlanInstruction>();
-        AppendInstructions(disj.Left, ctx, leftInstructions);
-        ctx.AddBlock(new PlanBlock(leftLabel, leftInstructions, leftTerm));
+        // Left branch — nested DisjExpr must be lowered recursively so that its
+        // choice points and blocks are emitted correctly.  Simple expressions are
+        // collected as a flat instruction list in a single block.
+        EmitDisjBranch(disj.Left, leftLabel, leftTerm, ctx, continuationLabel);
 
         // Right branch
-        var rightInstructions = new List<PlanInstruction>();
-        AppendInstructions(disj.Right, ctx, rightInstructions);
-        ctx.AddBlock(new PlanBlock(rightLabel, rightInstructions, rightTerm));
+        EmitDisjBranch(disj.Right, rightLabel, rightTerm, ctx, continuationLabel);
 
         return ctx.FindBlock(entryLabel);
+    }
+
+    /// <summary>
+    /// Emits a single branch block for a disjunction.  When <paramref name="branch"/>
+    /// is itself a <see cref="DisjExpr"/> the nested disjunction is lowered
+    /// recursively (reusing <paramref name="branchLabel"/> as its entry) so that
+    /// all of its sub-branches are reachable.  For all other expression kinds
+    /// <see cref="AppendInstructions"/> is used to produce a flat instruction list.
+    /// </summary>
+    private void EmitDisjBranch(SemanticExpr branch, string branchLabel,
+        PlanTerminator branchTerm, LoweringContext ctx, string? continuationLabel)
+    {
+        if (branch is DisjExpr nestedDisj)
+        {
+            // Recursively lower with the same continuation so that every leaf
+            // terminates correctly (SucceedTerm or GotoTerm to the continuation).
+            LowerDisj(nestedDisj, ctx, out _, continuationLabel, branchLabel);
+        }
+        else
+        {
+            var instructions = new List<PlanInstruction>();
+            AppendInstructions(branch, ctx, instructions);
+            ctx.AddBlock(new PlanBlock(branchLabel, instructions, branchTerm));
+        }
     }
 
     private PlanBlock? LowerWith(WithExpr with, LoweringContext ctx, out string? startLabel)
