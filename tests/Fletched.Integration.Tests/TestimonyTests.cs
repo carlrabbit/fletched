@@ -238,4 +238,3 @@ public class TestimonyTests
         await Assert.That(results[0].about).IsEqualTo(Witness.C);
     }
 }
-

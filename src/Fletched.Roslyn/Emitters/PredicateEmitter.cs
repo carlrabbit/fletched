@@ -659,7 +659,7 @@ public sealed class PredicateEmitter
         if (value is bool b) return b ? "true" : "false";
         // For all other types (int, enum, etc.) emit an explicit cast to ensure type-safe
         // comparisons, particularly important for enum constants stored as their underlying
-        // integer value (e.g. StatementKind.Friend stored as 0 → "(StatementKind)0").
+        // integer value (e.g. ClaimKind.Friend stored as 0 → "(ClaimKind)0").
         return $"({typeName}){value}";
     }
 
