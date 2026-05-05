@@ -18,8 +18,8 @@ public abstract record LogicList<T>
             throw new ArgumentNullException(nameof(items));
 
         LogicList<T> result = new LogicListEmpty<T>();
-        for (int index = items.Length - 1; index >= 0; index--)
-            result = new LogicListCons<T>(items[index], result);
+        for (int itemIndex = items.Length - 1; itemIndex >= 0; itemIndex--)
+            result = new LogicListCons<T>(items[itemIndex], result);
 
         return result;
     }

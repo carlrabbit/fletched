@@ -1,4 +1,6 @@
 using System.Linq;
+using System.Reflection;
+using Fletched.Core;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Fletched.Roslyn.Pipeline;
@@ -65,16 +67,30 @@ public partial record struct PairSequence
     {
         SyntaxTree syntaxTree = CSharpSyntaxTree.ParseText(source,
             new CSharpParseOptions(LanguageVersion.Preview));
+        IReadOnlyList<MetadataReference> references = GetMetadataReferences();
 
         return CSharpCompilation.Create(
             "ListHelperTests",
             new[] { syntaxTree },
-            AppDomain.CurrentDomain.GetAssemblies()
-                .Where(assembly => !assembly.IsDynamic && !string.IsNullOrEmpty(assembly.Location))
-                .Select(assembly => MetadataReference.CreateFromFile(assembly.Location))
-                .ToList(),
+            references,
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
                 nullableContextOptions: NullableContextOptions.Enable));
+    }
+
+    private static IReadOnlyList<MetadataReference> GetMetadataReferences()
+    {
+        System.Reflection.Assembly[] assemblies =
+        {
+            typeof(object).Assembly,
+            typeof(Enumerable).Assembly,
+            typeof(Logic).Assembly,
+            System.Reflection.Assembly.Load("System.Runtime"),
+            System.Reflection.Assembly.Load("netstandard"),
+        };
+
+        return assemblies
+            .Select(assembly => MetadataReference.CreateFromFile(assembly.Location))
+            .ToList();
     }
 }

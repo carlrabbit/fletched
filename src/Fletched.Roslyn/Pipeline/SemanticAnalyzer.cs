@@ -666,9 +666,9 @@ public sealed class SemanticAnalyzer
             : method.ReturnType;
 
         SemanticExpr result = new ListEmptyExpr(elementType, listType);
-        for (int index = inv.ArgumentList.Arguments.Count - 1; index >= 0; index--)
+        for (int argumentIndex = inv.ArgumentList.Arguments.Count - 1; argumentIndex >= 0; argumentIndex--)
         {
-            ArgumentSyntax argument = inv.ArgumentList.Arguments[index];
+            ArgumentSyntax argument = inv.ArgumentList.Arguments[argumentIndex];
             SemanticExpr? item = AnalyzeExpr(argument.Expression, elementType);
             if (item is null)
                 return null;

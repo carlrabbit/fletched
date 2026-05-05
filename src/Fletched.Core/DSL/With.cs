@@ -82,8 +82,8 @@ public static class Logic
             throw new ArgumentNullException(nameof(items));
 
         LogicExpr<LogicList<T>> result = Empty<T>();
-        for (int index = items.Length - 1; index >= 0; index--)
-            result = Cons(items[index], result);
+        for (int itemIndex = items.Length - 1; itemIndex >= 0; itemIndex--)
+            result = Cons(items[itemIndex], result);
 
         return result;
     }
@@ -98,8 +98,8 @@ public static class Logic
             throw new ArgumentNullException(nameof(items));
 
         LogicExpr<LogicList<T>> result = Empty<T>();
-        for (int index = items.Length - 1; index >= 0; index--)
-            result = Cons(items[index], result);
+        for (int itemIndex = items.Length - 1; itemIndex >= 0; itemIndex--)
+            result = Cons(items[itemIndex], result);
 
         return result;
     }
