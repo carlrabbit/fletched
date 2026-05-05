@@ -79,8 +79,8 @@ Core runtime features include:
 - slot-based variable storage (compiled to typed fields)
 - backtracking via choice points
 - trail-based state restoration
-- synchronous result enumeration (`IEnumerable<T>` via `Execute`)
-- async result enumeration (`IAsyncEnumerable<T>` via `ExecuteAsync`) with `CancellationToken` support
+- synchronous result enumeration (`IEnumerable<T>` via `Execute`, goto-based iterator)
+- native async result enumeration (`IAsyncEnumerable<T>` via `ExecuteAsync`, switch-loop state machine) with `CancellationToken` support
 
 ---
 

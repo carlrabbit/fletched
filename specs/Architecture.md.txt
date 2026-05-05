@@ -332,8 +332,11 @@ while (true)
 }
 
 The synchronous execution loop above powers the Execute method (IEnumerable<T>).
-The ExecuteAsync method (IAsyncEnumerable<T>) wraps Execute, forwarding each result
-with a CancellationToken check, enabling cooperative cancellation.
+The ExecuteAsync method (IAsyncEnumerable<T>) is a native async iterator that uses
+the same logic re-expressed as an explicit while (true) { switch (_pc) { ... } } loop.
+Each block in the plan IR maps to a numbered case; control-flow jumps use
+_pc = N; break; instead of goto labels, making the method fully compatible with
+async/await and cooperative cancellation via CancellationToken.
 
 
 ---
