@@ -91,6 +91,32 @@ Facts are stored in strongly typed tables:
 
 Queries are compiled into efficient loops and joins over these tables, with optional indexing for performance.
 
+### List ergonomics
+
+Logical lists support concise DSL and runtime construction:
+
+```csharp
+[Fact]
+partial record struct NumberSequence(string Name, LogicList<int> Numbers);
+
+[Predicate]
+partial record struct PairSequence
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<NumberSequence>(ns =>
+            ns.Name == name &&
+            ns.Numbers == Logic.List(1, 2)
+        );
+}
+
+var facts = new[]
+{
+    new NumberSequence("empty", LogicList<int>.Create()),
+    new NumberSequence("pair",  LogicList<int>.Create(1, 2)),
+};
+```
+
 ---
 
 ## Predicate Composition

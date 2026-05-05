@@ -85,4 +85,57 @@ public class ListDslTests
         await Assert.That(unifyNode.Left).IsEqualTo(listVar);
         await Assert.That(unifyNode.Right).IsTypeOf<ListConsNode>();
     }
+
+    [Test]
+    public async Task List_WithConstants_BuildsNestedConsNodes()
+    {
+        LogicExpr<LogicList<int>> expr = Logic.List(1, 2, 3);
+
+        var first = (ListConsNode)expr.Node!;
+        await Assert.That(first.Head).IsEqualTo(new ConstNode(1, typeof(int)));
+
+        var second = (ListConsNode)first.Tail;
+        await Assert.That(second.Head).IsEqualTo(new ConstNode(2, typeof(int)));
+
+        var third = (ListConsNode)second.Tail;
+        await Assert.That(third.Head).IsEqualTo(new ConstNode(3, typeof(int)));
+        await Assert.That(third.Tail).IsTypeOf<ListEmptyNode>();
+    }
+
+    [Test]
+    public async Task List_WithNoItems_BuildsEmptyNode()
+    {
+        LogicExpr<LogicList<int>> expr = Logic.List<int>();
+
+        await Assert.That(expr.Node).IsTypeOf<ListEmptyNode>();
+    }
+
+    [Test]
+    public async Task LogicList_Create_BuildsConcreteLogicalList()
+    {
+        LogicList<int> list = LogicList<int>.Create(1, 2, 3);
+
+        var first = (LogicListCons<int>)list;
+        await Assert.That(first.Head).IsEqualTo(1);
+
+        var second = (LogicListCons<int>)first.Tail;
+        await Assert.That(second.Head).IsEqualTo(2);
+
+        var third = (LogicListCons<int>)second.Tail;
+        await Assert.That(third.Head).IsEqualTo(3);
+        await Assert.That(third.Tail).IsTypeOf<LogicListEmpty<int>>();
+    }
+
+    [Test]
+    public async Task LogicList_FromEnumerable_BuildsConcreteLogicalList()
+    {
+        LogicList<int> list = LogicList<int>.FromEnumerable(new[] { 4, 5 });
+
+        var first = (LogicListCons<int>)list;
+        await Assert.That(first.Head).IsEqualTo(4);
+
+        var second = (LogicListCons<int>)first.Tail;
+        await Assert.That(second.Head).IsEqualTo(5);
+        await Assert.That(second.Tail).IsTypeOf<LogicListEmpty<int>>();
+    }
 }
