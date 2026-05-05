@@ -79,7 +79,7 @@ public class ExecutionObserverTests
     public async Task Execute_WithoutObserver_ProducesCorrectResults()
     {
         EngineContext ctx = BuildContext();
-        var results = default(ObserverSkus).Execute(ctx).ToList();
+        var results = await default(ObserverSkus).ExecuteAsync(ctx).ToListAsync();
         await Assert.That(results.Count).IsEqualTo(3);
     }
 
@@ -91,7 +91,7 @@ public class ExecutionObserverTests
         EngineContext ctx = BuildContext();
         var observer = new RecordingObserver();
 
-        default(ObserverSkus).Execute(ctx, observer).ToList();
+        await default(ObserverSkus).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasFactScan = observer.Events.Any(e => e.Event == "FactScan");
         await Assert.That(hasFactScan).IsTrue();
@@ -105,7 +105,7 @@ public class ExecutionObserverTests
         EngineContext ctx = BuildContext();
         var observer = new RecordingObserver();
 
-        default(ObserverSkus).Execute(ctx, observer).ToList();
+        await default(ObserverSkus).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasUnify = observer.Events.Any(e => e.Event == "Unify");
         await Assert.That(hasUnify).IsTrue();
@@ -120,7 +120,7 @@ public class ExecutionObserverTests
         var observer = new RecordingObserver();
 
         // With 3 items in the table, there will be backtracking after each yield.
-        default(ObserverSkus).Execute(ctx, observer).ToList();
+        await default(ObserverSkus).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasBacktrack = observer.Events.Any(e => e.Event == "Backtrack");
         await Assert.That(hasBacktrack).IsTrue();
@@ -134,7 +134,7 @@ public class ExecutionObserverTests
         EngineContext ctx = BuildContext();
         var observer = new RecordingObserver();
 
-        default(ObserverSkus).Execute(ctx, observer).ToList();
+        await default(ObserverSkus).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasChoicePoint = observer.Events.Any(e => e.Event == "ChoicePoint");
         await Assert.That(hasChoicePoint).IsTrue();
@@ -146,8 +146,8 @@ public class ExecutionObserverTests
     public async Task Execute_WithObserver_ProducesSameResultsAsWithout()
     {
         EngineContext ctx = BuildContext();
-        var withoutObserver = default(ObserverSkus).Execute(ctx).Select(r => r.sku).ToList();
-        var withObserver = default(ObserverSkus).Execute(ctx, new RecordingObserver()).Select(r => r.sku).ToList();
+        var withoutObserver = (await default(ObserverSkus).ExecuteAsync(ctx).ToListAsync()).Select(r => r.sku).ToList();
+        var withObserver = (await default(ObserverSkus).ExecuteAsync(ctx, new RecordingObserver()).ToListAsync()).Select(r => r.sku).ToList();
 
         await Assert.That(withObserver.Count).IsEqualTo(withoutObserver.Count);
         for (int i = 0; i < withoutObserver.Count; i++)
@@ -162,7 +162,7 @@ public class ExecutionObserverTests
         EngineContext ctx = BuildContext();
         var observer = new RecordingObserver();
 
-        default(ObserverElectronics).Execute(ctx, observer).ToList();
+        await default(ObserverElectronics).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasUnify = observer.Events.Any(e => e.Event == "Unify");
         await Assert.That(hasUnify).IsTrue();
@@ -178,7 +178,7 @@ public class ExecutionObserverTests
 
         // In the self-join, the inner loop binds 'sku' from p.Sku (outer fact).
         // For items where q.Sku differs from the bound 'sku', UnifyFailure fires.
-        default(ObserverSkuJoin).Execute(ctx, observer).ToList();
+        await default(ObserverSkuJoin).ExecuteAsync(ctx, observer).ToListAsync();
 
         bool hasUnifyFailure = observer.Events.Any(e => e.Event == "UnifyFailure");
         await Assert.That(hasUnifyFailure).IsTrue();

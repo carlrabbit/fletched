@@ -112,7 +112,7 @@ No nested scopes for control flow; all blocks are flat
 
 4.1 Method Structure
 
-IEnumerable<TResult> Execute(EngineContext ctx)
+IEnumerable<TResult> Execute(EngineContext ctx, IExecutionObserver? observer = null)
 {
     var state = new <PredicateName>_State();
     var cps = new Stack<ChoicePoint>();
@@ -134,6 +134,15 @@ Success:
 
 L_Entry:
     ...
+}
+
+async IAsyncEnumerable<TResult> ExecuteAsync(EngineContext ctx, IExecutionObserver? observer = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+{
+    foreach (var _item in Execute(ctx, observer))
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        yield return _item;
+    }
 }
 
 

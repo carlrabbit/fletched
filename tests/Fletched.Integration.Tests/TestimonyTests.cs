@@ -98,7 +98,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         List<InconsistentPairResult> results =
-            default(InconsistentPair).Execute(ctx).ToList();
+            await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct);
 
         await Assert.That(results.Count).IsEqualTo(2);
     }
@@ -110,7 +110,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         // A says B is a Friend; B says B is a Stranger → Friend ↔ Stranger about B
-        bool found = default(InconsistentPair).Execute(ctx)
+        bool found = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
             .Any(r => r.who1  == Witness.A &&
                       r.who2  == Witness.B &&
                       r.about == Witness.B);
@@ -125,7 +125,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         // B says B is OutOfTown; C says B is InTown → OutOfTown ↔ InTown about B
-        bool found = default(InconsistentPair).Execute(ctx)
+        bool found = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
             .Any(r => r.who1  == Witness.B &&
                       r.who2  == Witness.C &&
                       r.about == Witness.B);
@@ -140,7 +140,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         // A witness is never inconsistent with themselves in this dataset.
-        bool selfConflict = default(InconsistentPair).Execute(ctx)
+        bool selfConflict = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
             .Any(r => r.who1 == r.who2);
 
         await Assert.That(selfConflict).IsFalse();
@@ -151,7 +151,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         // No two witnesses make contradictory claims about person C in this dataset.
-        bool aboutC = default(InconsistentPair).Execute(ctx)
+        bool aboutC = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
             .Any(r => r.about == Witness.C);
 
         await Assert.That(aboutC).IsFalse();
@@ -162,7 +162,7 @@ public class TestimonyTests
     {
         EngineContext ctx = BuildContext();
         // No two witnesses make contradictory claims about person A in this dataset.
-        bool aboutA = default(InconsistentPair).Execute(ctx)
+        bool aboutA = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
             .Any(r => r.about == Witness.A);
 
         await Assert.That(aboutA).IsFalse();
@@ -177,7 +177,7 @@ public class TestimonyTests
         ctx.Testimonys = new FactTable<Testimony>(System.Array.Empty<Testimony>());
 
         List<InconsistentPairResult> results =
-            default(InconsistentPair).Execute(ctx).ToList();
+            await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct);
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -197,7 +197,7 @@ public class TestimonyTests
         });
 
         List<InconsistentPairResult> results =
-            default(InconsistentPair).Execute(ctx).ToList();
+            await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct);
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -215,7 +215,7 @@ public class TestimonyTests
         });
 
         List<InconsistentPairResult> results =
-            default(InconsistentPair).Execute(ctx).ToList();
+            await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct);
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].about).IsEqualTo(Witness.C);
@@ -232,7 +232,7 @@ public class TestimonyTests
         });
 
         List<InconsistentPairResult> results =
-            default(InconsistentPair).Execute(ctx).ToList();
+            await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct);
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].about).IsEqualTo(Witness.C);

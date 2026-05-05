@@ -54,7 +54,7 @@ public class GeneratorSmokeTests
         });
 
         System.Collections.Generic.List<PersonNamesResult> results =
-            default(PersonNames).Execute(ctx).ToList();
+            await default(PersonNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(2);
         await Assert.That(results[0].name).IsEqualTo("Alice");

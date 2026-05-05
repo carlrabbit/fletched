@@ -62,7 +62,7 @@ Field types match TerminalVar<T>
 
 2.4 Execution Signature
 
-IEnumerable<<PredicateName>Result> Execute(...);
+IAsyncEnumerable<<PredicateName>Result> ExecuteAsync(...);
 
 
 ---
@@ -196,6 +196,10 @@ Success:
     );
 
     goto Resume;
+
+The generated predicate exposes two public methods:
+- IEnumerable<AdminUsersResult> Execute(EngineContext ctx, IExecutionObserver? observer = null)
+- async IAsyncEnumerable<AdminUsersResult> ExecuteAsync(EngineContext ctx, IExecutionObserver? observer = null, CancellationToken cancellationToken = default)
 
 
 ---

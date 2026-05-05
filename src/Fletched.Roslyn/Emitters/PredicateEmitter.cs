@@ -154,6 +154,8 @@ public sealed class PredicateEmitter
         using (ctx.Indent())
         {
             EmitExecuteMethod(ctx);
+            ctx.AppendLine();
+            EmitExecuteAsyncMethod(ctx);
         }
         ctx.AppendLine("}");
     }
@@ -220,6 +222,24 @@ public sealed class PredicateEmitter
             ctx.AppendLine("End:");
             using (ctx.Indent())
                 ctx.AppendLine("yield break;");
+        }
+        ctx.AppendLine("}");
+    }
+
+    private void EmitExecuteAsyncMethod(EmitContext ctx)
+    {
+        ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{_model.Name}Result> ExecuteAsync(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine($"foreach (var _item in Execute(ctx, observer))");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine("cancellationToken.ThrowIfCancellationRequested();");
+                ctx.AppendLine("yield return _item;");
+            }
+            ctx.AppendLine("}");
         }
         ctx.AppendLine("}");
     }

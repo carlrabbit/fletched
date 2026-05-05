@@ -331,6 +331,10 @@ while (true)
         yield break;
 }
 
+The synchronous execution loop above powers the Execute method (IEnumerable<T>).
+The ExecuteAsync method (IAsyncEnumerable<T>) wraps Execute, forwarding each result
+with a CancellationToken check, enabling cooperative cancellation.
+
 
 ---
 

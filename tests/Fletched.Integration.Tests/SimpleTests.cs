@@ -56,7 +56,7 @@ public class SimpleTests
     {
         EngineContext ctx = BuildContext();
         System.Collections.Generic.List<UserNamesResult> results =
-            default(UserNames).Execute(ctx).ToList();
+            await default(UserNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(3);
     }
@@ -65,7 +65,7 @@ public class SimpleTests
     public async Task UserNames_FirstResultIsAlice()
     {
         EngineContext ctx = BuildContext();
-        UserNamesResult first = default(UserNames).Execute(ctx).First();
+        UserNamesResult first = await default(UserNames).ExecuteAsync(ctx).FirstAsync();
         await Assert.That(first.name).IsEqualTo("Alice");
     }
 
@@ -74,7 +74,7 @@ public class SimpleTests
     {
         EngineContext ctx = BuildContext();
         System.Collections.Generic.List<AdminLoginsResult> results =
-            default(AdminLogins).Execute(ctx).ToList();
+            await default(AdminLogins).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(2);
     }
@@ -86,7 +86,7 @@ public class SimpleTests
         ctx.Users = new FactTable<User>(System.Array.Empty<User>());
 
         System.Collections.Generic.List<UserNamesResult> results =
-            default(UserNames).Execute(ctx).ToList();
+            await default(UserNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }

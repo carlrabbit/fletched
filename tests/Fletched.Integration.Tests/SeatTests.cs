@@ -117,7 +117,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         List<VerticalNeighborsResult> results =
-            default(VerticalNeighbors).Execute(ctx).ToList();
+            await default(VerticalNeighbors).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(12);
     }
@@ -127,7 +127,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         List<VerticalNeighborsResult> results =
-            default(VerticalNeighbors).Execute(ctx).ToList();
+            await default(VerticalNeighbors).ExecuteAsync(ctx).ToListAsync();
 
         // Student 3 (row 1, col 1) sits directly above student 4 (row 2, col 1).
         bool threeAboveFour = results.Any(r => r.topStudent == 3 && r.bottomStudent == 4);
@@ -143,7 +143,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // Students 3 (row 1) and 16 (row 3) are NOT vertically adjacent.
-        bool threeAboveSixteen = default(VerticalNeighbors).Execute(ctx)
+        bool threeAboveSixteen = (await default(VerticalNeighbors).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.topStudent == 3 && r.bottomStudent == 16);
 
         await Assert.That(threeAboveSixteen).IsFalse();
@@ -156,7 +156,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         List<LowNumberedSeatResult> results =
-            default(LowNumberedSeat).Execute(ctx).ToList();
+            await default(LowNumberedSeat).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(8);
     }
@@ -165,7 +165,7 @@ public class SeatTests
     public async Task LowNumberedSeat_ContainsStudent1()
     {
         EngineContext ctx = BuildContext();
-        bool hasStudent1 = default(LowNumberedSeat).Execute(ctx)
+        bool hasStudent1 = (await default(LowNumberedSeat).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.student == 1);
 
         await Assert.That(hasStudent1).IsTrue();
@@ -175,7 +175,7 @@ public class SeatTests
     public async Task LowNumberedSeat_DoesNotContainStudent9()
     {
         EngineContext ctx = BuildContext();
-        bool hasStudent9 = default(LowNumberedSeat).Execute(ctx)
+        bool hasStudent9 = (await default(LowNumberedSeat).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.student == 9);
 
         await Assert.That(hasStudent9).IsFalse();
@@ -188,7 +188,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // student=3 requires neighbor<9; neighbor=5 satisfies this.
-        bool compatible = default(CompatiblePair).Execute(ctx)
+        bool compatible = (await default(CompatiblePair).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.neighbor == 5 && r.student == 3);
 
         await Assert.That(compatible).IsTrue();
@@ -199,7 +199,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // student=3 requires neighbor<9; neighbor=16 violates this.
-        bool compatible = default(CompatiblePair).Execute(ctx)
+        bool compatible = (await default(CompatiblePair).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.neighbor == 16 && r.student == 3);
 
         await Assert.That(compatible).IsFalse();
@@ -210,7 +210,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // student=2 requires neighbor≠3; neighbor=3 violates this.
-        bool compatible = default(CompatiblePair).Execute(ctx)
+        bool compatible = (await default(CompatiblePair).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.neighbor == 3 && r.student == 2);
 
         await Assert.That(compatible).IsFalse();
@@ -221,7 +221,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // student=10 requires neighbor>8; neighbor=5 violates this.
-        bool compatible = default(CompatiblePair).Execute(ctx)
+        bool compatible = (await default(CompatiblePair).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.neighbor == 5 && r.student == 10);
 
         await Assert.That(compatible).IsFalse();
@@ -232,7 +232,7 @@ public class SeatTests
     {
         EngineContext ctx = BuildContext();
         // student=10 requires neighbor>8; neighbor=11 satisfies this.
-        bool compatible = default(CompatiblePair).Execute(ctx)
+        bool compatible = (await default(CompatiblePair).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.neighbor == 11 && r.student == 10);
 
         await Assert.That(compatible).IsTrue();
