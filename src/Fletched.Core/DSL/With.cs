@@ -67,6 +67,44 @@ public static class Logic
         new(new ListEmptyNode(typeof(T)));
 
     /// <summary>
+    /// Creates an empty logical list pattern of type <typeparamref name="T"/>.
+    /// Produces a <see cref="ListEmptyNode"/> in the IR.
+    /// </summary>
+    public static LogicExpr<LogicList<T>> List<T>() => Empty<T>();
+
+    /// <summary>
+    /// Creates an exact logical list pattern from zero or more literal values.
+    /// Produces nested <see cref="ListConsNode"/> and <see cref="ListEmptyNode"/> values in the IR.
+    /// </summary>
+    public static LogicExpr<LogicList<T>> List<T>(params T[] items)
+    {
+        if (items is null)
+            throw new ArgumentNullException(nameof(items));
+
+        LogicExpr<LogicList<T>> result = Empty<T>();
+        for (int index = items.Length - 1; index >= 0; index--)
+            result = Cons(items[index], result);
+
+        return result;
+    }
+
+    /// <summary>
+    /// Creates an exact logical list pattern from zero or more symbolic elements.
+    /// Produces nested <see cref="ListConsNode"/> and <see cref="ListEmptyNode"/> values in the IR.
+    /// </summary>
+    public static LogicExpr<LogicList<T>> List<T>(params LogicExpr<T>[] items)
+    {
+        if (items is null)
+            throw new ArgumentNullException(nameof(items));
+
+        LogicExpr<LogicList<T>> result = Empty<T>();
+        for (int index = items.Length - 1; index >= 0; index--)
+            result = Cons(items[index], result);
+
+        return result;
+    }
+
+    /// <summary>
     /// Creates a cons cell logical list with the given head and tail.
     /// Produces a <see cref="ListConsNode"/> in the IR.
     /// </summary>

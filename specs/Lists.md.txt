@@ -61,10 +61,16 @@ These are compile-time resolved and inlined.
 
 LogicExpr<LogicList<T>> Empty<T>();
 
+LogicExpr<LogicList<T>> List<T>(params LogicExpr<T>[] items);
+
 LogicExpr<LogicList<T>> Cons<T>(
     LogicExpr<T> head,
     LogicExpr<LogicList<T>> tail
 );
+
+LogicList<T>.Create(params T[] items);
+
+LogicList<T>.FromEnumerable(IEnumerable<T> items);
 
 
 ---
@@ -229,6 +235,10 @@ Compiled to direct field access or equivalent inlined logic.
 5.1 DSL
 
 list == Cons(1, Cons(2, Empty<int>()))
+
+Equivalent ergonomic form:
+
+list == List(1, 2)
 
 
 ---

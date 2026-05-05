@@ -80,4 +80,12 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidListExpression = new(
+        "FLTCH010",
+        "Invalid list expression",
+        "{0}",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

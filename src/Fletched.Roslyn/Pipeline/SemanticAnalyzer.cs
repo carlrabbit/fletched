@@ -294,6 +294,12 @@ public sealed class SemanticAnalyzer
                 return AnalyzeListEmpty(method);
             }
 
+            // Check if it's Logic.List<T>(...)
+            if (method.Name == "List" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeList(inv, method);
+            }
+
             // Check if it's Logic.Cons<T>(head, tail)
             if (method.Name == "Cons" && method.ContainingType?.Name == "Logic")
             {
@@ -342,6 +348,14 @@ public sealed class SemanticAnalyzer
         if (inv.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax { Identifier.Text: "With" } })
         {
             return AnalyzeWithSyntactic(inv);
+        }
+
+        if (inv.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "List" })
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidListExpression,
+                inv.GetLocation(),
+                "Logic.List(...) could not be resolved. Ensure all list elements share the same type.");
+            return null;
         }
 
         _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
@@ -634,6 +648,35 @@ public sealed class SemanticAnalyzer
             : method.ReturnType;
 
         return new ListEmptyExpr(elementType, listType);
+    }
+
+    /// <summary>Analyzes a <c>Logic.List&lt;T&gt;(...)</c> call and returns nested list expressions.</summary>
+    private SemanticExpr? AnalyzeList(InvocationExpressionSyntax inv, IMethodSymbol method)
+    {
+        if (method.TypeArguments.Length != 1)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidListExpression, inv.GetLocation(),
+                "Logic.List<T>(...) requires a single list element type.");
+            return null;
+        }
+
+        ITypeSymbol elementType = method.TypeArguments[0];
+        ITypeSymbol listType = method.ReturnType is INamedTypeSymbol ret && ret.TypeArguments.Length == 1
+            ? ret.TypeArguments[0]
+            : method.ReturnType;
+
+        SemanticExpr result = new ListEmptyExpr(elementType, listType);
+        for (int index = inv.ArgumentList.Arguments.Count - 1; index >= 0; index--)
+        {
+            ArgumentSyntax argument = inv.ArgumentList.Arguments[index];
+            SemanticExpr? item = AnalyzeExpr(argument.Expression, elementType);
+            if (item is null)
+                return null;
+
+            result = new ListConsExpr(item, result, elementType, listType);
+        }
+
+        return result;
     }
 
     /// <summary>Analyzes a <c>Logic.Cons&lt;T&gt;(head, tail)</c> call and returns a <see cref="ListConsExpr"/>.</summary>
