@@ -639,7 +639,7 @@ public sealed class PredicateEmitter
         return value switch
         {
             SlotValue sv => $"state.{SlotName(sv.Slot)}",
-            ConstValue cv => EmitConstant(cv.Value),
+            ConstValue cv => EmitConstant(cv.Value, cv.TypeName),
             FieldValue fv => $"{EmitValue(fv.Target)}.{fv.MemberName}",
             ArithValue av => av.Op == ArithOp.Add
                 ? $"({EmitValue(av.Left)} + {EmitValue(av.Right)})"
@@ -652,15 +652,15 @@ public sealed class PredicateEmitter
         };
     }
 
-    private static string EmitConstant(object? value)
+    private static string EmitConstant(object? value, string typeName)
     {
-        return value switch
-        {
-            null => "null",
-            string s => $"\"{s.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"",
-            bool b => b ? "true" : "false",
-            _ => value.ToString() ?? "default"
-        };
+        if (value is null) return "null";
+        if (value is string s) return $"\"{s.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
+        if (value is bool b) return b ? "true" : "false";
+        // For all other types (int, enum, etc.) emit an explicit cast to ensure type-safe
+        // comparisons, particularly important for enum constants stored as their underlying
+        // integer value (e.g. StatementKind.Friend stored as 0 → "(StatementKind)0").
+        return $"({typeName}){value}";
     }
 
     private string SlotName(int slot)

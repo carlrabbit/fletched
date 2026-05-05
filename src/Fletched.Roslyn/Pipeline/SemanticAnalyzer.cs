@@ -115,6 +115,22 @@ public sealed class SemanticAnalyzer
 
     private SemanticExpr? AnalyzeExpr(ExpressionSyntax syntax, ITypeSymbol? expectedType)
     {
+        // Resolve compile-time constants early (handles enum member access like Person.A,
+        // qualified names like StatementKind.Friend, and other constant expressions).
+        // LiteralExpressionSyntax is excluded because it is handled explicitly below and
+        // the constant-value path would produce identical results.
+        if (syntax is not LiteralExpressionSyntax)
+        {
+            Microsoft.CodeAnalysis.Optional<object?> maybeConst = _semanticModel.GetConstantValue(syntax);
+            if (maybeConst.HasValue)
+            {
+                TypeInfo typeInfo = _semanticModel.GetTypeInfo(syntax);
+                ITypeSymbol constType = typeInfo.Type
+                    ?? _semanticModel.Compilation.GetSpecialType(SpecialType.System_Object);
+                return new ConstExpr(maybeConst.Value, constType);
+            }
+        }
+
         switch (syntax)
         {
             case BinaryExpressionSyntax bin:
