@@ -249,7 +249,16 @@ public sealed class PredicateEmitter
             if (block.Terminator is LoopCheckTerm lc) indexVars.Add(lc.IndexVar);
         }
         foreach (string v in indexVars)
+        {
             ctx.AppendLine($"int {v} = 0;");
+            if (new[] { _plan.Entry }.Concat(_plan.Blocks)
+                .SelectMany(block => block.Instructions)
+                .OfType<IndexInitInstr>()
+                .Any(init => init.IndexVar == v && init.IndexedLookup is not null))
+            {
+                ctx.AppendLine($"int[]? {IndexMatchesVar(v)} = null;");
+            }
+        }
     }
 
     private void EmitBlock(PlanBlock block, EmitContext ctx)
@@ -282,20 +291,12 @@ public sealed class PredicateEmitter
                 break;
 
             case IndexInitInstr init:
-                ctx.AppendLine($"{init.IndexVar} = 0;");
-                ctx.AppendMetricIncrement("FactScans");
-                ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+                EmitIndexInit(init, ctx);
                 break;
 
             case LoopBindInstr bind:
-            {
-                string factTypeName = bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-                string tableProp = TablePropertyName(bind.FactType);
-                string slotName = SlotName(bind.Slot);
-                ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
-                ctx.AppendLine($"state.{slotName}_bound = true;");
+                EmitLoopBind(bind, ctx);
                 break;
-            }
 
             case IndexIncrInstr incr:
                 ctx.AppendLine($"{incr.IndexVar}++;");
@@ -312,6 +313,137 @@ public sealed class PredicateEmitter
             case NotInstr not:
                 EmitNot(not, ctx);
                 break;
+        }
+    }
+
+    private void EmitIndexInit(IndexInitInstr init, EmitContext ctx)
+    {
+        string tableProp = TablePropertyName(init.FactType);
+        string matchesVar = IndexMatchesVar(init.IndexVar);
+
+        if (init.IndexedLookup is null)
+        {
+            ctx.AppendLine($"{init.IndexVar} = 0;");
+            ctx.AppendMetricIncrement("FactScans");
+            ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+            return;
+        }
+
+        switch (init.IndexedLookup.Key)
+        {
+            case SlotValue slot:
+            {
+                string slotName = SlotName(slot.Slot);
+                ctx.AppendLine($"{init.IndexVar} = 0;");
+                ctx.AppendLine($"if (state.{slotName}_bound)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendMetricIncrement("IndexHits");
+                    ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", state.{slotName}, out {matchesVar})) goto Fail;");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("else");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendLine($"{matchesVar} = null;");
+                    ctx.AppendMetricIncrement("FactScans");
+                    ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+                }
+                ctx.AppendLine("}");
+                return;
+            }
+
+            default:
+                ctx.AppendLine($"{init.IndexVar} = 0;");
+                ctx.AppendMetricIncrement("IndexHits");
+                ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) goto Fail;");
+                return;
+        }
+    }
+
+    private void EmitLoopBind(LoopBindInstr bind, EmitContext ctx)
+    {
+        string tableProp = TablePropertyName(bind.FactType);
+        string slotName = SlotName(bind.Slot);
+
+        if (bind.IndexedLookup is null)
+        {
+            ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
+            ctx.AppendLine($"state.{slotName}_bound = true;");
+            return;
+        }
+
+        string matchesVar = IndexMatchesVar(bind.IndexVar);
+        switch (bind.IndexedLookup.Key)
+        {
+            case SlotValue keySlot:
+            {
+                string keySlotName = SlotName(keySlot.Slot);
+                ctx.AppendLine($"if (state.{keySlotName}_bound)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
+                    ctx.AppendLine($"state.{slotName}_bound = true;");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("else");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
+                    ctx.AppendLine($"state.{slotName}_bound = true;");
+                }
+                ctx.AppendLine("}");
+                return;
+            }
+
+            default:
+                ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
+                ctx.AppendLine($"state.{slotName}_bound = true;");
+                return;
+        }
+    }
+
+    private void EmitLoopCheck(LoopCheckTerm loopCheck, EmitContext ctx)
+    {
+        string tableProp = TablePropertyName(loopCheck.FactType);
+
+        if (loopCheck.IndexedLookup is null)
+        {
+            ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) goto Fail;");
+            ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+            return;
+        }
+
+        string matchesVar = IndexMatchesVar(loopCheck.IndexVar);
+        switch (loopCheck.IndexedLookup.Key)
+        {
+            case SlotValue slot:
+            {
+                string slotName = SlotName(slot.Slot);
+                ctx.AppendLine($"if (state.{slotName}_bound)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                    ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) goto Fail;");
+                ctx.AppendLine("}");
+                ctx.AppendLine("else");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                    ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) goto Fail;");
+                ctx.AppendLine("}");
+                ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+                return;
+            }
+
+            default:
+                ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) goto Fail;");
+                ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+                return;
         }
     }
 
@@ -635,12 +767,8 @@ public sealed class PredicateEmitter
                 break;
 
             case LoopCheckTerm lc:
-            {
-                string tableProp = TablePropertyName(lc.FactType);
-                ctx.AppendLine($"if ({lc.IndexVar} >= ctx.{tableProp}.Data.Length) goto Fail;");
-                ctx.AppendLine($"goto L_{lc.BodyLabel};");
+                EmitLoopCheck(lc, ctx);
                 break;
-            }
         }
     }
 
@@ -679,6 +807,8 @@ public sealed class PredicateEmitter
         return entry.Name ?? $"_slot{slot}";
     }
 
+    private static string IndexMatchesVar(string indexVar) => $"{indexVar}_matches";
+
     private static void CollectSlots(
         PlanInstruction instruction,
         IDictionary<int, string> slotNames,
@@ -710,6 +840,12 @@ public sealed class PredicateEmitter
             case LoopBindInstr bind:
                 AddIfMissing(slotNames, bind.Slot, $"_slot{bind.Slot}");
                 AddIfMissing(slotTypes, bind.Slot, bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                if (bind.IndexedLookup is not null)
+                    CollectSlots(bind.IndexedLookup.Key, slotNames, slotTypes);
+                break;
+
+            case IndexInitInstr init when init.IndexedLookup is not null:
+                CollectSlots(init.IndexedLookup.Key, slotNames, slotTypes);
                 break;
 
             case CallInstr call:

@@ -27,6 +27,16 @@ public partial record struct ObserverElectronics
         Logic.With<ObserverProduct>(p => p.Sku == sku && p.Category == "Electronics");
 }
 
+[Predicate]
+public partial record struct ObserverSkuLookupAfterBinding
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> sku) =>
+        Logic.With<ObserverProduct>(p =>
+            p.Sku == sku &&
+            Logic.With<ObserverProduct>(q => q.Sku == sku));
+}
+
 /// <summary>
 /// Cross-product join: finds pairs of products that share the same SKU.
 /// When the inner loop's SKU differs from the already-bound outer SKU,
@@ -95,6 +105,18 @@ public class ExecutionObserverTests
 
         bool hasFactScan = observer.Events.Any(e => e.Event == "FactScan");
         await Assert.That(hasFactScan).IsTrue();
+    }
+
+    [Test]
+    public async Task Execute_WithUnboundKey_DoesNotReceiveIndexHitEvents()
+    {
+        EngineContext ctx = BuildContext();
+        var observer = new RecordingObserver();
+
+        default(ObserverSkus).Execute(ctx, observer).ToList();
+
+        bool hasIndexHit = observer.Events.Any(e => e.Event == "IndexHit");
+        await Assert.That(hasIndexHit).IsFalse();
     }
 
     // ── Observer receives Unify events ────────────────────────────────────────
@@ -168,6 +190,18 @@ public class ExecutionObserverTests
         await Assert.That(hasUnify).IsTrue();
     }
 
+    [Test]
+    public async Task ConstantFilterExecute_WithObserver_ReceivesIndexHitEvents()
+    {
+        EngineContext ctx = BuildContext();
+        var observer = new RecordingObserver();
+
+        default(ObserverElectronics).Execute(ctx, observer).ToList();
+
+        bool hasIndexHit = observer.Events.Any(e => e.Event == "IndexHit" && Equals(e.Arg, "ObserverProduct"));
+        await Assert.That(hasIndexHit).IsTrue();
+    }
+
     // ── Cross-product join — verify UnifyFailure when join key mismatches ────
 
     [Test]
@@ -182,5 +216,18 @@ public class ExecutionObserverTests
 
         bool hasUnifyFailure = observer.Events.Any(e => e.Event == "UnifyFailure");
         await Assert.That(hasUnifyFailure).IsTrue();
+    }
+
+    [Test]
+    public async Task NestedLookupExecute_WithObserver_ReceivesIndexHitEvents()
+    {
+        EngineContext ctx = BuildContext();
+        var observer = new RecordingObserver();
+
+        var results = default(ObserverSkuLookupAfterBinding).Execute(ctx, observer).ToList();
+
+        bool hasIndexHit = observer.Events.Any(e => e.Event == "IndexHit" && Equals(e.Arg, "ObserverProduct"));
+        await Assert.That(results.Count).IsEqualTo(3);
+        await Assert.That(hasIndexHit).IsTrue();
     }
 }
