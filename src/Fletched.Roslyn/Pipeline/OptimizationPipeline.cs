@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Collections.ObjectModel;
 using System.Linq;
 
 namespace Fletched.Roslyn.Pipeline;
@@ -12,8 +11,8 @@ public interface IPlanOptimization
 }
 
 internal readonly record struct AccessSet(
-    IReadOnlySet<int> Reads,
-    IReadOnlySet<int> Writes);
+    HashSet<int> Reads,
+    HashSet<int> Writes);
 
 internal static class PlanAnalysis
 {
@@ -82,9 +81,7 @@ internal static class PlanAnalysis
                 break;
         }
 
-        return new AccessSet(
-            new ReadOnlySet<int>(reads),
-            new ReadOnlySet<int>(writes));
+        return new AccessSet(reads, writes);
     }
 
     public static bool MustPrecede(AccessSet earlier, AccessSet later)
@@ -126,7 +123,8 @@ internal static class PlanAnalysis
                 .Where(index => indegree[index] == 0)
                 .OrderBy(index => priority(instructions[index]))
                 .ThenBy(index => index)
-                .FirstOrDefault(-1);
+                .DefaultIfEmpty(-1)
+                .First();
 
             if (next < 0)
                 return instructions;
@@ -639,14 +637,14 @@ public sealed class TempHoisting : IPlanOptimization
             CountFieldValues(instruction, occurrences);
 
         Dictionary<FieldValue, SlotValue>? replacements = null;
-        foreach ((FieldValue field, int count) in occurrences)
+        foreach (KeyValuePair<FieldValue, int> occurrence in occurrences)
         {
-            if (count < 2)
+            if (occurrence.Value < 2)
                 continue;
 
             replacements ??= new Dictionary<FieldValue, SlotValue>();
-            replacements[field] = new SlotValue(nextSlot++, field.TypeName);
-            rewritten.Add(new AssignInstr(replacements[field].Slot, field));
+            replacements[occurrence.Key] = new SlotValue(nextSlot++, occurrence.Key.TypeName);
+            rewritten.Add(new AssignInstr(replacements[occurrence.Key].Slot, occurrence.Key));
         }
 
         if (replacements is null)
@@ -750,12 +748,12 @@ public sealed class TempHoisting : IPlanOptimization
 
     private static PlanValue RewriteValue(PlanValue value, IReadOnlyDictionary<FieldValue, SlotValue> replacements)
     {
-        if (value is FieldValue field && replacements.TryGetValue(field, out SlotValue? replacement))
+        if (value is FieldValue fieldValue && replacements.TryGetValue(fieldValue, out SlotValue? replacement))
             return replacement;
 
         return value switch
         {
-            FieldValue field => field with { Target = RewriteValue(field.Target, replacements) },
+            FieldValue nestedField => nestedField with { Target = RewriteValue(nestedField.Target, replacements) },
             ArithValue arith => arith with
             {
                 Left = RewriteValue(arith.Left, replacements),

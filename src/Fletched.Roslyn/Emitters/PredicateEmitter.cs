@@ -41,7 +41,7 @@ public sealed class PredicateEmitter
 
         _slots = slotTypes
             .OrderBy(kv => kv.Key)
-            .Select(kv => (slotNames.GetValueOrDefault(kv.Key, $"_slot{kv.Key}"), kv.Value, kv.Key))
+            .Select(kv => (slotNames.ContainsKey(kv.Key) ? slotNames[kv.Key] : $"_slot{kv.Key}", kv.Value, kv.Key))
             .ToList();
 
         // Assign integer ids to all labels
@@ -697,8 +697,8 @@ public sealed class PredicateEmitter
                 break;
 
             case AssignInstr assign:
-                slotNames.TryAdd(assign.Slot, $"_slot{assign.Slot}");
-                slotTypes.TryAdd(assign.Slot, InferTypeName(assign.Value));
+                AddIfMissing(slotNames, assign.Slot, $"_slot{assign.Slot}");
+                AddIfMissing(slotTypes, assign.Slot, InferTypeName(assign.Value));
                 CollectSlots(assign.Value, slotNames, slotTypes);
                 break;
 
@@ -708,13 +708,13 @@ public sealed class PredicateEmitter
                 break;
 
             case LoopBindInstr bind:
-                slotNames.TryAdd(bind.Slot, $"_slot{bind.Slot}");
-                slotTypes.TryAdd(bind.Slot, bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                AddIfMissing(slotNames, bind.Slot, $"_slot{bind.Slot}");
+                AddIfMissing(slotTypes, bind.Slot, bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 break;
 
             case CallInstr call:
                 foreach (int slot in call.ArgumentSlots)
-                    slotNames.TryAdd(slot, $"_slot{slot}");
+                    AddIfMissing(slotNames, slot, $"_slot{slot}");
                 break;
 
             case NotInstr not:
@@ -732,8 +732,8 @@ public sealed class PredicateEmitter
         switch (value)
         {
             case SlotValue slot:
-                slotNames.TryAdd(slot.Slot, $"_slot{slot.Slot}");
-                slotTypes.TryAdd(slot.Slot, slot.TypeName);
+                AddIfMissing(slotNames, slot.Slot, $"_slot{slot.Slot}");
+                AddIfMissing(slotTypes, slot.Slot, slot.TypeName);
                 break;
 
             case FieldValue field:
@@ -764,6 +764,12 @@ public sealed class PredicateEmitter
             ListConsValue cons => $"global::Fletched.Core.LogicList<{cons.ElementTypeName}>",
             _ => "object"
         };
+    }
+
+    private static void AddIfMissing(IDictionary<int, string> values, int key, string value)
+    {
+        if (!values.ContainsKey(key))
+            values[key] = value;
     }
 
     private static string TablePropertyName(ITypeSymbol factType)
