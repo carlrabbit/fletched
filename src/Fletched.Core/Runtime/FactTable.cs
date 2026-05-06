@@ -98,7 +98,14 @@ public sealed class FactTable<T>
                 return false;
             }
 
-            return buckets.TryGetValue(key, out indices!);
+            if (buckets.TryGetValue(key, out int[]? matches))
+            {
+                indices = matches;
+                return true;
+            }
+
+            indices = Array.Empty<int>();
+            return false;
         }
     }
 }
