@@ -51,9 +51,11 @@ struct ArgumentMap
 3. Rules and Invariants
 
 - Predicate invocation is represented exclusively by "PlanCall".
+- Predicate overload resolution is based on predicate name plus arity.
 - Each predicate compiles to a resumable execution function ("MoveNext").
 - Each invocation instance owns a frame with an explicit state integer.
 - Argument passing is slot-based and positional.
+- Calls must target exactly one "[PredicateBody]" overload with the same arity.
 - Caller and callee states are independent.
 - Argument values are copied from caller state into callee state before execution.
 - Bound flags are copied together with values.

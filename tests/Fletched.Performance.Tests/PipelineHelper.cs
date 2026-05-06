@@ -75,7 +75,7 @@ internal static class PipelineHelper
             ? string.Empty
             : predicateSymbol.ContainingNamespace.ToDisplayString();
 
-        var emitter = new Fletched.Roslyn.Emitters.PredicateEmitter(model, plan);
+        var emitter = new Fletched.Roslyn.Emitters.PredicateEmitter(model, plan, generateLegacyNames: true);
         string generatedSource = emitter.Emit(ns);
         int generatedLoc = generatedSource.Split('\n').Length;
 

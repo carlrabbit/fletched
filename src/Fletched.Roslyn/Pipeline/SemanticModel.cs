@@ -46,7 +46,11 @@ public record WithExpr(IReadOnlyList<VariableSymbol> Variables, SemanticExpr Bod
     : SemanticExpr(BoolType);
 
 /// <summary>Call to another predicate.</summary>
-public record CallExpr(INamedTypeSymbol PredicateType, IReadOnlyList<SemanticExpr> Arguments, ITypeSymbol BoolType)
+public record CallExpr(
+    INamedTypeSymbol PredicateType,
+    IReadOnlyList<SemanticExpr> Arguments,
+    ITypeSymbol BoolType,
+    int Arity)
     : SemanticExpr(BoolType);
 
 /// <summary>Comparison operator kind.</summary>
@@ -81,5 +85,9 @@ public record ListConsExpr(SemanticExpr Head, SemanticExpr Tail, ITypeSymbol Ele
 public record PredicateModel(
     string Name,
     INamedTypeSymbol Symbol,
+    IMethodSymbol BodyMethod,
     IReadOnlyList<VariableSymbol> Parameters,
-    SemanticExpr Body);
+    SemanticExpr Body)
+{
+    public int Arity => Parameters.Count;
+}

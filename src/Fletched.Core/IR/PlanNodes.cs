@@ -33,7 +33,7 @@ public record ConstraintInstr(MethodInfo Method, IReadOnlyList<PlanValue> Argume
 public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
 
 /// <summary>Call to another predicate.</summary>
-public record CallInstr(Type PredicateType, IReadOnlyList<int> ArgumentSlots) : PlanInstruction;
+public record CallInstr(Type PredicateType, IReadOnlyList<int> ArgumentSlots, int Arity) : PlanInstruction;
 
 /// <summary>Built-in AllDistinct constraint: fails if any two bound slots hold equal values.</summary>
 public record AllDistinctInstr(IReadOnlyList<int> Slots, Type ElementType) : PlanInstruction;

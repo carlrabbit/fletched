@@ -27,20 +27,47 @@ public sealed class SemanticAnalyzer
 
     public PredicateModel? Analyze(INamedTypeSymbol predicateType)
     {
-        // Find the [PredicateBody] method
-        IMethodSymbol? bodyMethod = predicateType.GetMembers()
-            .OfType<IMethodSymbol>()
-            .FirstOrDefault(m => m.GetAttributes()
-                .Any(a => a.AttributeClass?.Name == "PredicateBodyAttribute"));
+        return AnalyzeAll(predicateType).FirstOrDefault();
+    }
 
-        if (bodyMethod is null)
+    public IReadOnlyList<PredicateModel> AnalyzeAll(INamedTypeSymbol predicateType)
+    {
+        List<IMethodSymbol> bodyMethods = GetPredicateBodyMethods(predicateType);
+        if (bodyMethods.Count == 0)
         {
             _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody,
                 predicateType.Locations.FirstOrDefault(),
                 "No method marked with [PredicateBody] found");
-            return null;
+            return [];
         }
 
+        foreach (IGrouping<int, IMethodSymbol> overloadGroup in bodyMethods.GroupBy(m => m.Parameters.Length))
+        {
+            if (overloadGroup.Count() <= 1) continue;
+
+            foreach (IMethodSymbol duplicateBody in overloadGroup)
+            {
+                _reporter.Error(
+                    DiagnosticsCatalog.InvalidPredicateBody,
+                    duplicateBody.Locations.FirstOrDefault(),
+                    $"Multiple [PredicateBody] methods with arity {overloadGroup.Key} are not allowed");
+            }
+        }
+
+        var models = new List<PredicateModel>();
+        foreach (IMethodSymbol bodyMethod in bodyMethods.OrderBy(m => m.Parameters.Length))
+        {
+            PredicateModel? model = AnalyzeBody(predicateType, bodyMethod);
+            if (model is not null)
+                models.Add(model);
+        }
+
+        return models;
+    }
+
+    private PredicateModel? AnalyzeBody(INamedTypeSymbol predicateType, IMethodSymbol bodyMethod)
+    {
+        _scope.Clear();
         // Validate return type is LogicExpr<bool>
         if (!IsLogicExprBool(bodyMethod.ReturnType))
         {
@@ -97,7 +124,15 @@ public sealed class SemanticAnalyzer
         SemanticExpr? body = AnalyzeExpr(bodyExpr, boolType);
         if (body is null) return null;
 
-        return new PredicateModel(predicateType.Name, predicateType, parameters, body);
+        return new PredicateModel(predicateType.Name, predicateType, bodyMethod, parameters, body);
+    }
+
+    private static List<IMethodSymbol> GetPredicateBodyMethods(INamedTypeSymbol predicateType)
+    {
+        return predicateType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(m => m.GetAttributes().Any(a => a.AttributeClass?.Name == "PredicateBodyAttribute"))
+            .ToList();
     }
 
     private static ExpressionSyntax? GetBodyExpression(SyntaxNode node)
@@ -319,7 +354,17 @@ public sealed class SemanticAnalyzer
                 if (argExpr is null) return null;
                 args.Add(argExpr);
             }
-            return new CallExpr(predicateType, args, boolType);
+            int arity = args.Count;
+            if (!HasPredicateBodyForArity(predicateType, arity))
+            {
+                _reporter.Error(
+                    DiagnosticsCatalog.InvalidPredicateCall,
+                    inv.GetLocation(),
+                    $"Predicate '{predicateType.Name}/{arity}' was not found or argument types do not match");
+                return null;
+            }
+
+            return new CallExpr(predicateType, args, boolType, arity);
         }
 
         if (symbol is IMethodSymbol methodSymbol)
@@ -392,6 +437,12 @@ public sealed class SemanticAnalyzer
         bool hasPredicate = namedCandidate.GetAttributes()
             .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
         return hasPredicate ? candidate : null;
+    }
+
+    private static bool HasPredicateBodyForArity(INamedTypeSymbol predicateType, int arity)
+    {
+        return GetPredicateBodyMethods(predicateType)
+            .Any(m => m.Parameters.Length == arity);
     }
 
     private SemanticExpr? AnalyzeWith(InvocationExpressionSyntax inv, IMethodSymbol method)

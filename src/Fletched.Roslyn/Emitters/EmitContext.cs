@@ -9,14 +9,16 @@ public sealed class EmitContext
     public StringBuilder Code { get; } = new();
     public int IndentLevel { get; set; }
     public string PredicateName { get; }
+    public string GeneratedName { get; }
     public string StateTypeName { get; }
     public string SlotIdTypeName { get; }
 
-    public EmitContext(string predicateName)
+    public EmitContext(string predicateName, string generatedName)
     {
         PredicateName = predicateName;
-        StateTypeName = $"{predicateName}_State";
-        SlotIdTypeName = $"{predicateName}_SlotId";
+        GeneratedName = generatedName;
+        StateTypeName = $"{generatedName}_State";
+        SlotIdTypeName = $"{generatedName}_SlotId";
     }
 
     public void AppendLine(string line = "")
