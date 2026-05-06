@@ -57,6 +57,7 @@ public sealed class SemanticAnalyzer
         var models = new List<PredicateModel>();
         foreach (IMethodSymbol bodyMethod in bodyMethods.OrderBy(m => m.Parameters.Length))
         {
+            _scope.Clear();
             PredicateModel? model = AnalyzeBody(predicateType, bodyMethod);
             if (model is not null)
                 models.Add(model);
@@ -67,7 +68,6 @@ public sealed class SemanticAnalyzer
 
     private PredicateModel? AnalyzeBody(INamedTypeSymbol predicateType, IMethodSymbol bodyMethod)
     {
-        _scope.Clear();
         // Validate return type is LogicExpr<bool>
         if (!IsLogicExprBool(bodyMethod.ReturnType))
         {

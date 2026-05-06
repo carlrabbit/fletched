@@ -89,7 +89,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                 string source = predicateEmitter.Emit(ns);
                 string hintName = generateLegacyNames
                     ? $"{predicateType.Name}.g.cs"
-                    : $"{predicateType.Name}.arity{model.Arity}.g.cs";
+                    : $"{predicateType.Name}.Arity{model.Arity}.g.cs";
 
                 spc.AddSource(hintName, source);
             }

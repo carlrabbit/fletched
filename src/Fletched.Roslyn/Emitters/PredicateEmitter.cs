@@ -177,7 +177,11 @@ public sealed class PredicateEmitter
         {
             if (_generateLegacyNames)
             {
-                ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null) => {ExecuteMethodName}(ctx, observer);");
+                ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                    ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer);");
+                ctx.AppendLine("}");
                 ctx.AppendLine();
             }
             EmitExecuteMethod(ctx);
