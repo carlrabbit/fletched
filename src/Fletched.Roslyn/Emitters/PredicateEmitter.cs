@@ -41,7 +41,7 @@ public sealed class PredicateEmitter
 
         _slots = slotTypes
             .OrderBy(kv => kv.Key)
-            .Select(kv => (slotNames.ContainsKey(kv.Key) ? slotNames[kv.Key] : $"_slot{kv.Key}", kv.Value, kv.Key))
+            .Select(kv => (ResolveSlotName(slotNames, kv.Key), kv.Value, kv.Key))
             .ToList();
 
         // Assign integer ids to all labels
@@ -768,8 +768,27 @@ public sealed class PredicateEmitter
 
     private static void AddIfMissing(IDictionary<int, string> values, int key, string value)
     {
-        if (!values.ContainsKey(key))
+        if (!TryGetValue(values, key, out _))
             values[key] = value;
+    }
+
+    private static string ResolveSlotName(IDictionary<int, string> values, int key)
+    {
+        return TryGetValue(values, key, out string value)
+            ? value
+            : $"_slot{key}";
+    }
+
+    private static bool TryGetValue(IDictionary<int, string> values, int key, out string value)
+    {
+        if (values.TryGetValue(key, out string? existing) && existing is not null)
+        {
+            value = existing;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
     }
 
     private static string TablePropertyName(ITypeSymbol factType)

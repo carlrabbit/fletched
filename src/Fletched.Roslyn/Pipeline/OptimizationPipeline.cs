@@ -11,11 +11,13 @@ public interface IPlanOptimization
 }
 
 internal readonly record struct AccessSet(
-    HashSet<int> Reads,
-    HashSet<int> Writes);
+    int[] Reads,
+    int[] Writes);
 
 internal static class PlanAnalysis
 {
+    public const string FailLabel = "Fail";
+
     public static IReadOnlyList<PlanBlock> AllBlocks(PlanProgram program) =>
         new[] { program.Entry }.Concat(program.Blocks).ToList();
 
@@ -81,14 +83,14 @@ internal static class PlanAnalysis
                 break;
         }
 
-        return new AccessSet(reads, writes);
+        return new AccessSet(reads.ToArray(), writes.ToArray());
     }
 
     public static bool MustPrecede(AccessSet earlier, AccessSet later)
     {
-        return earlier.Writes.Overlaps(later.Reads)
-            || earlier.Writes.Overlaps(later.Writes)
-            || earlier.Reads.Overlaps(later.Writes);
+        return Overlaps(earlier.Writes, later.Reads)
+            || Overlaps(earlier.Writes, later.Writes)
+            || Overlaps(earlier.Reads, later.Writes);
     }
 
     public static IReadOnlyList<PlanInstruction> ReorderInstructions(
@@ -302,6 +304,12 @@ internal static class PlanAnalysis
 
         comparable = result;
         return true;
+    }
+
+    private static bool Overlaps(IEnumerable<int> left, IEnumerable<int> right)
+    {
+        var rightSet = new HashSet<int>(right);
+        return left.Any(rightSet.Contains);
     }
 }
 
@@ -568,7 +576,7 @@ public sealed class DeadCodeElimination : IPlanOptimization
 
         foreach (string successor in PlanAnalysis.Successors(block.Terminator))
         {
-            if (string.Equals(successor, "Fail", StringComparison.Ordinal))
+            if (string.Equals(successor, PlanAnalysis.FailLabel, StringComparison.Ordinal))
                 continue;
 
             CollectReachable(successor, program, visited);
@@ -613,7 +621,7 @@ public sealed class TempHoisting : IPlanOptimization
         foreach (PlanInstruction instruction in block.Instructions)
         {
             AccessSet access = PlanAnalysis.AnalyzeInstruction(instruction);
-            if (access.Writes.Count > 0)
+            if (access.Writes.Length > 0)
             {
                 FlushSegment(segment, rewritten, ref nextSlot);
                 rewritten.Add(instruction);
