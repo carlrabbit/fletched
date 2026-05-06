@@ -28,10 +28,20 @@ public sealed class PredicateEmitter
         _model = model;
         _plan = plan;
 
-        // Build ordered slot list sorted by slot index
-        _slots = plan.SlotMap
-            .Select(kv => (kv.Key.Name, TypeName: kv.Key.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat), kv.Value))
-            .OrderBy(x => x.Value)
+        var slotTypes = plan.SlotMap.ToDictionary(
+            kv => kv.Value,
+            kv => kv.Key.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+        var slotNames = plan.SlotMap.ToDictionary(kv => kv.Value, kv => kv.Key.Name);
+
+        foreach (PlanBlock block in new[] { plan.Entry }.Concat(plan.Blocks))
+        {
+            foreach (PlanInstruction instruction in block.Instructions)
+                CollectSlots(instruction, slotNames, slotTypes);
+        }
+
+        _slots = slotTypes
+            .OrderBy(kv => kv.Key)
+            .Select(kv => (ResolveSlotName(slotNames, kv.Key), kv.Value, kv.Key))
             .ToList();
 
         // Assign integer ids to all labels
@@ -667,6 +677,118 @@ public sealed class PredicateEmitter
     {
         var entry = _slots.FirstOrDefault(s => s.Slot == slot);
         return entry.Name ?? $"_slot{slot}";
+    }
+
+    private static void CollectSlots(
+        PlanInstruction instruction,
+        IDictionary<int, string> slotNames,
+        IDictionary<int, string> slotTypes)
+    {
+        switch (instruction)
+        {
+            case UnifyInstr unify:
+                CollectSlots(unify.Left, slotNames, slotTypes);
+                CollectSlots(unify.Right, slotNames, slotTypes);
+                break;
+
+            case ConstraintInstr constraint:
+                foreach (PlanValue argument in constraint.Arguments)
+                    CollectSlots(argument, slotNames, slotTypes);
+                break;
+
+            case AssignInstr assign:
+                AddIfMissing(slotNames, assign.Slot, $"_slot{assign.Slot}");
+                AddIfMissing(slotTypes, assign.Slot, InferTypeName(assign.Value));
+                CollectSlots(assign.Value, slotNames, slotTypes);
+                break;
+
+            case CompInstr comp:
+                CollectSlots(comp.Left, slotNames, slotTypes);
+                CollectSlots(comp.Right, slotNames, slotTypes);
+                break;
+
+            case LoopBindInstr bind:
+                AddIfMissing(slotNames, bind.Slot, $"_slot{bind.Slot}");
+                AddIfMissing(slotTypes, bind.Slot, bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
+                break;
+
+            case CallInstr call:
+                foreach (int slot in call.ArgumentSlots)
+                    AddIfMissing(slotNames, slot, $"_slot{slot}");
+                break;
+
+            case NotInstr not:
+                foreach (PlanInstruction subGoalInstruction in not.SubGoalInstructions)
+                    CollectSlots(subGoalInstruction, slotNames, slotTypes);
+                break;
+        }
+    }
+
+    private static void CollectSlots(
+        PlanValue value,
+        IDictionary<int, string> slotNames,
+        IDictionary<int, string> slotTypes)
+    {
+        switch (value)
+        {
+            case SlotValue slot:
+                AddIfMissing(slotNames, slot.Slot, $"_slot{slot.Slot}");
+                AddIfMissing(slotTypes, slot.Slot, slot.TypeName);
+                break;
+
+            case FieldValue field:
+                CollectSlots(field.Target, slotNames, slotTypes);
+                break;
+
+            case ArithValue arith:
+                CollectSlots(arith.Left, slotNames, slotTypes);
+                CollectSlots(arith.Right, slotNames, slotTypes);
+                break;
+
+            case ListConsValue cons:
+                CollectSlots(cons.Head, slotNames, slotTypes);
+                CollectSlots(cons.Tail, slotNames, slotTypes);
+                break;
+        }
+    }
+
+    private static string InferTypeName(PlanValue value)
+    {
+        return value switch
+        {
+            SlotValue slot => slot.TypeName,
+            ConstValue constant => constant.TypeName,
+            FieldValue field => field.TypeName,
+            ArithValue arith => InferTypeName(arith.Left),
+            ListEmptyValue empty => $"global::Fletched.Core.LogicList<{empty.ElementTypeName}>",
+            ListConsValue cons => $"global::Fletched.Core.LogicList<{cons.ElementTypeName}>",
+            _ => "object"
+        };
+    }
+
+    private static void AddIfMissing(IDictionary<int, string> values, int key, string value)
+    {
+        if (!TryGetValue(values, key, out _))
+            values[key] = value;
+    }
+
+    private static string ResolveSlotName(IDictionary<int, string> values, int key)
+    {
+        return TryGetValue(values, key, out string value)
+            ? value
+            : $"_slot{key}";
+    }
+
+    private static bool TryGetValue(IDictionary<int, string> values, int key, out string value)
+    {
+        if (values.TryGetValue(key, out string? existing) && existing is not null)
+        {
+            value = existing;
+            return true;
+        }
+
+        value = string.Empty;
+        return false;
     }
 
     private static string TablePropertyName(ITypeSymbol factType)
