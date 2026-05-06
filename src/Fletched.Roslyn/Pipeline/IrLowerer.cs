@@ -442,9 +442,14 @@ public sealed class IrLowerer
         if (parts.Count == 1)
             return null;
 
-        List<SemanticExpr> remaining = parts
-            .Where((_, index) => index != removeIndex)
-            .ToList();
+        var remaining = new List<SemanticExpr>(parts.Count - 1);
+        for (int index = 0; index < parts.Count; index++)
+        {
+            if (index == removeIndex)
+                continue;
+
+            remaining.Add(parts[index]);
+        }
 
         return remaining.Count == 1
             ? remaining[0]

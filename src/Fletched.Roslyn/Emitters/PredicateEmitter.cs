@@ -238,11 +238,17 @@ public sealed class PredicateEmitter
     {
         // Collect all index vars from all blocks
         var indexVars = new HashSet<string>();
+        var indexedVars = new HashSet<string>();
         foreach (PlanBlock block in new[] { _plan.Entry }.Concat(_plan.Blocks))
         {
             foreach (PlanInstruction instr in block.Instructions)
             {
-                if (instr is IndexInitInstr init) indexVars.Add(init.IndexVar);
+                if (instr is IndexInitInstr init)
+                {
+                    indexVars.Add(init.IndexVar);
+                    if (init.IndexedLookup is not null)
+                        indexedVars.Add(init.IndexVar);
+                }
                 if (instr is IndexIncrInstr incr) indexVars.Add(incr.IndexVar);
                 if (instr is LoopBindInstr bind) indexVars.Add(bind.IndexVar);
             }
@@ -251,13 +257,8 @@ public sealed class PredicateEmitter
         foreach (string v in indexVars)
         {
             ctx.AppendLine($"int {v} = 0;");
-            if (new[] { _plan.Entry }.Concat(_plan.Blocks)
-                .SelectMany(block => block.Instructions)
-                .OfType<IndexInitInstr>()
-                .Any(init => init.IndexVar == v && init.IndexedLookup is not null))
-            {
+            if (indexedVars.Contains(v))
                 ctx.AppendLine($"int[]? {IndexMatchesVar(v)} = null;");
-            }
         }
     }
 
