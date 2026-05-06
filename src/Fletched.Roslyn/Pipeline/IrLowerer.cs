@@ -399,8 +399,8 @@ public sealed class IrLowerer
             if (parts[index] is not UnifyExpr unify)
                 continue;
 
-            if (!TryMatchLookup(unify.Left, unify.Right, variable, preferConstants, out _)
-                && !TryMatchLookup(unify.Right, unify.Left, variable, preferConstants, out _))
+            if (!TryMatchLookup(unify.Left, unify.Right, variable, preferConstants)
+                && !TryMatchLookup(unify.Right, unify.Left, variable, preferConstants))
             {
                 continue;
             }
@@ -415,12 +415,9 @@ public sealed class IrLowerer
         SemanticExpr fieldExpr,
         SemanticExpr keyExpr,
         VariableSymbol variable,
-        bool preferConstants,
-        out FieldExpr field)
+        bool preferConstants)
     {
-        field = null!;
-
-        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr } candidateField
+        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr }
             || !Equals(varExpr.Variable, variable))
         {
             return false;
@@ -434,7 +431,6 @@ public sealed class IrLowerer
         if (preferConstants != isConstant)
             return false;
 
-        field = candidateField;
         return true;
     }
 
