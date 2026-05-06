@@ -43,7 +43,7 @@ public sealed class SemanticAnalyzer
 
         foreach (IGrouping<int, IMethodSymbol> overloadGroup in bodyMethods.GroupBy(m => m.Parameters.Length))
         {
-            if (overloadGroup.Count() <= 1) continue;
+            if (!overloadGroup.Skip(1).Any()) continue;
 
             foreach (IMethodSymbol duplicateBody in overloadGroup)
             {

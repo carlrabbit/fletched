@@ -16,6 +16,9 @@ public sealed class PredicateEmitter
     private readonly PredicateModel _model;
     private readonly PlanProgram _plan;
     private readonly bool _generateLegacyNames;
+    private readonly string _generatedName;
+    private readonly string _resultTypeName;
+    private readonly string _executeMethodName;
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
@@ -24,21 +27,24 @@ public sealed class PredicateEmitter
     private readonly Dictionary<string, int> _labelIds = new();
     private int _labelIdCounter;
 
-    private string GeneratedName => _generateLegacyNames
-        ? _model.Name
-        : $"{_model.Name}Arity{_model.Arity}";
+    private string GeneratedName => _generatedName;
 
-    private string ResultTypeName => _generateLegacyNames
-        ? $"{_model.Name}Result"
-        : $"{GeneratedName}Result";
+    private string ResultTypeName => _resultTypeName;
 
-    private string ExecuteMethodName => $"ExecuteArity{_model.Arity}";
+    private string ExecuteMethodName => _executeMethodName;
 
     public PredicateEmitter(PredicateModel model, PlanProgram plan, bool generateLegacyNames)
     {
         _model = model;
         _plan = plan;
         _generateLegacyNames = generateLegacyNames;
+        _generatedName = _generateLegacyNames
+            ? _model.Name
+            : $"{_model.Name}Arity{_model.Arity}";
+        _resultTypeName = _generateLegacyNames
+            ? $"{_model.Name}Result"
+            : $"{_generatedName}Result";
+        _executeMethodName = $"ExecuteArity{_model.Arity}";
 
         var slotTypes = plan.SlotMap.ToDictionary(
             kv => kv.Value,
