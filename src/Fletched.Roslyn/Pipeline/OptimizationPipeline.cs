@@ -63,6 +63,12 @@ internal static class PlanAnalysis
 
             case LoopBindInstr bind:
                 writes.Add(bind.Slot);
+                if (bind.IndexedLookup is not null)
+                    CollectReads(bind.IndexedLookup.Key, reads);
+                break;
+
+            case IndexInitInstr init when init.IndexedLookup is not null:
+                CollectReads(init.IndexedLookup.Key, reads);
                 break;
 
             case CallInstr call:
@@ -237,7 +243,13 @@ internal static class PlanAnalysis
                 break;
 
             case LoopBindInstr bind:
-                maxSlot = bind.Slot;
+                maxSlot = bind.IndexedLookup is null
+                    ? bind.Slot
+                    : Math.Max(bind.Slot, MaxReferencedSlot(bind.IndexedLookup.Key));
+                break;
+
+            case IndexInitInstr init when init.IndexedLookup is not null:
+                maxSlot = MaxReferencedSlot(init.IndexedLookup.Key);
                 break;
 
             case CallInstr call when call.ArgumentSlots.Count > 0:
