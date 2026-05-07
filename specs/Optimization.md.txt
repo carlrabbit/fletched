@@ -27,27 +27,10 @@ sealed class OptimizationPipeline
 
 Analysis Data
 
-record SlotUsage(
-    bool IsBoundAtEntry,
-    bool IsBoundAtExit,
-    int UsageCount
+record AccessSet(
+    IReadOnlyCollection<int> Reads,
+    IReadOnlyCollection<int> Writes
 );
-
-record IndexCandidate(
-    Type FactType,
-    MemberInfo KeyMember,
-    int KeySlot
-);
-
----
-
-Plan Metadata (attached during optimization)
-
-record PlanMetadata
-{
-    Dictionary<PlanNode, SlotUsage> SlotInfo;
-    Dictionary<PlanLoop, IndexCandidate?> IndexInfo;
-}
 
 ---
 
@@ -78,12 +61,11 @@ then A must precede B.
 
 Index Selection
 
-- A "PlanLoop" may use "IndexedSource" if:
-  
-  - A unification exists: "Field(Slot(loopVar), Member) == Slot(keySlot)"
-  - "keySlot" is bound before loop entry.
-
-- Otherwise, use "FullScanSource".
+- The current Roslyn plan IR does not encode a separate indexed loop source.
+- The optimization pass instead promotes loop key-filter checks such as:
+  - "Field(Slot(loopVar), Member) == Slot(keySlot)"
+  - "Field(Slot(loopVar), Member) == Const(value)"
+- These checks are moved as early as dependency ordering allows so the loop fails fast.
 
 ---
 
@@ -120,15 +102,16 @@ Dead Code Elimination
 
 Loop Specialization
 
-- If loop body does not reference loop variable:
-  - Execute body once.
-  - Remove loop.
+- Detect loop-invariant bodies conservatively.
+- The current lowering keeps the original loop structure because the existing plan IR
+  does not carry enough cardinality information to remove the loop safely.
 
 ---
 
 Temporary Value Hoisting
 
-- Reuse identical "FieldValue" expressions within a block.
+- Reuse identical "FieldValue" expressions within read-only instruction segments.
+- Hoisted values are stored in temporary slots via "AssignInstr".
 
 Field(Slot(user), Name) → hoisted to temp
 
@@ -172,25 +155,13 @@ record AccessSet(
 
 ---
 
-Index Selection Application
-
-if (IndexCandidate != null)
-{
-    loop.Source = new IndexedSource(...);
-}
-else
-{
-    loop.Source = new FullScanSource(...);
-}
-
----
-
 Reordering Algorithm
 
 - Topological sort of "PlanSequence" steps
 - Respect dependency constraints
 - Prefer:
   - constraints first
+  - loop key-filter checks
   - bound-variable unifications
   - loops last
 
@@ -222,7 +193,7 @@ Fail
 
 ---
 
-Example 3: Index Selection
+Example 3: Early Loop Key Filter
 
 Before
 
@@ -237,9 +208,8 @@ After
 
 Loop(
   Slot = user,
-  Source = Indexed(User, Login, name),
   Body:
-    (no additional filter)
+    Unify(Field(user, Login), name)   // moved before unrelated work
 )
 
 ---
@@ -255,7 +225,8 @@ Sequence:
 After
 
 Sequence:
-  Loop(user where Name.StartsWith("A"))
+  Constraint(name.StartsWith("A"))
+  Loop(user)
 
 ---
 

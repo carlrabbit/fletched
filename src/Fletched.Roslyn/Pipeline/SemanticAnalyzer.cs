@@ -27,20 +27,47 @@ public sealed class SemanticAnalyzer
 
     public PredicateModel? Analyze(INamedTypeSymbol predicateType)
     {
-        // Find the [PredicateBody] method
-        IMethodSymbol? bodyMethod = predicateType.GetMembers()
-            .OfType<IMethodSymbol>()
-            .FirstOrDefault(m => m.GetAttributes()
-                .Any(a => a.AttributeClass?.Name == "PredicateBodyAttribute"));
+        return AnalyzeAll(predicateType).FirstOrDefault();
+    }
 
-        if (bodyMethod is null)
+    public IReadOnlyList<PredicateModel> AnalyzeAll(INamedTypeSymbol predicateType)
+    {
+        List<IMethodSymbol> bodyMethods = GetPredicateBodyMethods(predicateType);
+        if (bodyMethods.Count == 0)
         {
             _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody,
                 predicateType.Locations.FirstOrDefault(),
                 "No method marked with [PredicateBody] found");
-            return null;
+            return [];
         }
 
+        foreach (IGrouping<int, IMethodSymbol> overloadGroup in bodyMethods.GroupBy(m => m.Parameters.Length))
+        {
+            if (!overloadGroup.Skip(1).Any()) continue;
+
+            foreach (IMethodSymbol duplicateBody in overloadGroup)
+            {
+                _reporter.Error(
+                    DiagnosticsCatalog.InvalidPredicateBody,
+                    duplicateBody.Locations.FirstOrDefault(),
+                    $"Multiple [PredicateBody] methods with arity {overloadGroup.Key} are not allowed");
+            }
+        }
+
+        var models = new List<PredicateModel>();
+        foreach (IMethodSymbol bodyMethod in bodyMethods.OrderBy(m => m.Parameters.Length))
+        {
+            _scope.Clear();
+            PredicateModel? model = AnalyzeBody(predicateType, bodyMethod);
+            if (model is not null)
+                models.Add(model);
+        }
+
+        return models;
+    }
+
+    private PredicateModel? AnalyzeBody(INamedTypeSymbol predicateType, IMethodSymbol bodyMethod)
+    {
         // Validate return type is LogicExpr<bool>
         if (!IsLogicExprBool(bodyMethod.ReturnType))
         {
@@ -97,7 +124,15 @@ public sealed class SemanticAnalyzer
         SemanticExpr? body = AnalyzeExpr(bodyExpr, boolType);
         if (body is null) return null;
 
-        return new PredicateModel(predicateType.Name, predicateType, parameters, body);
+        return new PredicateModel(predicateType.Name, predicateType, bodyMethod, parameters, body);
+    }
+
+    private static List<IMethodSymbol> GetPredicateBodyMethods(INamedTypeSymbol predicateType)
+    {
+        return predicateType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Where(m => m.GetAttributes().Any(a => a.AttributeClass?.Name == "PredicateBodyAttribute"))
+            .ToList();
     }
 
     private static ExpressionSyntax? GetBodyExpression(SyntaxNode node)
@@ -294,6 +329,12 @@ public sealed class SemanticAnalyzer
                 return AnalyzeListEmpty(method);
             }
 
+            // Check if it's Logic.List<T>(...)
+            if (method.Name == "List" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeList(inv, method);
+            }
+
             // Check if it's Logic.Cons<T>(head, tail)
             if (method.Name == "Cons" && method.ContainingType?.Name == "Logic")
             {
@@ -313,7 +354,17 @@ public sealed class SemanticAnalyzer
                 if (argExpr is null) return null;
                 args.Add(argExpr);
             }
-            return new CallExpr(predicateType, args, boolType);
+            int arity = args.Count;
+            if (!HasPredicateBodyForArity(predicateType, arity))
+            {
+                _reporter.Error(
+                    DiagnosticsCatalog.InvalidPredicateCall,
+                    inv.GetLocation(),
+                    $"Predicate '{predicateType.Name}/{arity}' was not found or argument types do not match");
+                return null;
+            }
+
+            return new CallExpr(predicateType, args, boolType, arity);
         }
 
         if (symbol is IMethodSymbol methodSymbol)
@@ -342,6 +393,14 @@ public sealed class SemanticAnalyzer
         if (inv.Expression is MemberAccessExpressionSyntax { Name: GenericNameSyntax { Identifier.Text: "With" } })
         {
             return AnalyzeWithSyntactic(inv);
+        }
+
+        if (inv.Expression is MemberAccessExpressionSyntax { Name.Identifier.Text: "List" })
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidListExpression,
+                inv.GetLocation(),
+                "Logic.List(...) could not be resolved. Ensure all list elements share the same type.");
+            return null;
         }
 
         _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
@@ -378,6 +437,12 @@ public sealed class SemanticAnalyzer
         bool hasPredicate = namedCandidate.GetAttributes()
             .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
         return hasPredicate ? candidate : null;
+    }
+
+    private static bool HasPredicateBodyForArity(INamedTypeSymbol predicateType, int arity)
+    {
+        return GetPredicateBodyMethods(predicateType)
+            .Any(m => m.Parameters.Length == arity);
     }
 
     private SemanticExpr? AnalyzeWith(InvocationExpressionSyntax inv, IMethodSymbol method)
@@ -634,6 +699,35 @@ public sealed class SemanticAnalyzer
             : method.ReturnType;
 
         return new ListEmptyExpr(elementType, listType);
+    }
+
+    /// <summary>Analyzes a <c>Logic.List&lt;T&gt;(...)</c> call and returns nested list expressions.</summary>
+    private SemanticExpr? AnalyzeList(InvocationExpressionSyntax inv, IMethodSymbol method)
+    {
+        if (method.TypeArguments.Length != 1)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidListExpression, inv.GetLocation(),
+                "Logic.List<T>(...) requires a single list element type.");
+            return null;
+        }
+
+        ITypeSymbol elementType = method.TypeArguments[0];
+        ITypeSymbol listType = method.ReturnType is INamedTypeSymbol ret && ret.TypeArguments.Length == 1
+            ? ret.TypeArguments[0]
+            : method.ReturnType;
+
+        SemanticExpr result = new ListEmptyExpr(elementType, listType);
+        for (int argumentIndex = inv.ArgumentList.Arguments.Count - 1; argumentIndex >= 0; argumentIndex--)
+        {
+            ArgumentSyntax argument = inv.ArgumentList.Arguments[argumentIndex];
+            SemanticExpr? item = AnalyzeExpr(argument.Expression, elementType);
+            if (item is null)
+                return null;
+
+            result = new ListConsExpr(item, result, elementType, listType);
+        }
+
+        return result;
     }
 
     /// <summary>Analyzes a <c>Logic.Cons&lt;T&gt;(head, tail)</c> call and returns a <see cref="ListConsExpr"/>.</summary>

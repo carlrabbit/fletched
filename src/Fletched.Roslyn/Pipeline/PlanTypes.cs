@@ -27,6 +27,9 @@ public record UnifyInstr(PlanValue Left, PlanValue Right) : PlanInstruction;
 public record ConstraintInstr(IMethodSymbol Method, IReadOnlyList<PlanValue> Arguments) : PlanInstruction;
 public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
 
+/// <summary>Metadata for a loop that can use an index on a fact member.</summary>
+public sealed record IndexedLookupSpec(string MemberName, PlanValue Key);
+
 /// <summary>Comparison instruction (!=, &lt;, &gt;, &lt;=, &gt;= in DSL).</summary>
 public record CompInstr(CompOp Op, PlanValue Left, PlanValue Right) : PlanInstruction;
 
@@ -36,12 +39,13 @@ public record IndexInitInstr(string IndexVar,
     /// The fact type being scanned. Provided to the emitter so it can include the
     /// type name in <c>IExecutionObserver.OnFactScan</c> observer callbacks.
     /// </summary>
-    ITypeSymbol FactType) : PlanInstruction;
-public record LoopBindInstr(int Slot, string IndexVar, ITypeSymbol FactType) : PlanInstruction;
+    ITypeSymbol FactType,
+    IndexedLookupSpec? IndexedLookup = null) : PlanInstruction;
+public record LoopBindInstr(int Slot, string IndexVar, ITypeSymbol FactType, IndexedLookupSpec? IndexedLookup = null) : PlanInstruction;
 public record IndexIncrInstr(string IndexVar) : PlanInstruction;
 
 /// <summary>Call to another predicate — iterates its results and binds argument slots.</summary>
-public record CallInstr(INamedTypeSymbol PredicateType, IReadOnlyList<int> ArgumentSlots) : PlanInstruction;
+public record CallInstr(INamedTypeSymbol PredicateType, IReadOnlyList<int> ArgumentSlots, int Arity) : PlanInstruction;
 
 /// <summary>Negation-as-failure instruction. Succeeds iff the subgoal produces no solutions.</summary>
 public record NotInstr(IReadOnlyList<PlanInstruction> SubGoalInstructions) : PlanInstruction;
@@ -52,7 +56,7 @@ public record GotoTerm(string TargetLabel) : PlanTerminator;
 public record ChoiceTerm(string NextLabel, string AlternativeLabel, int TrailSlot) : PlanTerminator;
 public record SucceedTerm() : PlanTerminator;
 public record FailTerm() : PlanTerminator;
-public record LoopCheckTerm(string BodyLabel, string FailLabel, string IndexVar, ITypeSymbol FactType) : PlanTerminator;
+public record LoopCheckTerm(string BodyLabel, string FailLabel, string IndexVar, ITypeSymbol FactType, IndexedLookupSpec? IndexedLookup = null) : PlanTerminator;
 
 /// <summary>A labelled block of instructions.</summary>
 public record PlanBlock(string Label, IReadOnlyList<PlanInstruction> Instructions, PlanTerminator Terminator);

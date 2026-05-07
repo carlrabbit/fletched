@@ -8,17 +8,16 @@ using Fletched.Roslyn.Pipeline;
 namespace Fletched.Roslyn.Emitters;
 
 /// <summary>
-/// Generates the complete C# source file for a predicate:
-/// SlotId enum, State struct, Result record, and Execute IEnumerable method.
+/// Generates the async extension file for a predicate: a partial record struct with
+/// the ExecuteAsync IAsyncEnumerable method using a switch-loop state machine.
 /// </summary>
-public sealed class PredicateEmitter
+public sealed class PredicateEmitterAsync
 {
     private readonly PredicateModel _model;
     private readonly PlanProgram _plan;
     private readonly bool _generateLegacyNames;
     private readonly string _generatedName;
     private readonly string _resultTypeName;
-    private readonly string _executeMethodName;
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
@@ -27,13 +26,16 @@ public sealed class PredicateEmitter
     private readonly Dictionary<string, int> _labelIds = new();
     private int _labelIdCounter;
 
+    // Reserved PC values for the switch-loop state machine
+    private const int PcFail    = -1;
+    private const int PcResume  = -2;
+    private const int PcSuccess = -3;
+
     private string GeneratedName => _generatedName;
 
     private string ResultTypeName => _resultTypeName;
 
-    private string ExecuteMethodName => _executeMethodName;
-
-    public PredicateEmitter(PredicateModel model, PlanProgram plan, bool generateLegacyNames)
+    public PredicateEmitterAsync(PredicateModel model, PlanProgram plan, bool generateLegacyNames)
     {
         _model = model;
         _plan = plan;
@@ -44,7 +46,6 @@ public sealed class PredicateEmitter
         _resultTypeName = _generateLegacyNames
             ? $"{_model.Name}Result"
             : $"{_generatedName}Result";
-        _executeMethodName = $"ExecuteArity{_model.Arity}";
 
         var slotTypes = plan.SlotMap.ToDictionary(
             kv => kv.Value,
@@ -85,94 +86,9 @@ public sealed class PredicateEmitter
             ctx.AppendLine();
         }
 
-        EmitSlotIdEnum(ctx);
-        ctx.AppendLine();
-        EmitStateStruct(ctx);
-        ctx.AppendLine();
-        EmitResultRecord(ctx);
-        ctx.AppendLine();
         EmitPredicatePartial(ctx);
 
         return ctx.Code.ToString();
-    }
-
-    private void EmitSlotIdEnum(EmitContext ctx)
-    {
-        ctx.AppendLine($"internal enum {ctx.SlotIdTypeName}");
-        ctx.AppendLine("{");
-        using (ctx.Indent())
-        {
-            foreach (var (name, _, slot) in _slots)
-                ctx.AppendLine($"{Capitalize(name)} = {slot},");
-        }
-        ctx.AppendLine("}");
-    }
-
-    private void EmitStateStruct(EmitContext ctx)
-    {
-        ctx.AppendLine($"internal struct {ctx.StateTypeName}");
-        ctx.AppendLine("{");
-        using (ctx.Indent())
-        {
-            foreach (var (name, typeName, _) in _slots)
-            {
-                ctx.AppendLine($"public {typeName} {name};");
-                ctx.AppendLine($"public bool {name}_bound;");
-            }
-            // Trail — heap class; ref struct may hold a reference type field
-            ctx.AppendLine($"public global::Fletched.Core.Runtime.Trail Trail;");
-            ctx.AppendLine();
-            ctx.AppendLine($"public static {ctx.StateTypeName} Create()");
-            ctx.AppendLine("{");
-            using (ctx.Indent())
-            {
-                ctx.AppendLine($"var s = new {ctx.StateTypeName}();");
-                ctx.AppendLine("s.Trail = new global::Fletched.Core.Runtime.Trail(256);");
-                ctx.AppendLine("return s;");
-            }
-            ctx.AppendLine("}");
-            ctx.AppendLine();
-            // Unwind method
-            EmitUnwindMethod(ctx);
-        }
-        ctx.AppendLine("}");
-    }
-
-    private void EmitUnwindMethod(EmitContext ctx)
-    {
-        ctx.AppendLine($"public void Unwind(int targetTop)");
-        ctx.AppendLine("{");
-        using (ctx.Indent())
-        {
-            ctx.AppendLine("while (Trail.Top > targetTop)");
-            ctx.AppendLine("{");
-            using (ctx.Indent())
-            {
-                ctx.AppendLine("var _entry = Trail.PopEntry();");
-                ctx.AppendLine("switch (_entry.Slot)");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
-                {
-                    foreach (var (name, _, slot) in _slots)
-                    {
-                        ctx.AppendLine($"case {slot}: {name}_bound = _entry.WasBound; break;");
-                    }
-                }
-                ctx.AppendLine("}");
-            }
-            ctx.AppendLine("}");
-        }
-        ctx.AppendLine("}");
-    }
-
-    private void EmitResultRecord(EmitContext ctx)
-    {
-        // Only terminal variables appear in the result
-        var terminals = _model.Parameters.Select(p => (p.Name,
-            TypeName: p.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat))).ToList();
-
-        string fields = string.Join(", ", terminals.Select(t => $"{t.TypeName} {t.Name}"));
-        ctx.AppendLine($"public readonly record struct {ResultTypeName}({fields});");
     }
 
     private void EmitPredicatePartial(EmitContext ctx)
@@ -183,87 +99,110 @@ public sealed class PredicateEmitter
         {
             if (_generateLegacyNames)
             {
-                ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+                // Emit the legacy ExecuteAsync convenience wrapper that delegates to the arity-specific method
+                ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsync(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
-                    ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer);");
+                {
+                    ctx.AppendLine($"await foreach (var item in ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                        ctx.AppendLine("yield return item;");
+                    ctx.AppendLine("}");
+                }
                 ctx.AppendLine("}");
                 ctx.AppendLine();
             }
-            EmitExecuteMethod(ctx);
+            EmitExecuteAsyncMethod(ctx);
         }
         ctx.AppendLine("}");
     }
 
-    private void EmitExecuteMethod(EmitContext ctx)
+    private void EmitExecuteAsyncMethod(EmitContext ctx)
     {
-        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> {ExecuteMethodName}(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+        _notCounter = 0;
+
+        ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsyncArity{_model.Arity}(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
             ctx.AppendLine($"var state = {ctx.StateTypeName}.Create();");
             ctx.AppendLine($"var cps = new System.Collections.Generic.Stack<global::Fletched.Core.Runtime.ChoicePoint>();");
 
-            // Emit index variables
             EmitIndexVarDecls(ctx);
 
-            ctx.AppendLine($"goto L_{_plan.Entry.Label};");
+            int entryId = _labelIds[_plan.Entry.Label];
+            ctx.AppendLine($"int _pc = {entryId};");
             ctx.AppendLine();
 
-            // Fail label
-            ctx.AppendLine("Fail:");
-            using (ctx.Indent())
-                ctx.AppendLine("goto Resume;");
-            ctx.AppendLine();
-
-            // Resume label
-            ctx.AppendLine("Resume:");
+            ctx.AppendLine("while (true)");
+            ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                ctx.AppendLine("if (!cps.TryPop(out var _cp))");
-                using (ctx.Indent())
-                    ctx.AppendLine("goto End;");
-                ctx.AppendLine("state.Unwind(_cp.TrailTop);");
-                ctx.AppendMetricIncrement("BacktrackCount");
-                ctx.AppendLine("observer?.OnBacktrack();");
-                ctx.AppendLine("switch (_cp.LabelId)");
+                ctx.AppendLine("switch (_pc)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
-                    foreach (var kv in _labelIds)
-                        ctx.AppendLine($"case {kv.Value}: goto L_{kv.Key};");
-                    ctx.AppendLine("default: goto End;");
+                    // FAIL
+                    ctx.AppendLine($"case {PcFail}:");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine($"_pc = {PcResume};");
+                        ctx.AppendLine("break;");
+                    }
+                    ctx.AppendLine();
+
+                    // RESUME
+                    ctx.AppendLine($"case {PcResume}:");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine("if (!cps.TryPop(out var _cp))");
+                        ctx.AppendLine("{");
+                        using (ctx.Indent())
+                            ctx.AppendLine("yield break;");
+                        ctx.AppendLine("}");
+                        ctx.AppendLine("state.Unwind(_cp.TrailTop);");
+                        ctx.AppendMetricIncrement("BacktrackCount");
+                        ctx.AppendLine("observer?.OnBacktrack();");
+                        ctx.AppendLine("_pc = _cp.LabelId;");
+                        ctx.AppendLine("break;");
+                    }
+                    ctx.AppendLine();
+
+                    // SUCCESS
+                    ctx.AppendLine($"case {PcSuccess}:");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine("cancellationToken.ThrowIfCancellationRequested();");
+                        string projection = string.Join(", ", _model.Parameters.Select(p => $"state.{p.Name}"));
+                        ctx.AppendLine($"yield return new {ResultTypeName}({projection});");
+                        ctx.AppendLine($"_pc = {PcResume};");
+                        ctx.AppendLine("break;");
+                    }
+                    ctx.AppendLine();
+
+                    // One case per block
+                    var allBlocks = new[] { _plan.Entry }.Concat(_plan.Blocks);
+                    foreach (PlanBlock block in allBlocks)
+                    {
+                        ctx.AppendLine($"case {_labelIds[block.Label]}:");
+                        EmitBlock(block, ctx);
+                    }
+
+                    // Safety default
+                    ctx.AppendLine("default:");
+                    using (ctx.Indent())
+                        ctx.AppendLine("yield break;");
                 }
                 ctx.AppendLine("}");
             }
-            ctx.AppendLine();
-
-            // Success label
-            ctx.AppendLine("Success:");
-            using (ctx.Indent())
-            {
-                string projection = string.Join(", ", _model.Parameters.Select(p => $"state.{p.Name}"));
-                ctx.AppendLine($"yield return new {ResultTypeName}({projection});");
-                ctx.AppendLine("goto Resume;");
-            }
-            ctx.AppendLine();
-
-            // Emit all blocks
-            var allBlocks = new[] { _plan.Entry }.Concat(_plan.Blocks);
-            foreach (PlanBlock block in allBlocks)
-                EmitBlock(block, ctx);
-
-            ctx.AppendLine();
-            ctx.AppendLine("End:");
-            using (ctx.Indent())
-                ctx.AppendLine("yield break;");
+            ctx.AppendLine("}");
         }
         ctx.AppendLine("}");
     }
 
     private void EmitIndexVarDecls(EmitContext ctx)
     {
-        // Collect all index vars from all blocks
         var indexVars = new HashSet<string>();
         var indexedVars = new HashSet<string>();
         foreach (PlanBlock block in new[] { _plan.Entry }.Concat(_plan.Blocks))
@@ -291,13 +230,15 @@ public sealed class PredicateEmitter
 
     private void EmitBlock(PlanBlock block, EmitContext ctx)
     {
-        ctx.AppendLine($"L_{block.Label}:");
+        // Caller already emitted "case N:"; we emit the braced body.
+        ctx.AppendLine("{");
         using (ctx.Indent())
         {
             foreach (PlanInstruction instr in block.Instructions)
                 EmitInstruction(instr, ctx);
             EmitTerminator(block.Terminator, block.Label, ctx);
         }
+        ctx.AppendLine("}");
         ctx.AppendLine();
     }
 
@@ -369,7 +310,7 @@ public sealed class PredicateEmitter
                 {
                     ctx.AppendMetricIncrement("IndexHits");
                     ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", state.{slotName}, out {matchesVar})) goto Fail;");
+                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", state.{slotName}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
                 }
                 ctx.AppendLine("}");
                 ctx.AppendLine("else");
@@ -388,7 +329,7 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"{init.IndexVar} = 0;");
                 ctx.AppendMetricIncrement("IndexHits");
                 ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) goto Fail;");
+                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
                 return;
         }
     }
@@ -443,8 +384,9 @@ public sealed class PredicateEmitter
 
         if (loopCheck.IndexedLookup is null)
         {
-            ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) goto Fail;");
-            ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+            ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
+            ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+            ctx.AppendLine("break;");
             return;
         }
 
@@ -457,41 +399,42 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"if (state.{slotName}_bound)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
-                    ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) goto Fail;");
+                    ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
                 ctx.AppendLine("}");
                 ctx.AppendLine("else");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
-                    ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) goto Fail;");
+                    ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
                 ctx.AppendLine("}");
-                ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+                ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+                ctx.AppendLine("break;");
                 return;
             }
 
             default:
-                ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) goto Fail;");
-                ctx.AppendLine($"goto L_{loopCheck.BodyLabel};");
+                ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
+                ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+                ctx.AppendLine("break;");
                 return;
         }
     }
 
     private void EmitCall(CallInstr call, EmitContext ctx)
     {
-        // Invoke the referenced predicate's Execute method and iterate results.
-        // For each result we bind the argument slots and continue execution.
-        // If no results remain we fall through to Fail.
         string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string resultVar = $"_callResult_{call.PredicateType.Name}";
+        string foundVar  = $"_callFound_{call.PredicateType.Name}";
 
         ctx.AppendMetricIncrement("PredicateInvocations");
         ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
+
+        // In the async switch-loop we cannot use goto inside the foreach.
+        // Use a flag and break instead.
+        ctx.AppendLine($"bool {foundVar} = false;");
         ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer))");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
-            // Bind caller argument slots from the call result fields.
-            // The result record fields are named after the predicate's terminal parameters
-            // and capitalized to match the generated Result record's constructor parameters.
             for (int i = 0; i < call.ArgumentSlots.Count; i++)
             {
                 int slot = call.ArgumentSlots[i];
@@ -500,10 +443,13 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"state.{slotName} = {resultVar}.{resultField};");
                 ctx.AppendLine($"state.{slotName}_bound = true;");
             }
-            ctx.AppendLine("goto Success;");
+            ctx.AppendLine($"{foundVar} = true;");
+            ctx.AppendLine("break;");
         }
         ctx.AppendLine("}");
-        ctx.AppendLine("goto Fail;");
+        ctx.AppendLine($"if ({foundVar}) {{ _pc = {PcSuccess}; break; }}");
+        ctx.AppendLine($"_pc = {PcFail};");
+        ctx.AppendLine("break;");
     }
 
     private int _notCounter;
@@ -523,7 +469,6 @@ public sealed class PredicateEmitter
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                // Filter results by current bound values of the argument slots.
                 var conditions = new List<string>();
                 for (int i = 0; i < call.ArgumentSlots.Count; i++)
                 {
@@ -537,12 +482,12 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"if ({guard}) {{ {notFoundVar} = true; break; }}");
             }
             ctx.AppendLine("}");
-            ctx.AppendLine($"if ({notFoundVar}) goto Fail;");
+            ctx.AppendLine($"if ({notFoundVar}) {{ _pc = {PcFail}; break; }}");
             return;
         }
 
         // For inline instructions (unify/constraint/comp), build a compound boolean condition.
-        // If ALL conditions hold, the subgoal succeeded → Not fails → goto Fail.
+        // If ALL conditions hold, the subgoal succeeded → Not fails.
         var inlineConditions = new List<string>();
         foreach (PlanInstruction instr in not.SubGoalInstructions)
         {
@@ -584,14 +529,13 @@ public sealed class PredicateEmitter
         }
 
         if (inlineConditions.Count == 1)
-            ctx.AppendLine($"if ({inlineConditions[0]}) goto Fail;");
+            ctx.AppendLine($"if ({inlineConditions[0]}) {{ _pc = {PcFail}; break; }}");
         else if (inlineConditions.Count > 1)
-            ctx.AppendLine($"if ({string.Join(" && ", inlineConditions)}) goto Fail;");
+            ctx.AppendLine($"if ({string.Join(" && ", inlineConditions)}) {{ _pc = {PcFail}; break; }}");
     }
 
     private void EmitUnify(UnifyInstr u, EmitContext ctx)
     {
-        // Categorize left and right
         bool leftIsSlot = u.Left is SlotValue;
         bool rightIsSlot = u.Right is SlotValue;
         bool leftIsConst = u.Left is ConstValue;
@@ -637,7 +581,7 @@ public sealed class PredicateEmitter
         }
         else if (u.Left is FieldValue && u.Right is FieldValue)
         {
-            ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) goto Fail;");
+            ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) {{ _pc = {PcFail}; break; }}");
         }
         else if (leftIsSlot && rightIsListLiteral)
         {
@@ -652,17 +596,15 @@ public sealed class PredicateEmitter
         else if ((u.Left is FieldValue && rightIsListLiteral) ||
                  (leftIsListLiteral && u.Right is FieldValue))
         {
-            ctx.AppendLine($"if (!object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})) goto Fail;");
+            ctx.AppendLine($"if (!object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})) {{ _pc = {PcFail}; break; }}");
         }
         else if (u.Left is ArithValue || u.Right is ArithValue)
         {
-            // Arithmetic expression on either side: use direct numeric equality.
-            ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) goto Fail;");
+            ctx.AppendLine($"if ({EmitValue(u.Left)} != {EmitValue(u.Right)}) {{ _pc = {PcFail}; break; }}");
         }
         else
         {
-            // Generic fallback: emit as equality check
-            ctx.AppendLine($"if (!object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})) goto Fail;");
+            ctx.AppendLine($"if (!object.Equals({EmitValue(u.Left)}, {EmitValue(u.Right)})) {{ _pc = {PcFail}; break; }}");
         }
     }
 
@@ -686,7 +628,8 @@ public sealed class PredicateEmitter
         {
             ctx.AppendMetricIncrement("UnifyFailures");
             ctx.AppendLine($"observer?.OnUnifyFailure({slot});");
-            ctx.AppendLine("goto Fail;");
+            ctx.AppendLine($"_pc = {PcFail};");
+            ctx.AppendLine("break;");
         }
         ctx.AppendLine("}");
     }
@@ -722,31 +665,28 @@ public sealed class PredicateEmitter
         {
             ctx.AppendMetricIncrement("UnifyFailures");
             ctx.AppendLine($"observer?.OnUnifyFailure({slotA});");
-            ctx.AppendLine("goto Fail;");
+            ctx.AppendLine($"_pc = {PcFail};");
+            ctx.AppendLine("break;");
         }
         ctx.AppendLine("}");
     }
 
     private void EmitConstraint(ConstraintInstr c, EmitContext ctx)
     {
-        string receiver = string.Empty;
-        string callArgs = string.Empty;
-
         if (c.Method.IsStatic)
         {
             string typeName = c.Method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-            callArgs = string.Join(", ", c.Arguments.Select(EmitValue));
-            ctx.AppendLine($"if (!{typeName}.{c.Method.Name}({callArgs})) goto Fail;");
+            string callArgs = string.Join(", ", c.Arguments.Select(EmitValue));
+            ctx.AppendLine($"if (!{typeName}.{c.Method.Name}({callArgs})) {{ _pc = {PcFail}; break; }}");
         }
         else
         {
-            // Instance method: first arg is receiver
             if (c.Arguments.Count > 0)
             {
-                receiver = EmitValue(c.Arguments[0]);
-                callArgs = string.Join(", ", c.Arguments.Skip(1).Select(EmitValue));
+                string receiver = EmitValue(c.Arguments[0]);
+                string callArgs = string.Join(", ", c.Arguments.Skip(1).Select(EmitValue));
                 string argStr = callArgs.Length > 0 ? callArgs : "";
-                ctx.AppendLine($"if (!{receiver}.{c.Method.Name}({argStr})) goto Fail;");
+                ctx.AppendLine($"if (!{receiver}.{c.Method.Name}({argStr})) {{ _pc = {PcFail}; break; }}");
             }
         }
     }
@@ -764,7 +704,7 @@ public sealed class PredicateEmitter
             CompOp.GreaterThanOrEqual => ">=",
             _ => "!="
         };
-        ctx.AppendLine($"if (!({left} {op} {right})) goto Fail;");
+        ctx.AppendLine($"if (!({left} {op} {right})) {{ _pc = {PcFail}; break; }}");
     }
 
     private void EmitTerminator(PlanTerminator term, string blockLabel, EmitContext ctx)
@@ -772,7 +712,8 @@ public sealed class PredicateEmitter
         switch (term)
         {
             case GotoTerm g:
-                ctx.AppendLine($"goto L_{g.TargetLabel};");
+                ctx.AppendLine($"_pc = {_labelIds[g.TargetLabel]};");
+                ctx.AppendLine("break;");
                 break;
 
             case ChoiceTerm choice:
@@ -781,16 +722,19 @@ public sealed class PredicateEmitter
                 ctx.AppendMetricIncrement("ChoicePointCount");
                 ctx.AppendLine("observer?.OnChoicePoint();");
                 ctx.AppendLine($"cps.Push(new global::Fletched.Core.Runtime.ChoicePoint {{ LabelId = {altId}, TrailTop = state.Trail.Top }});");
-                ctx.AppendLine($"goto L_{choice.NextLabel};");
+                ctx.AppendLine($"_pc = {_labelIds[choice.NextLabel]};");
+                ctx.AppendLine("break;");
                 break;
             }
 
             case SucceedTerm:
-                ctx.AppendLine("goto Success;");
+                ctx.AppendLine($"_pc = {PcSuccess};");
+                ctx.AppendLine("break;");
                 break;
 
             case FailTerm:
-                ctx.AppendLine("goto Fail;");
+                ctx.AppendLine($"_pc = {PcFail};");
+                ctx.AppendLine("break;");
                 break;
 
             case LoopCheckTerm lc:
@@ -822,9 +766,6 @@ public sealed class PredicateEmitter
         if (value is null) return "null";
         if (value is string s) return $"\"{s.Replace("\\", "\\\\").Replace("\"", "\\\"")}\"";
         if (value is bool b) return b ? "true" : "false";
-        // For all other types (int, enum, etc.) emit an explicit cast to ensure type-safe
-        // comparisons, particularly important for enum constants stored as their underlying
-        // integer value (e.g. ClaimKind.Friend stored as 0 → "(ClaimKind)0").
         return $"({typeName}){value}";
     }
 
@@ -956,7 +897,6 @@ public sealed class PredicateEmitter
 
     private static string TablePropertyName(ITypeSymbol factType)
     {
-        // Generates the property name e.g. "User" → "Users"
         string name = factType.Name;
         return name.EndsWith("s") ? name : name + "s";
     }

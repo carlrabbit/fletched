@@ -31,6 +31,16 @@ public partial record struct AdminLogins
         Logic.With<User>(u => u.Login == login && u.IsAdmin == true);
 }
 
+[Predicate]
+public partial record struct MatchingUserNames
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> login, TerminalVar<string> name) =>
+        Logic.With<User>(first =>
+            first.Login == login &&
+            Logic.With<User>(second => second.Login == login && second.Name == name));
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 public class SimpleTests
@@ -91,6 +101,21 @@ public class SimpleTests
             await default(UserNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task MatchingUserNames_ReturnsNamesFromNestedLookup()
+    {
+        EngineContext ctx = BuildContext();
+        List<MatchingUserNamesResult> results = default(MatchingUserNames).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(3);
+        await Assert.That(results[0].login).IsEqualTo("alice");
+        await Assert.That(results[0].name).IsEqualTo("Alice");
+        await Assert.That(results[1].login).IsEqualTo("bob");
+        await Assert.That(results[1].name).IsEqualTo("Bob");
+        await Assert.That(results[2].login).IsEqualTo("carol");
+        await Assert.That(results[2].name).IsEqualTo("Carol");
     }
 }
 

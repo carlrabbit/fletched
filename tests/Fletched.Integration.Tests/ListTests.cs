@@ -24,7 +24,7 @@ public partial record struct EmptySequence
     public static LogicExpr<bool> Body(TerminalVar<string> name) =>
         Logic.With<NumberSequence>(ns =>
             ns.Name == name &&
-            ns.Numbers == Logic.Empty<int>()
+            ns.Numbers == Logic.List<int>()
         );
 }
 
@@ -38,7 +38,7 @@ public partial record struct SingletonOneSequence
     public static LogicExpr<bool> Body(TerminalVar<string> name) =>
         Logic.With<NumberSequence>(ns =>
             ns.Name == name &&
-            ns.Numbers == Logic.Cons<int>(1, Logic.Empty<int>())
+            ns.Numbers == Logic.List(1)
         );
 }
 
@@ -52,7 +52,7 @@ public partial record struct PairSequence
     public static LogicExpr<bool> Body(TerminalVar<string> name) =>
         Logic.With<NumberSequence>(ns =>
             ns.Name == name &&
-            ns.Numbers == Logic.Cons<int>(1, Logic.Cons<int>(2, Logic.Empty<int>()))
+            ns.Numbers == Logic.List(1, 2)
         );
 }
 
@@ -71,11 +71,11 @@ public class ListTests
         var ctx = new EngineContext();
         ctx.NumberSequences = new FactTable<NumberSequence>(new[]
         {
-            new NumberSequence("empty-seq",  new LogicListEmpty<int>()),
-            new NumberSequence("one-seq",    new LogicListCons<int>(1, new LogicListEmpty<int>())),
-            new NumberSequence("two-seq",    new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListEmpty<int>()))),
-            new NumberSequence("three-seq",  new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListCons<int>(3, new LogicListEmpty<int>())))),
-            new NumberSequence("other-seq",  new LogicListCons<int>(5, new LogicListEmpty<int>())),
+            new NumberSequence("empty-seq",  LogicList<int>.Create()),
+            new NumberSequence("one-seq",    LogicList<int>.Create(1)),
+            new NumberSequence("two-seq",    LogicList<int>.Create(1, 2)),
+            new NumberSequence("three-seq",  LogicList<int>.Create(1, 2, 3)),
+            new NumberSequence("other-seq",  LogicList<int>.Create(5)),
         });
         return ctx;
     }

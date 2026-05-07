@@ -110,7 +110,7 @@ public partial record struct BenchTagLookup {
             ? string.Empty
             : predicateSymbol.ContainingNamespace.ToDisplayString();
 
-        var emitter = new Fletched.Roslyn.Emitters.PredicateEmitter(model, plan);
+        var emitter = new Fletched.Roslyn.Emitters.PredicateEmitter(model, plan, generateLegacyNames: true);
         return emitter.Emit(ns);
     }
 

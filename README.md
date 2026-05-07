@@ -92,6 +92,32 @@ Facts are stored in strongly typed tables:
 
 Queries are compiled into efficient loops and joins over these tables, with optional indexing for performance.
 
+### List ergonomics
+
+Logical lists support concise DSL and runtime construction:
+
+```csharp
+[Fact]
+partial record struct NumberSequence(string Name, LogicList<int> Numbers);
+
+[Predicate]
+partial record struct PairSequence
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<NumberSequence>(ns =>
+            ns.Name == name &&
+            ns.Numbers == Logic.List(1, 2)
+        );
+}
+
+var facts = new[]
+{
+    new NumberSequence("empty", LogicList<int>.Create()),
+    new NumberSequence("pair",  LogicList<int>.Create(1, 2)),
+};
+```
+
 ---
 
 ## Predicate Composition
@@ -101,6 +127,26 @@ Predicates can call other predicates and participate in backtracking. Calls are 
 - composability
 - reuse
 - efficient multi-solution enumeration
+
+Predicates may also declare multiple `[PredicateBody]` methods on the same record as long as each body has a distinct arity.
+
+```csharp
+[Predicate]
+partial record struct PersonLookup
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<Person>(person => person.Name == name);
+
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> login, TerminalVar<string> name) =>
+        Logic.With<Person>(person =>
+            person.Login == login &&
+            person.Name == name);
+}
+```
+
+Single-body predicates keep the existing `Execute(...)` / `*Result` surface. Overloaded predicates generate arity-specific entry points such as `ExecuteArity1(...)`, `ExecuteArity2(...)`, and matching result types.
 
 ---
 

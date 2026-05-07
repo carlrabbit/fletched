@@ -97,7 +97,7 @@ public sealed class IrLowerer
                 string label = ctx.NextLabel("call");
                 startLabel = label;
                 var block = new PlanBlock(label,
-                    new[] { new CallInstr(callExpr.PredicateType, argSlots) },
+                    new[] { new CallInstr(callExpr.PredicateType, argSlots, callExpr.Arity) },
                     new SucceedTerm());
                 ctx.AddBlock(block);
                 return block;
@@ -289,12 +289,14 @@ public sealed class IrLowerer
         // body block contains the actual predicate body instructions.
         startLabel = null;
         string? outerStart = null;
+        SemanticExpr? remainingBody = with.Body;
 
         var bodyLabels = new List<string>();
         var initLabels = new List<string>();
 
         foreach (VariableSymbol variable in with.Variables)
         {
+            IndexedLookupSpec? indexedLookup = TryExtractIndexedLookup(variable, ref remainingBody, ctx);
             int slot = ctx.AllocateSlot(variable);
             string initLabel = ctx.NextLabel("init");
             string checkLabel = ctx.NextLabel("chk");
@@ -310,16 +312,16 @@ public sealed class IrLowerer
 
             // L_init: index = 0, goto L_check
             ctx.AddBlock(new PlanBlock(initLabel,
-                new PlanInstruction[] { new IndexInitInstr(idxVar, variable.Type) },
+                new PlanInstruction[] { new IndexInitInstr(idxVar, variable.Type, indexedLookup) },
                 new GotoTerm(checkLabel)));
 
             // L_check: if idx >= Data.Length → Fail else → L_bind
             ctx.AddBlock(new PlanBlock(checkLabel, Array.Empty<PlanInstruction>(),
-                new LoopCheckTerm(bindLabel, "Fail", idxVar, variable.Type)));
+                new LoopCheckTerm(bindLabel, "Fail", idxVar, variable.Type, indexedLookup)));
 
             // L_bind: Assign(slot, Data[idx]), Choice(L_body, L_next)
             ctx.AddBlock(new PlanBlock(bindLabel,
-                new PlanInstruction[] { new LoopBindInstr(slot, idxVar, variable.Type) },
+                new PlanInstruction[] { new LoopBindInstr(slot, idxVar, variable.Type, indexedLookup) },
                 new ChoiceTerm(bodyLabel, nextLabel, slot)));
 
             // L_next: idx++, goto L_check
@@ -339,7 +341,11 @@ public sealed class IrLowerer
         // The innermost body block holds the actual predicate body instructions.
         // Use full LowerExpr to support DisjExpr and nested WithExpr inside the body.
         string innermostBody = bodyLabels[bodyLabels.Count - 1];
-        LowerExpr(with.Body, ctx, out string? bodyStart);
+        string? bodyStart;
+        if (remainingBody is not null)
+            LowerExpr(remainingBody, ctx, out bodyStart);
+        else
+            bodyStart = null;
 
         if (bodyStart is not null && bodyStart != innermostBody)
         {
@@ -354,6 +360,100 @@ public sealed class IrLowerer
 
         startLabel = outerStart;
         return ctx.FindBlock(outerStart!);
+    }
+
+    private IndexedLookupSpec? TryExtractIndexedLookup(
+        VariableSymbol variable,
+        ref SemanticExpr? body,
+        LoweringContext ctx)
+    {
+        if (body is null)
+            return null;
+
+        IReadOnlyList<SemanticExpr> parts = body is ConjExpr conj ? conj.Parts : new[] { body };
+        int candidateIndex = FindLookupCandidateIndex(parts, variable, preferConstants: true);
+        if (candidateIndex < 0)
+            candidateIndex = FindLookupCandidateIndex(parts, variable, preferConstants: false);
+
+        if (candidateIndex < 0)
+            return null;
+
+        UnifyExpr candidate = (UnifyExpr)parts[candidateIndex];
+        (FieldExpr field, SemanticExpr key) = candidate.Left is FieldExpr leftField
+            ? (leftField, candidate.Right)
+            : ((FieldExpr)candidate.Right, candidate.Left);
+
+        if (key is ConstExpr)
+            body = RemovePart(body, parts, candidateIndex);
+
+        return new IndexedLookupSpec(field.Member.Name, LowerValue(key, ctx));
+    }
+
+    private static int FindLookupCandidateIndex(
+        IReadOnlyList<SemanticExpr> parts,
+        VariableSymbol variable,
+        bool preferConstants)
+    {
+        for (int index = 0; index < parts.Count; index++)
+        {
+            if (parts[index] is not UnifyExpr unify)
+                continue;
+
+            if (!TryMatchLookup(unify.Left, unify.Right, variable, preferConstants)
+                && !TryMatchLookup(unify.Right, unify.Left, variable, preferConstants))
+            {
+                continue;
+            }
+
+            return index;
+        }
+
+        return -1;
+    }
+
+    private static bool TryMatchLookup(
+        SemanticExpr fieldExpr,
+        SemanticExpr keyExpr,
+        VariableSymbol variable,
+        bool preferConstants)
+    {
+        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr }
+            || !Equals(varExpr.Variable, variable))
+        {
+            return false;
+        }
+
+        bool isConstant = keyExpr is ConstExpr;
+        bool isSlot = keyExpr is VarExpr;
+        if (!isConstant && !isSlot)
+            return false;
+
+        if (preferConstants != isConstant)
+            return false;
+
+        return true;
+    }
+
+    private static SemanticExpr? RemovePart(
+        SemanticExpr originalBody,
+        IReadOnlyList<SemanticExpr> parts,
+        int removeIndex)
+    {
+        if (parts.Count == 1)
+            return null;
+
+        var remaining = new List<SemanticExpr>(parts.Count - 1);
+        for (int index = 0; index < parts.Count; index++)
+        {
+            if (index == removeIndex)
+                continue;
+
+            remaining.Add(parts[index]);
+        }
+
+        return remaining.Count == 1
+            ? remaining[0]
+            : new ConjExpr(remaining, originalBody.Type);
     }
 
     private void AppendInstructions(SemanticExpr expr, LoweringContext ctx, List<PlanInstruction> instructions)
@@ -376,7 +476,7 @@ public sealed class IrLowerer
                 var argSlots = call.Arguments
                     .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
                     .ToList();
-                instructions.Add(new CallInstr(call.PredicateType, argSlots));
+                instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
                 break;
             }
             case ConjExpr conj:
