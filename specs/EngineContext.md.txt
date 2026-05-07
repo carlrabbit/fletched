@@ -37,11 +37,11 @@ public FactTable<User> Users { get; set; }
 
 Given a fact type named `User`, the generated property name is `Users`.
 
-Given a fact type whose name already ends with `s`, the generated property keeps that name:
+Given a fact type whose final character is `s`, the generated property keeps that name:
 
-Status -> Status
+Bus -> Bus
 
-No additional `s` is appended in that case.
+The rule is character-based; no additional `s` is appended in that case.
 
 The current rule is a simple suffix check performed by the generator:
 
