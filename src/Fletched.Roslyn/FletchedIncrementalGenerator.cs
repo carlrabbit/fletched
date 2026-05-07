@@ -26,8 +26,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             var validator = new SourceSymbolValidator(reporter);
             validator.ValidateModuleType(moduleType);
 
-            foreach (Diagnostic diagnostic in reporter.Diagnostics)
-                spc.ReportDiagnostic(diagnostic);
+            ReportDiagnostics(spc, reporter);
         });
 
         // ── [Fact] types ───────────────────────────────────────────────────
@@ -42,15 +41,10 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
         {
             var reporter = new DiagnosticReporter();
             var validator = new SourceSymbolValidator(reporter);
-            if (!validator.ValidateFactType(factType))
-            {
-                foreach (Diagnostic diagnostic in reporter.Diagnostics)
-                    spc.ReportDiagnostic(diagnostic);
+            validator.ValidateFactType(factType);
+            ReportDiagnostics(spc, reporter);
+            if (reporter.HasErrors)
                 return;
-            }
-
-            foreach (Diagnostic diagnostic in reporter.Diagnostics)
-                spc.ReportDiagnostic(diagnostic);
 
             var emitter = new FactEmitter(factType);
             spc.AddSource(
@@ -84,12 +78,10 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
 
             var reporter = new DiagnosticReporter();
             var validator = new SourceSymbolValidator(reporter);
-            if (!validator.ValidatePredicateType(predicateType))
-            {
-                foreach (Diagnostic diagnostic in reporter.Diagnostics)
-                    spc.ReportDiagnostic(diagnostic);
+            validator.ValidatePredicateType(predicateType);
+            ReportDiagnostics(spc, reporter);
+            if (reporter.HasErrors)
                 return;
-            }
 
             var analyzer = new SemanticAnalyzer(semanticModel, reporter);
 
@@ -133,5 +125,11 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                 spc.AddSource(asyncHintName, asyncSource);
             }
         });
+    }
+
+    private static void ReportDiagnostics(SourceProductionContext context, DiagnosticReporter reporter)
+    {
+        foreach (Diagnostic diagnostic in reporter.Diagnostics)
+            context.ReportDiagnostic(diagnostic);
     }
 }
