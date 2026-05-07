@@ -23,17 +23,13 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
         context.RegisterSourceOutput(factTypes, (spc, factType) =>
         {
             var emitter = new FactEmitter(factType);
-            string ns = factType.ContainingNamespace.IsGlobalNamespace
-                ? string.Empty
-                : factType.ContainingNamespace.ToDisplayString();
+            spc.AddSource(
+                SourceSymbolHelpers.GetHintName(factType, "Proxy.g.cs"),
+                emitter.EmitProxy());
 
             spc.AddSource(
-                $"{factType.Name}_Proxy.g.cs",
-                emitter.EmitProxy(ns));
-
-            spc.AddSource(
-                $"{factType.Name}_EngineContext.g.cs",
-                emitter.EmitEngineContextProperty(ns));
+                SourceSymbolHelpers.GetHintName(factType, "EngineContext.g.cs"),
+                emitter.EmitEngineContextProperty());
         });
 
         // ── [Predicate] types ─────────────────────────────────────────────
@@ -67,9 +63,6 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
 
             if (models.Count == 0 || reporter.HasErrors) return;
 
-            string ns = predicateType.ContainingNamespace.IsGlobalNamespace
-                ? string.Empty
-                : predicateType.ContainingNamespace.ToDisplayString();
             bool generateLegacyNames = models.Count == 1;
 
             foreach (PredicateModel model in models)
@@ -86,18 +79,18 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                 plan = optimizer.Run(plan);
 
                 var predicateEmitter = new PredicateEmitter(model, plan, generateLegacyNames);
-                string source = predicateEmitter.Emit(ns);
+                string source = predicateEmitter.Emit();
                 string hintName = generateLegacyNames
-                    ? $"{predicateType.Name}.g.cs"
-                    : $"{predicateType.Name}.Arity{model.Arity}.g.cs";
+                    ? SourceSymbolHelpers.GetHintName(predicateType, "g.cs")
+                    : SourceSymbolHelpers.GetHintName(predicateType, $"Arity{model.Arity}.g.cs");
 
                 spc.AddSource(hintName, source);
 
                 var asyncEmitter = new PredicateEmitterAsync(model, plan, generateLegacyNames);
-                string asyncSource = asyncEmitter.Emit(ns);
+                string asyncSource = asyncEmitter.Emit();
                 string asyncHintName = generateLegacyNames
-                    ? $"{predicateType.Name}.Async.g.cs"
-                    : $"{predicateType.Name}.Arity{model.Arity}.Async.g.cs";
+                    ? SourceSymbolHelpers.GetHintName(predicateType, "Async.g.cs")
+                    : SourceSymbolHelpers.GetHintName(predicateType, $"Arity{model.Arity}.Async.g.cs");
 
                 spc.AddSource(asyncHintName, asyncSource);
             }

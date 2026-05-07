@@ -106,12 +106,8 @@ public partial record struct BenchTagLookup {
         var optimizer = new OptimizationPipeline();
         plan = optimizer.Run(plan);
 
-        string ns = predicateSymbol.ContainingNamespace.IsGlobalNamespace
-            ? string.Empty
-            : predicateSymbol.ContainingNamespace.ToDisplayString();
-
         var emitter = new Fletched.Roslyn.Emitters.PredicateEmitter(model, plan, generateLegacyNames: true);
-        return emitter.Emit(ns);
+        return emitter.Emit();
     }
 
     private static IReadOnlyList<MetadataReference> CollectReferences()

@@ -18,6 +18,7 @@ public sealed class PredicateEmitterAsync
     private readonly bool _generateLegacyNames;
     private readonly string _generatedName;
     private readonly string _resultTypeName;
+    private readonly string _contextTypeName;
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
@@ -46,6 +47,7 @@ public sealed class PredicateEmitterAsync
         _resultTypeName = _generateLegacyNames
             ? $"{_model.Name}Result"
             : $"{_generatedName}Result";
+        _contextTypeName = SourceSymbolHelpers.GetContextTypeName(_model.Symbol);
 
         var slotTypes = plan.SlotMap.ToDictionary(
             kv => kv.Value,
@@ -71,7 +73,7 @@ public sealed class PredicateEmitterAsync
         }
     }
 
-    public string Emit(string ns)
+    public string Emit()
     {
         var ctx = new EmitContext(_model.Name, GeneratedName);
 
@@ -80,13 +82,11 @@ public sealed class PredicateEmitterAsync
         ctx.AppendLine($"#pragma warning disable CS0164, CS0162, CS8600, CS8618, CS8625");
         ctx.AppendLine();
 
-        if (!string.IsNullOrEmpty(ns))
-        {
-            ctx.AppendLine($"namespace {ns};");
-            ctx.AppendLine();
-        }
+        SourceSymbolHelpers.OpenDeclarationScope(ctx, _model.Symbol);
 
         EmitPredicatePartial(ctx);
+        SourceSymbolHelpers.CloseDeclarationScope(ctx, _model.Symbol);
+        EmitModuleQueryWrapper(ctx);
 
         return ctx.Code.ToString();
     }
@@ -100,7 +100,7 @@ public sealed class PredicateEmitterAsync
             if (_generateLegacyNames)
             {
                 // Emit the legacy ExecuteAsync convenience wrapper that delegates to the arity-specific method
-                ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsync(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
+                ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsync({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
@@ -122,7 +122,7 @@ public sealed class PredicateEmitterAsync
     {
         _notCounter = 0;
 
-        ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsyncArity{_model.Arity}(global::Fletched.Core.Runtime.EngineContext ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
+        ctx.AppendLine($"public async System.Collections.Generic.IAsyncEnumerable<{ResultTypeName}> ExecuteAsyncArity{_model.Arity}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
@@ -194,6 +194,39 @@ public sealed class PredicateEmitterAsync
                     using (ctx.Indent())
                         ctx.AppendLine("yield break;");
                 }
+                ctx.AppendLine("}");
+            }
+            ctx.AppendLine("}");
+        }
+        ctx.AppendLine("}");
+    }
+
+    private void EmitModuleQueryWrapper(EmitContext ctx)
+    {
+        INamedTypeSymbol? moduleRoot = SourceSymbolHelpers.GetModuleRoot(_model.Symbol);
+        if (moduleRoot is null || _model.Symbol.DeclaredAccessibility != Accessibility.Public)
+            return;
+
+        string moduleDeclaration = SourceSymbolHelpers.GetTypeDeclaration(moduleRoot);
+        string predicateTypeName = _model.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string resultTypeName = SourceSymbolHelpers.GetQualifiedSiblingTypeName(_model.Symbol, ResultTypeName);
+        string wrapperName = _generateLegacyNames
+            ? $"Query_{_model.Name}Async"
+            : $"Query_{GeneratedName}Async";
+
+        ctx.AppendLine();
+        ctx.AppendLine(moduleDeclaration);
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine($"public static async System.Collections.Generic.IAsyncEnumerable<{resultTypeName}> {wrapperName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, [System.Runtime.CompilerServices.EnumeratorCancellation] System.Threading.CancellationToken cancellationToken = default)");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine($"await foreach (var item in default({predicateTypeName}).ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                    ctx.AppendLine("yield return item;");
                 ctx.AppendLine("}");
             }
             ctx.AppendLine("}");
