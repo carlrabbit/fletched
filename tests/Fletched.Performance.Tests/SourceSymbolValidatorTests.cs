@@ -127,7 +127,7 @@ public static partial class IdentityModule
 
         return CSharpCompilation.Create(
             "SourceSymbolValidatorTests",
-            new[] { syntaxTree },
+            [syntaxTree],
             references,
             new CSharpCompilationOptions(
                 OutputKind.DynamicallyLinkedLibrary,
@@ -137,13 +137,13 @@ public static partial class IdentityModule
     private static IReadOnlyList<MetadataReference> GetMetadataReferences()
     {
         System.Reflection.Assembly[] assemblies =
-        {
+        [
             typeof(object).Assembly,
             typeof(Enumerable).Assembly,
             typeof(Logic).Assembly,
             System.Reflection.Assembly.Load("System.Runtime"),
             System.Reflection.Assembly.Load("netstandard"),
-        };
+        ];
 
         return assemblies
             .Select(assembly => MetadataReference.CreateFromFile(assembly.Location))
