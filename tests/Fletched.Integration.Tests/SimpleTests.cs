@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Linq;
 using Fletched.Core;
 using Fletched.Core.Runtime;
 using TUnit;
@@ -89,5 +91,73 @@ public class SimpleTests
             await default(UserNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
+    }
+}
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class SimpleTests_Execute
+{
+    private static EngineContext BuildContext()
+    {
+        var ctx = new EngineContext();
+        ctx.Users = new FactTable<User>(new[]
+        {
+            new User("alice", "Alice", true),
+            new User("bob",   "Bob",   false),
+            new User("carol", "Carol", true),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task UserNames_ReturnsAllUsers()
+    {
+        EngineContext ctx = BuildContext();
+        List<UserNamesResult> results = default(UserNames).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task UserNames_FirstResultIsAlice()
+    {
+        EngineContext ctx = BuildContext();
+        UserNamesResult first = default(UserNames).Execute(ctx).First();
+
+        await Assert.That(first.name).IsEqualTo("Alice");
+    }
+
+    [Test]
+    public async Task AdminLogins_ReturnsAdminLogins()
+    {
+        EngineContext ctx = BuildContext();
+        List<AdminLoginsResult> results = default(AdminLogins).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task Execute_EmptyFactTable_ReturnsNoResults()
+    {
+        var ctx = new EngineContext();
+        ctx.Users = new FactTable<User>(System.Array.Empty<User>());
+
+        List<UserNamesResult> results = default(UserNames).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(0);
+    }
+
+    [Test]
+    public async Task Execute_AndExecuteAsync_ReturnEquivalentResults()
+    {
+        EngineContext ctx = BuildContext();
+
+        List<UserNamesResult> sync  = default(UserNames).Execute(ctx).ToList();
+        List<UserNamesResult> async_ = await default(UserNames).ExecuteAsync(ctx).ToListAsync();
+
+        await Assert.That(sync.Count).IsEqualTo(async_.Count);
+        for (int i = 0; i < sync.Count; i++)
+            await Assert.That(sync[i]).IsEqualTo(async_[i]);
     }
 }

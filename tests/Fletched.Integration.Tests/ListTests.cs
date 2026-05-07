@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Fletched.Core;
 using Fletched.Core.Runtime;
 using TUnit;
@@ -165,5 +166,54 @@ public class ListTests
             .Any(r => r.name == "three-seq");
 
         await Assert.That(hasThreeSeq).IsFalse();
+    }
+}
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class ListTests_Execute
+{
+    private static EngineContext BuildContext()
+    {
+        var ctx = new EngineContext();
+        ctx.NumberSequences = new FactTable<NumberSequence>(new[]
+        {
+            new NumberSequence("empty-seq",  new LogicListEmpty<int>()),
+            new NumberSequence("one-seq",    new LogicListCons<int>(1, new LogicListEmpty<int>())),
+            new NumberSequence("two-seq",    new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListEmpty<int>()))),
+            new NumberSequence("three-seq",  new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListCons<int>(3, new LogicListEmpty<int>())))),
+            new NumberSequence("other-seq",  new LogicListCons<int>(5, new LogicListEmpty<int>())),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task EmptySequence_ReturnsOnlyEmptyList()
+    {
+        EngineContext ctx = BuildContext();
+        List<EmptySequenceResult> results = default(EmptySequence).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("empty-seq");
+    }
+
+    [Test]
+    public async Task SingletonOneSequence_ReturnsOnlySingletonOne()
+    {
+        EngineContext ctx = BuildContext();
+        List<SingletonOneSequenceResult> results = default(SingletonOneSequence).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("one-seq");
+    }
+
+    [Test]
+    public async Task PairSequence_ReturnsOnlyTwoSeq()
+    {
+        EngineContext ctx = BuildContext();
+        List<PairSequenceResult> results = default(PairSequence).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("two-seq");
     }
 }

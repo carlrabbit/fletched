@@ -238,3 +238,49 @@ public class SeatTests
         await Assert.That(compatible).IsTrue();
     }
 }
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class SeatTests_Execute
+{
+    private static EngineContext BuildContext()
+    {
+        var ctx = new EngineContext();
+        ctx.Seats = new FactTable<Seat>(new[]
+        {
+            new Seat(1, 1,  3), new Seat(1, 2,  5), new Seat(1, 3,  1), new Seat(1, 4,  2),
+            new Seat(2, 1,  4), new Seat(2, 2,  6), new Seat(2, 3,  7), new Seat(2, 4,  8),
+            new Seat(3, 1, 16), new Seat(3, 2, 11), new Seat(3, 3, 12), new Seat(3, 4,  9),
+            new Seat(4, 1, 14), new Seat(4, 2, 10), new Seat(4, 3, 15), new Seat(4, 4, 13),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task VerticalNeighbors_Returns12Pairs()
+    {
+        EngineContext ctx = BuildContext();
+        List<VerticalNeighborsResult> results = default(VerticalNeighbors).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(12);
+    }
+
+    [Test]
+    public async Task LowNumberedSeat_Returns8Seats()
+    {
+        EngineContext ctx = BuildContext();
+        List<LowNumberedSeatResult> results = default(LowNumberedSeat).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(8);
+    }
+
+    [Test]
+    public async Task CompatiblePair_Student3WithNeighbor16_IsIncompatible()
+    {
+        EngineContext ctx = BuildContext();
+        bool compatible = default(CompatiblePair).Execute(ctx)
+            .Any(r => r.neighbor == 16 && r.student == 3);
+
+        await Assert.That(compatible).IsFalse();
+    }
+}

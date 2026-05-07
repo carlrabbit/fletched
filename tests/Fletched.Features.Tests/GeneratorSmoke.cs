@@ -60,4 +60,22 @@ public class GeneratorSmokeTests
         await Assert.That(results[0].name).IsEqualTo("Alice");
         await Assert.That(results[1].name).IsEqualTo("Bob");
     }
+
+    [Test]
+    public async Task Predicate_ExecuteSync_ReturnsAllNames()
+    {
+        var ctx = new EngineContext();
+        ctx.Persons = new FactTable<Person>(new[]
+        {
+            new Person("alice", "Alice"),
+            new Person("bob",   "Bob"),
+        });
+
+        System.Collections.Generic.List<PersonNamesResult> results =
+            default(PersonNames).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+        await Assert.That(results[0].name).IsEqualTo("Alice");
+        await Assert.That(results[1].name).IsEqualTo("Bob");
+    }
 }
