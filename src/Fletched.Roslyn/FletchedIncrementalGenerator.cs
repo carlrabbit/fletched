@@ -92,6 +92,14 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                     : $"{predicateType.Name}.Arity{model.Arity}.g.cs";
 
                 spc.AddSource(hintName, source);
+
+                var asyncEmitter = new PredicateEmitterAsync(model, plan, generateLegacyNames);
+                string asyncSource = asyncEmitter.Emit(ns);
+                string asyncHintName = generateLegacyNames
+                    ? $"{predicateType.Name}.Async.g.cs"
+                    : $"{predicateType.Name}.Arity{model.Arity}.Async.g.cs";
+
+                spc.AddSource(asyncHintName, asyncSource);
             }
         });
     }

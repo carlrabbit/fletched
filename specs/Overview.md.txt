@@ -407,7 +407,7 @@ Generated result types
 Projection rules
 
 
-Yield semantics (IEnumerable<T>)
+Yield semantics (IAsyncEnumerable<T> via ExecuteAsync, IEnumerable<T> via Execute)
 
 
 Future extensibility for explicit projection

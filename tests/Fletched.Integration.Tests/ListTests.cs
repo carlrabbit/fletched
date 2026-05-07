@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using Fletched.Core;
 using Fletched.Core.Runtime;
 using TUnit;
@@ -85,7 +86,7 @@ public class ListTests
     public async Task EmptySequence_ReturnsOnlyEmptyList()
     {
         EngineContext ctx = BuildContext();
-        List<EmptySequenceResult> results = default(EmptySequence).Execute(ctx).ToList();
+        List<EmptySequenceResult> results = await default(EmptySequence).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].name).IsEqualTo("empty-seq");
@@ -97,12 +98,104 @@ public class ListTests
         var ctx = new EngineContext();
         ctx.NumberSequences = new FactTable<NumberSequence>(System.Array.Empty<NumberSequence>());
 
-        List<EmptySequenceResult> results = default(EmptySequence).Execute(ctx).ToList();
+        List<EmptySequenceResult> results = await default(EmptySequence).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
 
     // ── SingletonOneSequence ──────────────────────────────────────────────────
+
+    [Test]
+    public async Task SingletonOneSequence_ReturnsOnlySingletonOne()
+    {
+        EngineContext ctx = BuildContext();
+        List<SingletonOneSequenceResult> results = await default(SingletonOneSequence).ExecuteAsync(ctx).ToListAsync();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("one-seq");
+    }
+
+    [Test]
+    public async Task SingletonOneSequence_DoesNotReturnEmpty()
+    {
+        EngineContext ctx = BuildContext();
+        bool hasEmpty = (await default(SingletonOneSequence).ExecuteAsync(ctx).ToListAsync())
+            .Any(r => r.name == "empty-seq");
+
+        await Assert.That(hasEmpty).IsFalse();
+    }
+
+    [Test]
+    public async Task SingletonOneSequence_DoesNotReturnLongerList()
+    {
+        EngineContext ctx = BuildContext();
+        bool hasTwoSeq = (await default(SingletonOneSequence).ExecuteAsync(ctx).ToListAsync())
+            .Any(r => r.name == "two-seq");
+
+        await Assert.That(hasTwoSeq).IsFalse();
+    }
+
+    [Test]
+    public async Task SingletonOneSequence_DoesNotReturnDifferentElement()
+    {
+        EngineContext ctx = BuildContext();
+        // "other-seq" is [5], not [1] — should not match
+        bool hasOtherSeq = (await default(SingletonOneSequence).ExecuteAsync(ctx).ToListAsync())
+            .Any(r => r.name == "other-seq");
+
+        await Assert.That(hasOtherSeq).IsFalse();
+    }
+
+    // ── PairSequence ──────────────────────────────────────────────────────────
+
+    [Test]
+    public async Task PairSequence_ReturnsOnlyTwoSeq()
+    {
+        EngineContext ctx = BuildContext();
+        List<PairSequenceResult> results = await default(PairSequence).ExecuteAsync(ctx).ToListAsync();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("two-seq");
+    }
+
+    [Test]
+    public async Task PairSequence_DoesNotReturnThreeSeq()
+    {
+        EngineContext ctx = BuildContext();
+        bool hasThreeSeq = (await default(PairSequence).ExecuteAsync(ctx).ToListAsync())
+            .Any(r => r.name == "three-seq");
+
+        await Assert.That(hasThreeSeq).IsFalse();
+    }
+}
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class ListTests_Execute
+{
+    private static EngineContext BuildContext()
+    {
+        var ctx = new EngineContext();
+        ctx.NumberSequences = new FactTable<NumberSequence>(new[]
+        {
+            new NumberSequence("empty-seq",  new LogicListEmpty<int>()),
+            new NumberSequence("one-seq",    new LogicListCons<int>(1, new LogicListEmpty<int>())),
+            new NumberSequence("two-seq",    new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListEmpty<int>()))),
+            new NumberSequence("three-seq",  new LogicListCons<int>(1, new LogicListCons<int>(2, new LogicListCons<int>(3, new LogicListEmpty<int>())))),
+            new NumberSequence("other-seq",  new LogicListCons<int>(5, new LogicListEmpty<int>())),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task EmptySequence_ReturnsOnlyEmptyList()
+    {
+        EngineContext ctx = BuildContext();
+        List<EmptySequenceResult> results = default(EmptySequence).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].name).IsEqualTo("empty-seq");
+    }
 
     [Test]
     public async Task SingletonOneSequence_ReturnsOnlySingletonOne()
@@ -115,39 +208,6 @@ public class ListTests
     }
 
     [Test]
-    public async Task SingletonOneSequence_DoesNotReturnEmpty()
-    {
-        EngineContext ctx = BuildContext();
-        bool hasEmpty = default(SingletonOneSequence).Execute(ctx)
-            .Any(r => r.name == "empty-seq");
-
-        await Assert.That(hasEmpty).IsFalse();
-    }
-
-    [Test]
-    public async Task SingletonOneSequence_DoesNotReturnLongerList()
-    {
-        EngineContext ctx = BuildContext();
-        bool hasTwoSeq = default(SingletonOneSequence).Execute(ctx)
-            .Any(r => r.name == "two-seq");
-
-        await Assert.That(hasTwoSeq).IsFalse();
-    }
-
-    [Test]
-    public async Task SingletonOneSequence_DoesNotReturnDifferentElement()
-    {
-        EngineContext ctx = BuildContext();
-        // "other-seq" is [5], not [1] — should not match
-        bool hasOtherSeq = default(SingletonOneSequence).Execute(ctx)
-            .Any(r => r.name == "other-seq");
-
-        await Assert.That(hasOtherSeq).IsFalse();
-    }
-
-    // ── PairSequence ──────────────────────────────────────────────────────────
-
-    [Test]
     public async Task PairSequence_ReturnsOnlyTwoSeq()
     {
         EngineContext ctx = BuildContext();
@@ -155,15 +215,5 @@ public class ListTests
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].name).IsEqualTo("two-seq");
-    }
-
-    [Test]
-    public async Task PairSequence_DoesNotReturnThreeSeq()
-    {
-        EngineContext ctx = BuildContext();
-        bool hasThreeSeq = default(PairSequence).Execute(ctx)
-            .Any(r => r.name == "three-seq");
-
-        await Assert.That(hasThreeSeq).IsFalse();
     }
 }

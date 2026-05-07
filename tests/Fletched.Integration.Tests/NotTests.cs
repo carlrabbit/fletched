@@ -82,7 +82,7 @@ public class NotTests
     {
         EngineContext ctx = BuildEmployeeContext();
         List<NonAdminEmployeesResult> results =
-            default(NonAdminEmployees).Execute(ctx).ToList();
+            await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(2);
     }
@@ -91,7 +91,7 @@ public class NotTests
     public async Task NonAdminEmployees_ContainsBob()
     {
         EngineContext ctx = BuildEmployeeContext();
-        bool hasBob = default(NonAdminEmployees).Execute(ctx)
+        bool hasBob = (await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Bob");
 
         await Assert.That(hasBob).IsTrue();
@@ -101,7 +101,7 @@ public class NotTests
     public async Task NonAdminEmployees_ContainsDave()
     {
         EngineContext ctx = BuildEmployeeContext();
-        bool hasDave = default(NonAdminEmployees).Execute(ctx)
+        bool hasDave = (await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Dave");
 
         await Assert.That(hasDave).IsTrue();
@@ -111,7 +111,7 @@ public class NotTests
     public async Task NonAdminEmployees_ExcludesAlice()
     {
         EngineContext ctx = BuildEmployeeContext();
-        bool hasAlice = default(NonAdminEmployees).Execute(ctx)
+        bool hasAlice = (await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Alice");
 
         await Assert.That(hasAlice).IsFalse();
@@ -121,7 +121,7 @@ public class NotTests
     public async Task NonAdminEmployees_ExcludesCarol()
     {
         EngineContext ctx = BuildEmployeeContext();
-        bool hasCarol = default(NonAdminEmployees).Execute(ctx)
+        bool hasCarol = (await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Carol");
 
         await Assert.That(hasCarol).IsFalse();
@@ -134,7 +134,7 @@ public class NotTests
     {
         EngineContext ctx = BuildProductContext();
         List<AffordableProductsResult> results =
-            default(AffordableProducts).Execute(ctx).ToList();
+            await default(AffordableProducts).ExecuteAsync(ctx).ToListAsync();
 
         // Budget (30) and Standard (80) are ≤ 100; Premium (150) and Luxury (300) are > 100
         await Assert.That(results.Count).IsEqualTo(2);
@@ -144,7 +144,7 @@ public class NotTests
     public async Task AffordableProducts_ContainsBudget()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasBudget = default(AffordableProducts).Execute(ctx)
+        bool hasBudget = (await default(AffordableProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Budget");
 
         await Assert.That(hasBudget).IsTrue();
@@ -154,7 +154,7 @@ public class NotTests
     public async Task AffordableProducts_ContainsStandard()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasStandard = default(AffordableProducts).Execute(ctx)
+        bool hasStandard = (await default(AffordableProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Standard");
 
         await Assert.That(hasStandard).IsTrue();
@@ -164,7 +164,7 @@ public class NotTests
     public async Task AffordableProducts_ExcludesPremium()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasPremium = default(AffordableProducts).Execute(ctx)
+        bool hasPremium = (await default(AffordableProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Premium");
 
         await Assert.That(hasPremium).IsFalse();
@@ -174,7 +174,7 @@ public class NotTests
     public async Task AffordableProducts_ExcludesLuxury()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasLuxury = default(AffordableProducts).Execute(ctx)
+        bool hasLuxury = (await default(AffordableProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Luxury");
 
         await Assert.That(hasLuxury).IsFalse();
@@ -187,7 +187,7 @@ public class NotTests
     {
         EngineContext ctx = BuildProductContext();
         List<PremiumProductsResult> results =
-            default(PremiumProducts).Execute(ctx).ToList();
+            await default(PremiumProducts).ExecuteAsync(ctx).ToListAsync();
 
         // Budget (30) and Standard (80) have price ≤ 50 only for Budget; Standard > 50
         // Not(price <= 50) means price > 50: Standard (80), Premium (150), Luxury (300)
@@ -198,7 +198,7 @@ public class NotTests
     public async Task PremiumProducts_ExcludesBudget()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasBudget = default(PremiumProducts).Execute(ctx)
+        bool hasBudget = (await default(PremiumProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Budget");
 
         await Assert.That(hasBudget).IsFalse();
@@ -208,7 +208,7 @@ public class NotTests
     public async Task PremiumProducts_ContainsPremium()
     {
         EngineContext ctx = BuildProductContext();
-        bool hasPremium = default(PremiumProducts).Execute(ctx)
+        bool hasPremium = (await default(PremiumProducts).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Premium");
 
         await Assert.That(hasPremium).IsTrue();
@@ -223,8 +223,75 @@ public class NotTests
         ctx.Employees = new FactTable<Employee>(System.Array.Empty<Employee>());
 
         List<NonAdminEmployeesResult> results =
-            default(NonAdminEmployees).Execute(ctx).ToList();
+            await default(NonAdminEmployees).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
+    }
+}
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class NotTests_Execute
+{
+    private static EngineContext BuildEmployeeContext()
+    {
+        var ctx = new EngineContext();
+        ctx.Employees = new FactTable<Employee>(new[]
+        {
+            new Employee("Alice", true),
+            new Employee("Bob",   false),
+            new Employee("Carol", true),
+            new Employee("Dave",  false),
+        });
+        return ctx;
+    }
+
+    private static EngineContext BuildProductContext()
+    {
+        var ctx = new EngineContext();
+        ctx.Products = new FactTable<Product>(new[]
+        {
+            new Product("Budget",   30),
+            new Product("Standard", 80),
+            new Product("Premium",  150),
+            new Product("Luxury",   300),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task NonAdminEmployees_ReturnsOnlyNonAdmins()
+    {
+        EngineContext ctx = BuildEmployeeContext();
+        List<NonAdminEmployeesResult> results = default(NonAdminEmployees).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task NonAdminEmployees_ExcludesAlice()
+    {
+        EngineContext ctx = BuildEmployeeContext();
+        bool hasAlice = default(NonAdminEmployees).Execute(ctx).Any(r => r.name == "Alice");
+
+        await Assert.That(hasAlice).IsFalse();
+    }
+
+    [Test]
+    public async Task AffordableProducts_ExcludesExpensiveProducts()
+    {
+        EngineContext ctx = BuildProductContext();
+        List<AffordableProductsResult> results = default(AffordableProducts).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+    }
+
+    [Test]
+    public async Task PremiumProducts_ExcludesCheapProducts()
+    {
+        EngineContext ctx = BuildProductContext();
+        List<PremiumProductsResult> results = default(PremiumProducts).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(3);
     }
 }

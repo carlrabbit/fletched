@@ -52,7 +52,7 @@ public class ToasterTests
         ctx.Toasters = new FactTable<Toaster>(System.Array.Empty<Toaster>());
 
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).ToList();
+            await default(Toaster).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -64,7 +64,7 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).ToList();
+            await default(Toaster).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(5);
     }
@@ -76,7 +76,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.size == 4).ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.size == 4).ToList();
 
         await Assert.That(results.Count).IsEqualTo(2);
     }
@@ -86,7 +87,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.size == 2).ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.size == 2).ToList();
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].name).IsEqualTo("Compact");
@@ -97,7 +99,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.size == 99).ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.size == 99).ToList();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -109,7 +112,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.name == "Standard").ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.name == "Standard").ToList();
 
         await Assert.That(results.Count).IsEqualTo(2);
     }
@@ -119,7 +123,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.name == "Deluxe").ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.name == "Deluxe").ToList();
 
         await Assert.That(results.Count).IsEqualTo(1);
         await Assert.That(results[0].size).IsEqualTo(8);
@@ -130,7 +135,8 @@ public class ToasterTests
     {
         EngineContext ctx = BuildContext();
         List<ToasterResult> results =
-            default(Toaster).Execute(ctx).Where(r => r.name == "NonExistent").ToList();
+            (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
+                .Where(r => r.name == "NonExistent").ToList();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -141,7 +147,7 @@ public class ToasterTests
     public async Task Execute_FilterByNameAndSize_Exists()
     {
         EngineContext ctx = BuildContext();
-        bool exists = default(Toaster).Execute(ctx)
+        bool exists = (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Standard" && r.size == 4);
 
         await Assert.That(exists).IsTrue();
@@ -151,7 +157,7 @@ public class ToasterTests
     public async Task Execute_FilterByNameAndSize_DoesNotExist()
     {
         EngineContext ctx = BuildContext();
-        bool exists = default(Toaster).Execute(ctx)
+        bool exists = (await default(Toaster).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.name == "Standard" && r.size == 99);
 
         await Assert.That(exists).IsFalse();

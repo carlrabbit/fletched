@@ -112,7 +112,7 @@ No nested scopes for control flow; all blocks are flat
 
 4.1 Method Structure
 
-IEnumerable<TResult> Execute(EngineContext ctx)
+IEnumerable<TResult> Execute(EngineContext ctx, IExecutionObserver? observer = null)
 {
     var state = new <PredicateName>_State();
     var cps = new Stack<ChoicePoint>();
@@ -135,6 +135,40 @@ Success:
 L_Entry:
     ...
 }
+
+async IAsyncEnumerable<TResult> ExecuteAsync(EngineContext ctx, IExecutionObserver? observer = null, [EnumeratorCancellation] CancellationToken cancellationToken = default)
+{
+    var state = new <PredicateName>_State();
+    var cps = new Stack<ChoicePoint>();
+    int _pc = <entry_label_id>;
+
+    while (true)
+    {
+        switch (_pc)
+        {
+            case -3: // SUCCESS
+                cancellationToken.ThrowIfCancellationRequested();
+                yield return Project(state);
+                _pc = -2; break;
+
+            case -2: // RESUME
+                if (!cps.TryPop(out var _cp)) yield break;
+                state.Unwind(_cp.TrailTop);
+                _pc = _cp.LabelId; break;
+
+            case -1: // FAIL
+                _pc = -2; break;
+
+            case 0: // L_Entry block
+                ...
+                _pc = <next_block>; break;
+        }
+    }
+}
+
+ExecuteAsync is a native async IAsyncEnumerable<T> iterator. It does NOT wrap Execute.
+All goto-based control flow is replaced by explicit _pc assignments so the method is
+compatible with async/await without any restrictions.
 
 
 ---

@@ -62,7 +62,7 @@ Field types match TerminalVar<T>
 
 2.4 Execution Signature
 
-IEnumerable<<PredicateName>Result> Execute(...);
+IAsyncEnumerable<<PredicateName>Result> ExecuteAsync(...);
 
 
 ---
@@ -207,6 +207,17 @@ Success:
     );
 
     goto Resume;
+
+The generated predicate exposes two public methods:
+- IEnumerable<AdminUsersResult> Execute(EngineContext ctx, IExecutionObserver? observer = null)
+  A goto-based synchronous iterator. Each block is a goto label; choice points and backtracking
+  use goto Resume/Fail/Success labels.
+
+- async IAsyncEnumerable<AdminUsersResult> ExecuteAsync(EngineContext ctx, IExecutionObserver? observer = null, CancellationToken cancellationToken = default)
+  A native async iterator with an explicit program-counter variable (_pc) and a
+  while (true) { switch (_pc) { ... } } loop. Each block becomes a numbered case.
+  Control-flow jumps (_pc = N; break;) replace all goto labels, making the method
+  compatible with async/await and IAsyncEnumerable<T>.
 
 
 ---

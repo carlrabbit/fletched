@@ -86,7 +86,7 @@ public class BreadTests
         ctx.Breads = new FactTable<Bread>(new[] { new Bread("WheatWonder", 2) });
 
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx).ToList();
+            await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -99,7 +99,7 @@ public class BreadTests
         ctx.Breads = new FactTable<Bread>(System.Array.Empty<Bread>());
 
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx).ToList();
+            await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
@@ -111,7 +111,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx).ToList();
+            await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(results.Count).IsEqualTo(6);
     }
@@ -123,7 +123,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.toasterName == "Compact")
                 .ToList();
 
@@ -136,7 +136,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.toasterName == "Jumbo")
                 .ToList();
 
@@ -148,7 +148,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.toasterName == "Deluxe")
                 .ToList();
 
@@ -162,7 +162,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.brand == "RusticRye")
                 .ToList();
 
@@ -175,7 +175,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.brand == "SourdoughSlim")
                 .ToList();
 
@@ -187,7 +187,7 @@ public class BreadTests
     {
         EngineContext ctx = BuildContext();
         List<RightSizedBreadResult> results =
-            default(RightSizedBread).Execute(ctx)
+            (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
                 .Where(r => r.brand == "GiantLoaf")
                 .ToList();
 
@@ -200,7 +200,7 @@ public class BreadTests
     public async Task Execute_ExactPair_CompactWheatWonder_Exists()
     {
         EngineContext ctx = BuildContext();
-        bool exists = default(RightSizedBread).Execute(ctx)
+        bool exists = (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.toasterName == "Compact" && r.brand == "WheatWonder");
 
         await Assert.That(exists).IsTrue();
@@ -210,9 +210,68 @@ public class BreadTests
     public async Task Execute_ExactPair_CompactSourdoughSlim_DoesNotExist()
     {
         EngineContext ctx = BuildContext();
-        bool exists = default(RightSizedBread).Execute(ctx)
+        bool exists = (await default(RightSizedBread).ExecuteAsync(ctx).ToListAsync())
             .Any(r => r.toasterName == "Compact" && r.brand == "SourdoughSlim");
 
         await Assert.That(exists).IsFalse();
+    }
+}
+
+// ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
+
+public class BreadTests_Execute
+{
+    private static EngineContext BuildContext()
+    {
+        var ctx = new EngineContext();
+        ctx.Toasters = new FactTable<Toaster>(new[]
+        {
+            new Toaster("Compact",  2),
+            new Toaster("Standard", 4),
+            new Toaster("Standard", 6),
+            new Toaster("Jumbo",    4),
+            new Toaster("Deluxe",   8),
+        });
+        ctx.Breads = new FactTable<Bread>(new[]
+        {
+            new Bread("WheatWonder",    2),
+            new Bread("SourdoughSlim",  4),
+            new Bread("RusticRye",      6),
+            new Bread("GiantLoaf",     12),
+            new Bread("MultiGrain",     4),
+        });
+        return ctx;
+    }
+
+    [Test]
+    public async Task Execute_AllPairs_ReturnsExpectedCount()
+    {
+        EngineContext ctx = BuildContext();
+        List<RightSizedBreadResult> results = default(RightSizedBread).Execute(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(6);
+    }
+
+    [Test]
+    public async Task Execute_FilterByToasterName_Compact_OneResult()
+    {
+        EngineContext ctx = BuildContext();
+        List<RightSizedBreadResult> results = default(RightSizedBread).Execute(ctx)
+            .Where(r => r.toasterName == "Compact")
+            .ToList();
+
+        await Assert.That(results.Count).IsEqualTo(1);
+        await Assert.That(results[0].brand).IsEqualTo("WheatWonder");
+    }
+
+    [Test]
+    public async Task Execute_FilterByBrand_GiantLoaf_NoResults()
+    {
+        EngineContext ctx = BuildContext();
+        List<RightSizedBreadResult> results = default(RightSizedBread).Execute(ctx)
+            .Where(r => r.brand == "GiantLoaf")
+            .ToList();
+
+        await Assert.That(results.Count).IsEqualTo(0);
     }
 }
