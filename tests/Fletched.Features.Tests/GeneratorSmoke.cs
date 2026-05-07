@@ -19,6 +19,20 @@ public partial record struct PersonNames
         Logic.With<Person>(person => person.Name == name);
 }
 
+[Predicate]
+public partial record struct PersonLookup
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<Person>(person => person.Name == name);
+
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> login, TerminalVar<string> name) =>
+        Logic.With<Person>(person =>
+            person.Login == login &&
+            person.Name == name);
+}
+
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 public class GeneratorSmokeTests
@@ -58,6 +72,42 @@ public class GeneratorSmokeTests
 
         await Assert.That(results.Count).IsEqualTo(2);
         await Assert.That(results[0].name).IsEqualTo("Alice");
+        await Assert.That(results[1].name).IsEqualTo("Bob");
+    }
+
+    [Test]
+    public async Task PredicateOverload_ExecuteArity1_ReturnsNames()
+    {
+        var ctx = new EngineContext();
+        ctx.Persons = new FactTable<Person>(new[]
+        {
+            new Person("alice", "Alice"),
+            new Person("bob",   "Bob"),
+        });
+
+        var results = default(PersonLookup).ExecuteArity1(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+        await Assert.That(results[0].name).IsEqualTo("Alice");
+        await Assert.That(results[1].name).IsEqualTo("Bob");
+    }
+
+    [Test]
+    public async Task PredicateOverload_ExecuteArity2_ReturnsLoginAndNamePairs()
+    {
+        var ctx = new EngineContext();
+        ctx.Persons = new FactTable<Person>(new[]
+        {
+            new Person("alice", "Alice"),
+            new Person("bob",   "Bob"),
+        });
+
+        var results = default(PersonLookup).ExecuteArity2(ctx).ToList();
+
+        await Assert.That(results.Count).IsEqualTo(2);
+        await Assert.That(results[0].login).IsEqualTo("alice");
+        await Assert.That(results[0].name).IsEqualTo("Alice");
+        await Assert.That(results[1].login).IsEqualTo("bob");
         await Assert.That(results[1].name).IsEqualTo("Bob");
     }
 }

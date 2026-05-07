@@ -127,6 +127,26 @@ Predicates can call other predicates and participate in backtracking. Calls are 
 - reuse
 - efficient multi-solution enumeration
 
+Predicates may also declare multiple `[PredicateBody]` methods on the same record as long as each body has a distinct arity.
+
+```csharp
+[Predicate]
+partial record struct PersonLookup
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<Person>(person => person.Name == name);
+
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> login, TerminalVar<string> name) =>
+        Logic.With<Person>(person =>
+            person.Login == login &&
+            person.Name == name);
+}
+```
+
+Single-body predicates keep the existing `Execute(...)` / `*Result` surface. Overloaded predicates generate arity-specific entry points such as `ExecuteArity1(...)`, `ExecuteArity2(...)`, and matching result types.
+
 ---
 
 ## Design Goals

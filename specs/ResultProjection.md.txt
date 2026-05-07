@@ -183,6 +183,17 @@ readonly record struct AdminUsersResult(
     string name
 );
 
+Predicates with multiple "[PredicateBody]" overloads use arity-specific result types:
+
+readonly record struct PersonLookupArity1Result(
+    string name
+);
+
+readonly record struct PersonLookupArity2Result(
+    string login,
+    string name
+);
+
 
 ---
 

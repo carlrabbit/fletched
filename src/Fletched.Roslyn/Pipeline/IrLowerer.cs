@@ -97,7 +97,7 @@ public sealed class IrLowerer
                 string label = ctx.NextLabel("call");
                 startLabel = label;
                 var block = new PlanBlock(label,
-                    new[] { new CallInstr(callExpr.PredicateType, argSlots) },
+                    new[] { new CallInstr(callExpr.PredicateType, argSlots, callExpr.Arity) },
                     new SucceedTerm());
                 ctx.AddBlock(block);
                 return block;
@@ -476,7 +476,7 @@ public sealed class IrLowerer
                 var argSlots = call.Arguments
                     .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
                     .ToList();
-                instructions.Add(new CallInstr(call.PredicateType, argSlots));
+                instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
                 break;
             }
             case ConjExpr conj:
