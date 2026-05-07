@@ -88,4 +88,28 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidPredicateType = new(
+        "FLTCH011",
+        "Invalid predicate type",
+        "Type '{0}' marked with [Predicate] must be a partial record struct",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidModuleType = new(
+        "FLTCH012",
+        "Invalid module type",
+        "Type '{0}' marked with [Module] must be a static partial class",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidContainingType = new(
+        "FLTCH013",
+        "Invalid containing type",
+        "Containing type '{0}' must be partial because it encloses generated Fletched declarations",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }
