@@ -41,6 +41,8 @@ Given a fact type whose name already ends with `s`, the generated property keeps
 
 Status -> Status
 
+No additional `s` is appended in that case.
+
 The current rule is a simple suffix check performed by the generator:
 
 - if the type name ends with `s`, use it as-is
