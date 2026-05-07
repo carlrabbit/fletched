@@ -12,6 +12,24 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
 {
     public void Initialize(IncrementalGeneratorInitializationContext context)
     {
+        // ── [Module] types ─────────────────────────────────────────────────
+        IncrementalValuesProvider<INamedTypeSymbol> moduleTypes = context.SyntaxProvider
+            .ForAttributeWithMetadataName(
+                "Fletched.Core.ModuleAttribute",
+                predicate: static (node, _) => node is TypeDeclarationSyntax,
+                transform: static (ctx, _) => (INamedTypeSymbol)ctx.TargetSymbol)
+            .Where(s => s is not null)!;
+
+        context.RegisterSourceOutput(moduleTypes, (spc, moduleType) =>
+        {
+            var reporter = new DiagnosticReporter();
+            var validator = new SourceSymbolValidator(reporter);
+            validator.ValidateModuleType(moduleType);
+
+            foreach (Diagnostic diagnostic in reporter.Diagnostics)
+                spc.ReportDiagnostic(diagnostic);
+        });
+
         // ── [Fact] types ───────────────────────────────────────────────────
         IncrementalValuesProvider<INamedTypeSymbol> factTypes = context.SyntaxProvider
             .ForAttributeWithMetadataName(
@@ -22,6 +40,18 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
 
         context.RegisterSourceOutput(factTypes, (spc, factType) =>
         {
+            var reporter = new DiagnosticReporter();
+            var validator = new SourceSymbolValidator(reporter);
+            if (!validator.ValidateFactType(factType))
+            {
+                foreach (Diagnostic diagnostic in reporter.Diagnostics)
+                    spc.ReportDiagnostic(diagnostic);
+                return;
+            }
+
+            foreach (Diagnostic diagnostic in reporter.Diagnostics)
+                spc.ReportDiagnostic(diagnostic);
+
             var emitter = new FactEmitter(factType);
             spc.AddSource(
                 SourceSymbolHelpers.GetHintName(factType, "Proxy.g.cs"),
@@ -53,6 +83,14 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             (INamedTypeSymbol predicateType, Microsoft.CodeAnalysis.SemanticModel semanticModel) = pair;
 
             var reporter = new DiagnosticReporter();
+            var validator = new SourceSymbolValidator(reporter);
+            if (!validator.ValidatePredicateType(predicateType))
+            {
+                foreach (Diagnostic diagnostic in reporter.Diagnostics)
+                    spc.ReportDiagnostic(diagnostic);
+                return;
+            }
+
             var analyzer = new SemanticAnalyzer(semanticModel, reporter);
 
             IReadOnlyList<PredicateModel> models = analyzer.AnalyzeAll(predicateType);

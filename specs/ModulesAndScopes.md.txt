@@ -21,7 +21,7 @@ public static partial class IdentityModule
 
 - `[Module]` marks the relational boundary.
 - The module type is the root for generated storage and query entrypoints.
-- The module declaration must be partial so generated members can merge into it.
+- The module declaration must be a `static partial class` so generated members can merge into it and module entrypoints remain type-level.
 
 ---
 
@@ -68,6 +68,7 @@ public static partial class UserQueries
 3. Rules and Invariants
 
 - Nested generated partial declarations must preserve the original containing-type hierarchy.
+- The source generator reports a compile-time error if `[Module]` is applied to anything other than a `static partial class`.
 - Any containing type that encloses generated partial members must be declared `partial`.
 - Facts outside a module continue to extend `Fletched.Core.Runtime.EngineContext`.
 - Facts inside a module extend `<Module>.EngineContext` instead of the global engine context.

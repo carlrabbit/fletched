@@ -111,6 +111,19 @@ Fact Rules
 
 ---
 
+Declaration Rules
+
+- "[Predicate]" types must be "partial record struct"
+  → otherwise: "InvalidPredicateType"
+
+- "[Module]" types must be "static partial class"
+  → otherwise: "InvalidModuleType"
+
+- Any containing type around a generated Fletched declaration must be "partial"
+  → otherwise: "InvalidContainingType"
+
+---
+
 Variable Rules
 
 - Variable names must be unique within scope
