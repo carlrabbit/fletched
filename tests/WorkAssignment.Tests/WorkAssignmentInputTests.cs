@@ -56,4 +56,44 @@ public class WorkAssignmentSolverTests
 
         await Assert.That(allFair).IsTrue();
     }
+
+
+    [Test]
+    public async Task FindFirstAssignments_ValidConstraints_ReturnsUniqueAssignments()
+    {
+        IReadOnlyList<WorkerAvailability> workers =
+        [
+            new WorkerAvailability("Alice", new HashSet<int>()),
+            new WorkerAvailability("Bob", new HashSet<int>()),
+            new WorkerAvailability("Cara", new HashSet<int>()),
+            new WorkerAvailability("Dan", new HashSet<int>()),
+        ];
+
+        IReadOnlyList<AssignmentResult> assignments = WorkAssignmentSolver.FindFirstAssignments(workers, 5);
+
+        int distinctAssignmentCount = assignments
+            .Select(assignment => string.Join("|", assignment.ShiftAssignments))
+            .Distinct(StringComparer.Ordinal)
+            .Count();
+
+        await Assert.That(distinctAssignmentCount).IsEqualTo(assignments.Count);
+    }
+
+    [Test]
+    public async Task FindFirstAssignments_UnavailableShift_NeverAssignsWorkerToBlockedShift()
+    {
+        IReadOnlyList<WorkerAvailability> workers =
+        [
+            new WorkerAvailability("Alice", new HashSet<int> { 0 }),
+            new WorkerAvailability("Bob", new HashSet<int>()),
+            new WorkerAvailability("Cara", new HashSet<int>()),
+            new WorkerAvailability("Dan", new HashSet<int>()),
+        ];
+
+        IReadOnlyList<AssignmentResult> assignments = WorkAssignmentSolver.FindFirstAssignments(workers, 5);
+
+        bool aliceAssignedToMonEarly = assignments.Any(assignment => assignment.ShiftAssignments[0] == "Alice");
+
+        await Assert.That(aliceAssignedToMonEarly).IsFalse();
+    }
 }

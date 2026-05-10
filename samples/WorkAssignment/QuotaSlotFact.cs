@@ -5,5 +5,5 @@ namespace WorkAssignment;
 public static partial class WorkAssignmentModule
 {
     [Fact]
-    public readonly partial record struct ShiftFact(int ShiftIndex);
+    public readonly partial record struct QuotaSlotFact(int SlotId, string WorkerName);
 }
