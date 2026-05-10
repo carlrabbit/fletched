@@ -92,8 +92,8 @@ public class WorkAssignmentSolverTests
 
         IReadOnlyList<AssignmentResult> assignments = WorkAssignmentSolver.FindFirstAssignments(workers, 5);
 
-        bool aliceAssignedToMonEarly = assignments.Any(assignment => assignment.ShiftAssignments[0] == "Alice");
+        bool aliceIncorrectlyAssignedToMonEarly = assignments.Any(assignment => assignment.ShiftAssignments[0] == "Alice");
 
-        await Assert.That(aliceAssignedToMonEarly).IsFalse();
+        await Assert.That(aliceIncorrectlyAssignedToMonEarly).IsFalse();
     }
 }

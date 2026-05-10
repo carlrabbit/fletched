@@ -170,9 +170,11 @@ public static class WorkAssignmentSolver
             result.sunLate,
         ];
 
-        Dictionary<string, int> counts = shifts
-            .GroupBy(workerName => workerName, StringComparer.Ordinal)
-            .ToDictionary(group => group.Key, group => group.Count(), StringComparer.Ordinal);
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        foreach (string workerName in shifts)
+        {
+            counts[workerName] = counts.GetValueOrDefault(workerName) + 1;
+        }
 
         return new AssignmentResult(shifts, counts);
     }
