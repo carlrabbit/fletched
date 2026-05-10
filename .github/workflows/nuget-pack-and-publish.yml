@@ -76,8 +76,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: mcr.microsoft.com/dotnet/sdk:10.0-noble
-    env:
-      NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
     steps:
       - name: Download NuGet packages
         uses: actions/download-artifact@v4
@@ -86,5 +84,7 @@ jobs:
           path: artifacts/nuget
 
       - name: Publish NuGet packages
-        if: env.NUGET_API_KEY != ''
+        if: ${{ secrets.NUGET_API_KEY != '' }}
+        env:
+          NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: dotnet nuget push "artifacts/nuget/*.nupkg" --api-key "${NUGET_API_KEY}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
