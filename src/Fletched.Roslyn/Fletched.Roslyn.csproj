@@ -5,6 +5,18 @@
     <LangVersion>preview</LangVersion>
     <IsRoslynComponent>true</IsRoslynComponent>
     <EnforceExtendedAnalyzerRules>true</EnforceExtendedAnalyzerRules>
+    <IsPackable>true</IsPackable>
+    <PackageId>Fletched.Roslyn</PackageId>
+    <Authors>Fletched Contributors</Authors>
+    <Description>Roslyn source generator for the Fletched typed relational engine.</Description>
+    <RepositoryUrl>https://github.com/carlrabbit/fletched</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/carlrabbit/fletched</PackageProjectUrl>
+    <PackageTags>fletched;logic;dsl;source-generator;roslyn</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" PrivateAssets="all" />
@@ -13,5 +25,11 @@
   <ItemGroup>
     <!-- Reference Core for its types (attributes etc.) visible to the generator -->
     <ProjectReference Include="../Fletched.Core/Fletched.Core.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
+    <Analyzer Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>
