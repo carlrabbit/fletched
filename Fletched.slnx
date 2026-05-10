@@ -5,5 +5,12 @@
   <Project Path="tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj" />
   <Project Path="tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj" />
   <Project Path="tests/Fletched.Performance.Tests/Fletched.Performance.Tests.csproj" />
+  <Folder Name="/samples/">
+    <Project Path="samples/WorkAssignment/WorkAssignment.csproj" />
+  </Folder>
+  <Folder Name="/src/" />
+  <Folder Name="/tests/">
+    <Project Path="tests/WorkAssignment.Tests/WorkAssignment.Tests.csproj" />
+  </Folder>
   <Project Path="benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj" />
 </Solution>
