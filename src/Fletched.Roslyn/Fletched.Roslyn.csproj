@@ -26,6 +26,8 @@
     <!-- Reference Core for its types (attributes etc.) visible to the generator -->
     <ProjectReference Include="../Fletched.Core/Fletched.Core.csproj" />
   </ItemGroup>
+  <!-- Pack the analyzer assembly into the NuGet package. Uses None (not Analyzer) to avoid a
+       circular self-reference where the compiler would try to load the not-yet-built DLL. -->
   <ItemGroup>
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
   </ItemGroup>
