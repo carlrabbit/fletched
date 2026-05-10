@@ -3,10 +3,26 @@
     <TargetFrameworks>netstandard2.0;net6.0;net10.0</TargetFrameworks>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
+    <IsPackable>true</IsPackable>
+    <PackageId>Fletched.Core</PackageId>
+    <Authors>Fletched Contributors</Authors>
+    <Description>Core runtime, DSL, and attributes for the Fletched typed relational engine.</Description>
+    <RepositoryUrl>https://github.com/carlrabbit/fletched</RepositoryUrl>
+    <RepositoryType>git</RepositoryType>
+    <PackageProjectUrl>https://github.com/carlrabbit/fletched</PackageProjectUrl>
+    <PackageTags>fletched;logic;dsl;source-generator;dotnet</PackageTags>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
   </PropertyGroup>
 
   <!-- Performance types require System.Diagnostics.Metrics, available on net6.0+. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
     <Compile Remove="Performance/**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

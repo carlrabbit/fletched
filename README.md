@@ -172,6 +172,7 @@ See [Samples.md](Samples.md) for an overview of the sample and the exact command
 to run it with generated input or CSV input.
 For a ready-to-use GitHub Codespaces and VS Code setup, see
 [Codespace.md](Codespace.md).
+For NuGet packaging and publishing guidance, see [Nuget.md](Nuget.md).
 
 ---
 
