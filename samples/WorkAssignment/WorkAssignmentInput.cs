@@ -70,7 +70,7 @@ public static class WorkAssignmentInput
             throw new ArgumentOutOfRangeException(nameof(workerCount), "Worker count must be greater than 0.");
         }
 
-        var random = new Random(seed.GetHashCode(StringComparison.Ordinal));
+        var random = new Random(CalculateStableSeed(seed));
         var workers = new List<WorkerAvailability>(workerCount);
 
         for (int workerIndex = 0; workerIndex < workerCount; workerIndex++)
@@ -87,6 +87,21 @@ public static class WorkAssignmentInput
         }
 
         return workers;
+    }
+
+
+    private static int CalculateStableSeed(string seed)
+    {
+        unchecked
+        {
+            int hash = 17;
+            foreach (char value in seed)
+            {
+                hash = (hash * 31) + value;
+            }
+
+            return hash;
+        }
     }
 
     private static int ParseShiftToken(string shiftToken)
