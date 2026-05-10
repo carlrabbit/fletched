@@ -170,6 +170,8 @@ assignment search expressed in the Fletched DSL.
 
 See [Samples.md](Samples.md) for an overview of the sample and the exact commands
 to run it with generated input or CSV input.
+For a ready-to-use GitHub Codespaces and VS Code setup, see
+[Codespace.md](Codespace.md).
 
 ---
 
