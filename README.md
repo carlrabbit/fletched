@@ -160,6 +160,19 @@ Single-body predicates keep the existing `Execute(...)` / `*Result` surface. Ove
 
 ---
 
+## Samples
+
+The repository includes runnable samples under `samples/`.
+
+The first sample is `samples/WorkAssignment`, a console application that models a
+7-day schedule with early/late shifts, worker availability constraints, and fair
+assignment search expressed in the Fletched DSL.
+
+See [Samples.md](Samples.md) for an overview of the sample and the exact commands
+to run it with generated input or CSV input.
+
+---
+
 ## Non-Goals
 
 - Full ISO Prolog compatibility
