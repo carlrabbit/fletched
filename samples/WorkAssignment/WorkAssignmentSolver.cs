@@ -57,7 +57,7 @@ public static class WorkAssignmentSolver
     private static WorkAssignmentModule.EngineContext BuildEngineContext(
         IReadOnlyList<WorkerAvailability> workers,
         int minShiftCountPerWorker,
-        IReadOnlyCollection<int> extraWorkerIndexes)
+        int[] extraWorkerIndexes)
     {
         var ctx = new WorkAssignmentModule.EngineContext();
 
@@ -71,15 +71,14 @@ public static class WorkAssignmentSolver
     private static WorkAssignmentModule.QuotaSlotFact[] BuildQuotaSlots(
         IReadOnlyList<WorkerAvailability> workers,
         int minShiftCountPerWorker,
-        IReadOnlyCollection<int> extraWorkerIndexes)
+        int[] extraWorkerIndexes)
     {
-        var extraWorkerIndexSet = extraWorkerIndexes as ISet<int> ?? new HashSet<int>(extraWorkerIndexes);
         var quotaSlots = new List<WorkAssignmentModule.QuotaSlotFact>(WorkAssignmentInput.ShiftNames.Length);
 
         int slotId = 0;
         for (int workerIndex = 0; workerIndex < workers.Count; workerIndex++)
         {
-            int quota = minShiftCountPerWorker + (extraWorkerIndexSet.Contains(workerIndex) ? 1 : 0);
+            int quota = minShiftCountPerWorker + (Array.BinarySearch(extraWorkerIndexes, workerIndex) >= 0 ? 1 : 0);
             for (int quotaIndex = 0; quotaIndex < quota; quotaIndex++)
             {
                 quotaSlots.Add(new WorkAssignmentModule.QuotaSlotFact(slotId, workers[workerIndex].Name));
@@ -99,7 +98,7 @@ public static class WorkAssignmentSolver
             worker => worker.Name,
             worker => worker.UnavailableShiftIndexes,
             StringComparer.Ordinal);
-        var options = new List<WorkAssignmentModule.ShiftQuotaSlotOptionFact>(WorkAssignmentInput.ShiftNames.Length * quotaSlots.Count);
+        var options = new List<WorkAssignmentModule.ShiftQuotaSlotOptionFact>();
 
         foreach (WorkAssignmentModule.QuotaSlotFact quotaSlot in quotaSlots)
         {
