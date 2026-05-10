@@ -1,6 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
-    <TargetFrameworks>netstandard2.0;net10.0</TargetFrameworks>
+    <TargetFramework>netstandard2.0</TargetFramework>
     <Nullable>enable</Nullable>
     <LangVersion>preview</LangVersion>
     <IsRoslynComponent>true</IsRoslynComponent>
@@ -26,8 +26,10 @@
     <!-- Reference Core for its types (attributes etc.) visible to the generator -->
     <ProjectReference Include="../Fletched.Core/Fletched.Core.csproj" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'netstandard2.0'">
-    <Analyzer Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
+  <!-- Pack the analyzer assembly into the NuGet package. Uses None (not Analyzer) to avoid a
+       circular self-reference where the compiler would try to load the not-yet-built DLL. -->
+  <ItemGroup>
+    <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
   </ItemGroup>
   <ItemGroup>
     <None Include="../../README.md" Pack="true" PackagePath="\" />
