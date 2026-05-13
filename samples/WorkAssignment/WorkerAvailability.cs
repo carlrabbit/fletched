@@ -1,3 +1,3 @@
 namespace WorkAssignment;
 
-public sealed record WorkerAvailability(string Name, IReadOnlySet<int> UnavailableShiftIndexes);
+public sealed record WorkerAvailability(string Name, IReadOnlySet<WorkShift> UnavailableShifts);

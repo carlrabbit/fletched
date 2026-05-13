@@ -12,9 +12,10 @@ public static class WorkAssignmentApp
         try
         {
             InputOptions options = InputOptions.Parse(args);
+            IReadOnlyList<WorkShift> shifts = WorkAssignmentInput.GetMonthShifts(options.Year, options.Month);
             IReadOnlyList<WorkerAvailability> workers = options.CsvPath is { } csvPath
-                ? WorkAssignmentInput.ParseWorkersFromCsv(csvPath)
-                : WorkAssignmentInput.GenerateWorkers(options.WorkerCount!.Value, options.Seed!);
+                ? WorkAssignmentInput.ParseWorkersFromCsv(csvPath, options.Year, options.Month)
+                : WorkAssignmentInput.GenerateWorkers(options.WorkerCount!.Value, options.Seed!, options.Year, options.Month);
 
             if (workers.Count == 0)
             {
@@ -26,8 +27,10 @@ public static class WorkAssignmentApp
             using Meter meter = EngineMetrics.Initialize("work-assignment");
 
             IReadOnlyList<AssignmentResult> assignments =
-                WorkAssignmentSolver.FindFirstAssignments(workers, MaxAssignmentsToShow);
+                WorkAssignmentSolver.FindFirstAssignments(shifts, workers, MaxAssignmentsToShow);
 
+            Console.WriteLine($"Schedule month: {options.Year:D4}-{options.Month:D2}");
+            Console.WriteLine();
             PrintWorkerOverview(workers);
             PrintAssignments(assignments);
             PrintMetrics(collector.Snapshot());
@@ -47,11 +50,12 @@ public static class WorkAssignmentApp
         Console.WriteLine("Workers and unavailable shifts:");
         foreach (WorkerAvailability worker in workers)
         {
-            string unavailable = worker.UnavailableShiftIndexes.Count == 0
+            string unavailable = worker.UnavailableShifts.Count == 0
                 ? "(none)"
-                : string.Join(", ", worker.UnavailableShiftIndexes
-                    .OrderBy(shiftIndex => shiftIndex)
-                    .Select(shiftIndex => WorkAssignmentInput.ShiftNames[shiftIndex]));
+                : string.Join(", ", worker.UnavailableShifts
+                    .OrderBy(shift => shift.Date)
+                    .ThenBy(shift => shift.Period)
+                    .Select(shift => shift.ToString()));
 
             Console.WriteLine($"- {worker.Name}: {unavailable}");
         }
@@ -75,17 +79,21 @@ public static class WorkAssignmentApp
             AssignmentResult assignment = assignments[assignmentIndex];
             Console.WriteLine($"Assignment #{assignmentIndex + 1}:");
 
-            for (int dayIndex = 0; dayIndex < WorkAssignmentInput.DayNames.Length; dayIndex++)
+            foreach (IGrouping<DateOnly, ShiftAssignment> dateAssignments in assignment.ShiftAssignments
+                         .OrderBy(shiftAssignment => shiftAssignment.Shift.Date)
+                         .ThenBy(shiftAssignment => shiftAssignment.Shift.Period)
+                         .GroupBy(shiftAssignment => shiftAssignment.Shift.Date))
             {
-                int earlyShiftIndex = dayIndex * 2;
-                int lateShiftIndex = earlyShiftIndex + 1;
-                string dayName = WorkAssignmentInput.DayNames[dayIndex];
+                string earlyWorker = dateAssignments.Single(shiftAssignment => shiftAssignment.Shift.Period == ShiftPeriod.Early).WorkerName;
+                string lateWorker = dateAssignments.Single(shiftAssignment => shiftAssignment.Shift.Period == ShiftPeriod.Late).WorkerName;
 
                 Console.WriteLine(
-                    $"  {dayName}: Early={assignment.ShiftAssignments[earlyShiftIndex]}, Late={assignment.ShiftAssignments[lateShiftIndex]}");
+                    $"  {dateAssignments.Key:yyyy-MM-dd}: Early={earlyWorker}, Late={lateWorker}");
             }
 
-            string counts = string.Join(", ", assignment.ShiftCountsByWorker.Select(kvp => $"{kvp.Key}={kvp.Value}"));
+            string counts = string.Join(", ", assignment.ShiftCountsByWorker
+                .OrderBy(kvp => kvp.Key, StringComparer.Ordinal)
+                .Select(kvp => $"{kvp.Key}={kvp.Value}"));
             Console.WriteLine($"  Shift count: {counts}");
             Console.WriteLine();
         }
