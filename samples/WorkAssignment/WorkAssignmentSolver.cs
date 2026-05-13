@@ -1,4 +1,3 @@
-using Fletched.Core.Performance;
 using Fletched.Core.Runtime;
 
 namespace WorkAssignment;
@@ -6,48 +5,40 @@ namespace WorkAssignment;
 public static class WorkAssignmentSolver
 {
     public static IReadOnlyList<AssignmentResult> FindFirstAssignments(
+        IReadOnlyList<WorkShift> shifts,
         IReadOnlyList<WorkerAvailability> workers,
         int maxAssignments)
     {
-        if (workers.Count == 0 || maxAssignments <= 0)
+        if (shifts.Count == 0 || workers.Count == 0 || maxAssignments <= 0)
         {
             return [];
         }
 
-        int shiftCount = WorkAssignmentInput.ShiftNames.Length;
+        int shiftCount = shifts.Count;
         int minShiftCountPerWorker = shiftCount / workers.Count;
         int workersWithExtraShift = shiftCount % workers.Count;
 
         var assignments = new List<AssignmentResult>(capacity: maxAssignments);
-        var seenAssignmentKeys = new HashSet<string>(StringComparer.Ordinal);
+
+        WorkAssignmentModule.EngineContext ctx = BuildEngineContext(shifts, workers);
+        Dictionary<WorkShift, IReadOnlyList<string>> availabilityByShift = GetAvailabilityByShift(shifts, ctx);
 
         foreach (int[] extraWorkerIndexes in EnumerateExtraWorkerIndexes(workers.Count, workersWithExtraShift))
         {
-            EngineMetrics.PredicateInvocations?.Add(1);
-            EngineMetrics.FactScans?.Add(1);
+            var assignmentWorkers = new string[shifts.Count];
+            IReadOnlyDictionary<string, int> quotas = BuildWorkerQuotasByName(workers, minShiftCountPerWorker, extraWorkerIndexes);
 
-            WorkAssignmentModule.EngineContext ctx = BuildEngineContext(workers, minShiftCountPerWorker, extraWorkerIndexes);
+            SearchAssignments(
+                shifts,
+                availabilityByShift,
+                quotas.ToDictionary(kvp => kvp.Key, kvp => kvp.Value, StringComparer.Ordinal),
+                assignmentWorkers,
+                assignments,
+                maxAssignments);
 
-            foreach (WorkAssignmentModule.FairAssignmentResult result in default(WorkAssignmentModule.FairAssignment).ExecuteArity14(ctx))
+            if (assignments.Count >= maxAssignments)
             {
-                EngineMetrics.UnifyAttempts?.Add(1);
-
-                AssignmentResult assignment = CreateAssignmentResult(result);
-                string assignmentKey = string.Join("|", assignment.ShiftAssignments);
-                if (!seenAssignmentKeys.Add(assignmentKey))
-                {
-                    EngineMetrics.UnifyFailures?.Add(1);
-                    EngineMetrics.BacktrackCount?.Add(1);
-                    continue;
-                }
-
-                EngineMetrics.IndexHits?.Add(1);
-                EngineMetrics.ChoicePointCount?.Add(1);
-                assignments.Add(assignment);
-                if (assignments.Count >= maxAssignments)
-                {
-                    return assignments;
-                }
+                return assignments;
             }
         }
 
@@ -55,64 +46,77 @@ public static class WorkAssignmentSolver
     }
 
     private static WorkAssignmentModule.EngineContext BuildEngineContext(
-        IReadOnlyList<WorkerAvailability> workers,
-        int minShiftCountPerWorker,
-        int[] extraWorkerIndexes)
+        IReadOnlyList<WorkShift> shifts,
+        IReadOnlyList<WorkerAvailability> workers)
     {
         var ctx = new WorkAssignmentModule.EngineContext();
 
-        WorkAssignmentModule.QuotaSlotFact[] quotaSlots = BuildQuotaSlots(workers, minShiftCountPerWorker, extraWorkerIndexes);
-        ctx.QuotaSlotFacts = new FactTable<WorkAssignmentModule.QuotaSlotFact>(quotaSlots);
-        ctx.ShiftQuotaSlotOptionFacts = new FactTable<WorkAssignmentModule.ShiftQuotaSlotOptionFact>(
-            BuildShiftQuotaSlotOptions(workers, quotaSlots));
+        ctx.AvailableShiftFacts = new FactTable<WorkAssignmentModule.AvailableShiftFact>(
+            BuildAvailableShifts(shifts, workers));
         return ctx;
     }
 
-    private static WorkAssignmentModule.QuotaSlotFact[] BuildQuotaSlots(
+    private static IReadOnlyDictionary<string, int> BuildWorkerQuotasByName(
         IReadOnlyList<WorkerAvailability> workers,
         int minShiftCountPerWorker,
         int[] extraWorkerIndexes)
     {
-        var quotaSlots = new List<WorkAssignmentModule.QuotaSlotFact>(WorkAssignmentInput.ShiftNames.Length);
+        var quotas = new Dictionary<string, int>(workers.Count, StringComparer.Ordinal);
 
-        int slotId = 0;
         for (int workerIndex = 0; workerIndex < workers.Count; workerIndex++)
         {
-            int quota = minShiftCountPerWorker + (Array.BinarySearch(extraWorkerIndexes, workerIndex) >= 0 ? 1 : 0);
-            for (int quotaIndex = 0; quotaIndex < quota; quotaIndex++)
-            {
-                quotaSlots.Add(new WorkAssignmentModule.QuotaSlotFact(slotId, workers[workerIndex].Name));
-                slotId++;
-            }
+            quotas[workers[workerIndex].Name] =
+                minShiftCountPerWorker + (Array.BinarySearch(extraWorkerIndexes, workerIndex) >= 0 ? 1 : 0);
         }
 
-        return quotaSlots.ToArray();
+        return quotas;
     }
 
-
-    private static WorkAssignmentModule.ShiftQuotaSlotOptionFact[] BuildShiftQuotaSlotOptions(
-        IReadOnlyList<WorkerAvailability> workers,
-        IReadOnlyList<WorkAssignmentModule.QuotaSlotFact> quotaSlots)
+    private static WorkAssignmentModule.AvailableShiftFact[] BuildAvailableShifts(
+        IReadOnlyList<WorkShift> shifts,
+        IReadOnlyList<WorkerAvailability> workers)
     {
-        var unavailableByWorker = workers.ToDictionary(
-            worker => worker.Name,
-            worker => worker.UnavailableShiftIndexes,
-            StringComparer.Ordinal);
-        var options = new List<WorkAssignmentModule.ShiftQuotaSlotOptionFact>();
-
-        foreach (WorkAssignmentModule.QuotaSlotFact quotaSlot in quotaSlots)
+        var availableShifts = new List<WorkAssignmentModule.AvailableShiftFact>();
+        foreach (WorkerAvailability worker in workers)
         {
-            IReadOnlySet<int> unavailableShiftIndexes = unavailableByWorker[quotaSlot.WorkerName];
-            for (int shiftIndex = 0; shiftIndex < WorkAssignmentInput.ShiftNames.Length; shiftIndex++)
+            foreach (WorkShift shift in shifts)
             {
-                if (!unavailableShiftIndexes.Contains(shiftIndex))
+                if (!worker.UnavailableShifts.Contains(shift))
                 {
-                    options.Add(new WorkAssignmentModule.ShiftQuotaSlotOptionFact(shiftIndex, quotaSlot.SlotId, quotaSlot.WorkerName));
+                    availableShifts.Add(new WorkAssignmentModule.AvailableShiftFact(shift, worker.Name));
                 }
             }
         }
 
-        return options.ToArray();
+        return availableShifts.ToArray();
+    }
+
+    private static Dictionary<WorkShift, IReadOnlyList<string>> GetAvailabilityByShift(
+        IReadOnlyList<WorkShift> shifts,
+        WorkAssignmentModule.EngineContext ctx)
+    {
+        var availability = shifts.ToDictionary(
+            shift => shift,
+            _ => (IReadOnlyList<string>)Array.Empty<string>());
+
+        var workersByShift = new Dictionary<WorkShift, List<string>>();
+        foreach (var result in default(WorkAssignmentModule.AvailableShiftFact).ExecuteArity2(ctx))
+        {
+            if (!workersByShift.TryGetValue(result.shift, out List<string>? workerNames))
+            {
+                workerNames = [];
+                workersByShift[result.shift] = workerNames;
+            }
+
+            workerNames.Add(result.workerName);
+        }
+
+        foreach ((WorkShift shift, List<string> workerNames) in workersByShift)
+        {
+            availability[shift] = workerNames;
+        }
+
+        return availability;
     }
 
     private static IEnumerable<int[]> EnumerateExtraWorkerIndexes(int workerCount, int workersWithExtraShift)
@@ -149,32 +153,71 @@ public static class WorkAssignmentSolver
         }
     }
 
-    private static AssignmentResult CreateAssignmentResult(WorkAssignmentModule.FairAssignmentResult result)
+    private static void SearchAssignments(
+        IReadOnlyList<WorkShift> shifts,
+        IReadOnlyDictionary<WorkShift, IReadOnlyList<string>> availabilityByShift,
+        Dictionary<string, int> remainingQuotas,
+        string[] assignmentWorkers,
+        List<AssignmentResult> assignments,
+        int maxAssignments,
+        int shiftIndex = 0)
     {
-        string[] shifts =
-        [
-            result.monEarly,
-            result.monLate,
-            result.tueEarly,
-            result.tueLate,
-            result.wedEarly,
-            result.wedLate,
-            result.thuEarly,
-            result.thuLate,
-            result.friEarly,
-            result.friLate,
-            result.satEarly,
-            result.satLate,
-            result.sunEarly,
-            result.sunLate,
-        ];
-
-        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
-        foreach (string workerName in shifts)
+        if (assignments.Count >= maxAssignments)
         {
-            counts[workerName] = counts.GetValueOrDefault(workerName) + 1;
+            return;
         }
 
-        return new AssignmentResult(shifts, counts);
+        if (shiftIndex == shifts.Count)
+        {
+            assignments.Add(CreateAssignmentResult(shifts, assignmentWorkers));
+            return;
+        }
+
+        WorkShift shift = shifts[shiftIndex];
+        if (!availabilityByShift.TryGetValue(shift, out IReadOnlyList<string>? availableWorkers) || availableWorkers.Count == 0)
+        {
+            return;
+        }
+
+        foreach (string workerName in availableWorkers)
+        {
+            if (!remainingQuotas.TryGetValue(workerName, out int quota) || quota == 0)
+            {
+                continue;
+            }
+
+            remainingQuotas[workerName] = quota - 1;
+            assignmentWorkers[shiftIndex] = workerName;
+            SearchAssignments(shifts, availabilityByShift, remainingQuotas, assignmentWorkers, assignments, maxAssignments, shiftIndex + 1);
+            remainingQuotas[workerName] = quota;
+
+            if (assignments.Count >= maxAssignments)
+            {
+                return;
+            }
+        }
+    }
+
+    private static AssignmentResult CreateAssignmentResult(
+        IReadOnlyList<WorkShift> shifts,
+        IReadOnlyList<string> assignedWorkers)
+    {
+        if (assignedWorkers.Count != shifts.Count)
+        {
+            throw new InvalidOperationException(
+                $"Expected {shifts.Count} assigned workers but received {assignedWorkers.Count}.");
+        }
+
+        var counts = new Dictionary<string, int>(StringComparer.Ordinal);
+        var assignments = new List<ShiftAssignment>(shifts.Count);
+
+        for (int shiftIndex = 0; shiftIndex < shifts.Count; shiftIndex++)
+        {
+            string workerName = assignedWorkers[shiftIndex];
+            counts[workerName] = counts.GetValueOrDefault(workerName) + 1;
+            assignments.Add(new ShiftAssignment(shifts[shiftIndex], workerName));
+        }
+
+        return new AssignmentResult(assignments, counts);
     }
 }

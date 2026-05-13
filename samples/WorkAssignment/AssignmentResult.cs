@@ -1,5 +1,5 @@
 namespace WorkAssignment;
 
 public sealed record AssignmentResult(
-    IReadOnlyList<string> ShiftAssignments,
+    IReadOnlyList<ShiftAssignment> ShiftAssignments,
     IReadOnlyDictionary<string, int> ShiftCountsByWorker);
