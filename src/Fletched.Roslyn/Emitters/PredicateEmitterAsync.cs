@@ -498,11 +498,18 @@ public sealed class PredicateEmitterAsync
             ctx.AppendLine($"{callInfo.ActiveVar} = true;");
         }
         ctx.AppendLine("}");
+        ctx.AppendLine("else");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+            ctx.AppendMetricIncrement("PredicateInvocationResumes");
+        ctx.AppendLine("}");
 
         ctx.AppendLine($"if ({callInfo.EnumeratorVar} is null || !{callInfo.EnumeratorVar}.MoveNext())");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
+            ctx.AppendMetricIncrement("PredicateInvocationExhaustions");
+            ctx.AppendMetricIncrement("PredicateInvocationFailures");
             ctx.AppendLine($"{callInfo.EnumeratorVar}?.Dispose();");
             ctx.AppendLine($"{callInfo.EnumeratorVar} = null;");
             ctx.AppendLine($"{callInfo.ActiveVar} = false;");

@@ -22,6 +22,9 @@ public class EngineMetricsTests
         await Assert.That(EngineMetrics.FactScans).IsNotNull();
         await Assert.That(EngineMetrics.IndexHits).IsNotNull();
         await Assert.That(EngineMetrics.PredicateInvocations).IsNotNull();
+        await Assert.That(EngineMetrics.PredicateInvocationResumes).IsNotNull();
+        await Assert.That(EngineMetrics.PredicateInvocationExhaustions).IsNotNull();
+        await Assert.That(EngineMetrics.PredicateInvocationFailures).IsNotNull();
     }
 
     [Test]
@@ -47,6 +50,9 @@ public class EngineMetricsTests
             EngineMetrics.FactScans.Add(1);
             EngineMetrics.IndexHits.Add(1);
             EngineMetrics.PredicateInvocations.Add(1);
+            EngineMetrics.PredicateInvocationResumes.Add(1);
+            EngineMetrics.PredicateInvocationExhaustions.Add(1);
+            EngineMetrics.PredicateInvocationFailures.Add(1);
         }
         catch (Exception e)
         {

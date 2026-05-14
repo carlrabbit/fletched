@@ -30,6 +30,15 @@ public static class EngineMetrics
     /// <summary>Incremented on every predicate invocation.</summary>
     public static Counter<long> PredicateInvocations = null!;
 
+    /// <summary>Incremented whenever an invocation frame is resumed for another solution.</summary>
+    public static Counter<long> PredicateInvocationResumes = null!;
+
+    /// <summary>Incremented whenever an invocation frame is exhausted.</summary>
+    public static Counter<long> PredicateInvocationExhaustions = null!;
+
+    /// <summary>Incremented whenever a predicate invocation fails in the caller.</summary>
+    public static Counter<long> PredicateInvocationFailures = null!;
+
     /// <summary>
     /// Convenience initialiser: creates a <see cref="Meter"/> named <paramref name="meterName"/>
     /// and registers all counters. Call once at application startup before running queries.
@@ -44,6 +53,9 @@ public static class EngineMetrics
         FactScans = meter.CreateCounter<long>("fact_scans");
         IndexHits = meter.CreateCounter<long>("index_hits");
         PredicateInvocations = meter.CreateCounter<long>("predicate_invocations");
+        PredicateInvocationResumes = meter.CreateCounter<long>("predicate_invocation_resumes");
+        PredicateInvocationExhaustions = meter.CreateCounter<long>("predicate_invocation_exhaustions");
+        PredicateInvocationFailures = meter.CreateCounter<long>("predicate_invocation_failures");
         return meter;
     }
 }
