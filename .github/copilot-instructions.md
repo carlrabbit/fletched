@@ -1,7 +1,9 @@
 # Copilot Instructions
 
 Primary repository documentation:
+- `copilot-instructions.md`
 - `docs/TERMINOLOGY.md`
+- `docs/SPECS.md`
 - `docs/architecture/`
 - `docs/decisions/`
 - `docs/workflows/`
@@ -26,3 +28,4 @@ Workflow synchronization rules:
 - GitHub workflow files in `.github/workflows/` must remain synchronized
 - New recurring processes belong in `docs/tbps/`
 - New terminology belongs in `docs/TERMINOLOGY.md`
+- New or revised behavioral specifications belong in `docs/specs/` and stay indexed in `docs/SPECS.md`

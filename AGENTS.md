@@ -3,6 +3,7 @@
 Read first:
 - `README.md`
 - `docs/TERMINOLOGY.md`
+- `docs/SPECS.md`
 - `docs/WORKFLOWS.md`
 - `docs/TBPS.md`
 - `docs/agent-context/project-context.md`

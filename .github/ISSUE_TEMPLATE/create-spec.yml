@@ -1,0 +1,47 @@
+name: Create specification
+description: Request a new specification that defines behavioral truth before implementation.
+title: "Create spec: "
+labels:
+  - documentation
+  - spec
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review `docs/tbps/create-spec.md`, `docs/SPECS.md`, and `docs/TERMINOLOGY.md` before filing.
+  - type: input
+    id: spec-name
+    attributes:
+      label: Spec name
+      placeholder: Example capability specification
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: invariants
+    attributes:
+      label: Invariants and behavioral rules
+    validations:
+      required: true
+  - type: textarea
+    id: related-docs
+    attributes:
+      label: Related architecture and decisions
+      description: List the documents that the spec should reference or that may need updates.

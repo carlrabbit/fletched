@@ -1,0 +1,39 @@
+name: Documentation review
+description: Review repository documentation for drift, authority clarity, and synchronization gaps.
+title: "Documentation review: "
+labels:
+  - documentation
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review `docs/tbps/documentation-review.md`, `docs/TERMINOLOGY.md`, `docs/SPECS.md`, `docs/WORKFLOWS.md`, and `docs/TBPS.md` before filing.
+  - type: textarea
+    id: scope
+    attributes:
+      label: Review scope
+      description: Describe the document set, subsystem, or process under review.
+    validations:
+      required: true
+  - type: textarea
+    id: authoritative-docs
+    attributes:
+      label: Authoritative documents reviewed
+    validations:
+      required: true
+  - type: textarea
+    id: drift
+    attributes:
+      label: Drift, duplication, or missing-document findings
+    validations:
+      required: true
+  - type: textarea
+    id: terminology
+    attributes:
+      label: Terminology findings
+    validations:
+      required: true
+  - type: textarea
+    id: sync-targets
+    attributes:
+      label: Documents or workflows that must be updated together
