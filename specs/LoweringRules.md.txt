@@ -230,6 +230,8 @@ Rules:
 - Arguments mapped to callee slots before invocation
 - Call produces multiple results via repeated entry to "L_invoke"
 - Call behaves as a choice point
+- Lowering must emit explicit invocation boundaries between caller and callee state
+- Copy-in/copy-out behavior must be deterministic and positional per argument map
 
 ---
 
@@ -263,6 +265,24 @@ Invariant:
 - Failure is represented by:
   Fail()
 - All failing paths terminate in "Fail"
+
+---
+
+3.13 Negation (NotNode)
+
+Not(X)
+
+Lowering:
+
+- Lower subgoal "X" into an isolated evaluation block.
+- Emit "NotInstr(SubGoalInstructions)" with no outward binding propagation path.
+- Check grounding requirements before emission and report diagnostics when violated.
+
+Rules:
+
+- NotNode lowers deterministically to NotInstr.
+- Not succeeds iff the isolated subgoal yields zero solutions.
+- Not failure/success mapping must not depend on runtime reflection.
 
 ---
 

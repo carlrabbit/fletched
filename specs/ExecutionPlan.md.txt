@@ -143,6 +143,10 @@ record CallInstr(
     IReadOnlyList<int> ArgumentSlots
 ) : PlanInstruction;
 
+record NotInstr(
+    IReadOnlyList<PlanInstruction> SubGoalInstructions
+) : PlanInstruction;
+
 
 ---
 
@@ -171,6 +175,10 @@ No implicit control flow is allowed inside instructions.
 Loops are represented as multiple blocks with Goto.
 
 Predicate calls are represented as instructions and require external frame handling.
+
+CallInstr establishes an invocation boundary between caller and callee state.
+
+NotInstr executes in an isolated evaluation context and must not emit outward binding writes.
 
 
 

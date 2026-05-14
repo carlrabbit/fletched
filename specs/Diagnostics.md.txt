@@ -49,6 +49,10 @@ static class DiagnosticsCatalog
     public static readonly DiagnosticDescriptor InvalidConstraint;
     public static readonly DiagnosticDescriptor DuplicateVariable;
     public static readonly DiagnosticDescriptor InvalidPredicateCall;
+    public static readonly DiagnosticDescriptor UngroundedNegation;
+    public static readonly DiagnosticDescriptor NegationVariableEscape;
+    public static readonly DiagnosticDescriptor UnsupportedInvocationRecursionPattern;
+    public static readonly DiagnosticDescriptor InvocationBindingConflict;
 }
 
 ---
@@ -141,6 +145,22 @@ Predicate Invocation
 
 - Argument count and types must match definition
   → otherwise: "InvalidPredicateCall"
+
+---
+
+Negation and Invocation Safety
+
+- Variables used inside "Not(...)" that are outward-visible must be ground before lowering.
+  → otherwise: "FLG0001 / UngroundedNegation"
+
+- Variables introduced inside "Not(...)" must not escape negation scope.
+  → otherwise: "FLG0002 / NegationVariableEscape"
+
+- Unsupported recursive invocation patterns must be rejected during source generation validation.
+  → otherwise: "FLG0003 / UnsupportedInvocationRecursionPattern"
+
+- Invocation argument/result mapping conflicts must be rejected before emission.
+  → otherwise: "FLG0004 / InvocationBindingConflict"
 
 ---
 

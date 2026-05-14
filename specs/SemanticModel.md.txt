@@ -199,6 +199,15 @@ record CallExpr(
     IReadOnlyList<SemanticExpr> Arguments
 ) : SemanticExpr(typeof(bool));
 
+---
+
+2.4.10 Negation
+
+
+record NotExpr(
+    SemanticExpr Goal
+) : SemanticExpr(typeof(bool));
+
 
 
 
@@ -258,6 +267,9 @@ CallExpr arguments must match predicate parameter count and types.
 No control flow beyond ConjExpr and DisjExpr is represented.
 
 
+NotExpr represents negation-as-failure and is subject to grounding and scope validation.
+
+
 
 
 
@@ -293,6 +305,9 @@ Member access expressions are translated into FieldExpr.
 
 
 Predicate invocations are translated into CallExpr.
+
+
+Negation expressions are translated into NotExpr.
 
 
 

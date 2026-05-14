@@ -15,5 +15,6 @@ TBPs should be referenced:
 | TBP | Purpose |
 | --- | --- |
 | [`documentation-changes.md`](tbps/documentation-changes.md) | Keep authoritative docs aligned with repository changes |
+| [`predicate-invocation-and-negation-correctness.md`](tbps/predicate-invocation-and-negation-correctness.md) | Keep invocation ABI and negation correctness semantics synchronized across docs, lowering, and diagnostics |
 | [`workflow-changes.md`](tbps/workflow-changes.md) | Change workflow intent and workflow implementation together |
 | [`release-preparation.md`](tbps/release-preparation.md) | Prepare packaging and release changes without drifting from workflow intent |
