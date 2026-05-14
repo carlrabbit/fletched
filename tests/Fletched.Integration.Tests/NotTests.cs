@@ -59,6 +59,22 @@ public partial record struct AllowedValues
             Logic.Not(candidate.Value == 4));
 }
 
+file static class NotTestContexts
+{
+    public static EngineContext BuildNumberContext()
+    {
+        var ctx = new EngineContext();
+        ctx.CandidateNumbers = new FactTable<CandidateNumber>(new[]
+        {
+            new CandidateNumber(1),
+            new CandidateNumber(2),
+            new CandidateNumber(3),
+            new CandidateNumber(4),
+        });
+        return ctx;
+    }
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 public class NotTests
@@ -85,19 +101,6 @@ public class NotTests
             new Product("Standard", 80),
             new Product("Premium",  150),
             new Product("Luxury",   300),
-        });
-        return ctx;
-    }
-
-    private static EngineContext BuildNumberContext()
-    {
-        var ctx = new EngineContext();
-        ctx.CandidateNumbers = new FactTable<CandidateNumber>(new[]
-        {
-            new CandidateNumber(1),
-            new CandidateNumber(2),
-            new CandidateNumber(3),
-            new CandidateNumber(4),
         });
         return ctx;
     }
@@ -258,7 +261,7 @@ public class NotTests
     [Test]
     public async Task AllowedValues_BacktrackingWithNegationIsolation_FiltersDisallowedValues()
     {
-        EngineContext ctx = BuildNumberContext();
+        EngineContext ctx = NotTestContexts.BuildNumberContext();
         List<AllowedValuesResult> results = await default(AllowedValues).ExecuteAsync(ctx).ToListAsync();
         List<int> values = results.Select(r => r.value).ToList();
 
@@ -294,19 +297,6 @@ public class NotTests_Execute
             new Product("Standard", 80),
             new Product("Premium",  150),
             new Product("Luxury",   300),
-        });
-        return ctx;
-    }
-
-    private static EngineContext BuildNumberContext()
-    {
-        var ctx = new EngineContext();
-        ctx.CandidateNumbers = new FactTable<CandidateNumber>(new[]
-        {
-            new CandidateNumber(1),
-            new CandidateNumber(2),
-            new CandidateNumber(3),
-            new CandidateNumber(4),
         });
         return ctx;
     }
@@ -350,7 +340,7 @@ public class NotTests_Execute
     [Test]
     public async Task AllowedValues_Execute_BacktracksAcrossCandidatesWithoutNegationLeakage()
     {
-        EngineContext ctx = BuildNumberContext();
+        EngineContext ctx = NotTestContexts.BuildNumberContext();
         List<AllowedValuesResult> results = default(AllowedValues).Execute(ctx).ToList();
         List<int> values = results.Select(r => r.value).ToList();
 

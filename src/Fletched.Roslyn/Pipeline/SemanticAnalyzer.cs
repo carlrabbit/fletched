@@ -343,8 +343,11 @@ public sealed class SemanticAnalyzer
                     var ungroundedInNot = new HashSet<VariableSymbol>();
                     foreach (VariableSymbol variable in notVariables)
                     {
-                        if (!grounded.Contains(variable) && ungroundedInNot.Add(variable))
+                        if (!grounded.Contains(variable))
+                        {
                             _reporter.Error(DiagnosticsCatalog.UngroundedNegation, location, variable.Name);
+                            ungroundedInNot.Add(variable);
+                        }
                     }
 
                     var variablesUsedAfterNot = new HashSet<VariableSymbol>();
@@ -668,28 +671,19 @@ public sealed class SemanticAnalyzer
         if (inv.Expression is IdentifierNameSyntax ident)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(ident);
-            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
-            else if (si.Symbol is IMethodSymbol method && method.MethodKind == MethodKind.Constructor) candidate = method.ContainingType;
-            else if (si.CandidateSymbols.OfType<INamedTypeSymbol>().FirstOrDefault() is { } candidateType) candidate = candidateType;
-            else if (si.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(m => m.MethodKind == MethodKind.Constructor) is { } candidateCtor) candidate = candidateCtor.ContainingType;
+            candidate = ResolveTypeCandidate(si);
         }
         else if (inv.Expression is MemberAccessExpressionSyntax mem)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(mem);
-            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
-            else if (si.Symbol is IMethodSymbol method && method.MethodKind == MethodKind.Constructor) candidate = method.ContainingType;
-            else if (si.CandidateSymbols.OfType<INamedTypeSymbol>().FirstOrDefault() is { } candidateType) candidate = candidateType;
-            else if (si.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(m => m.MethodKind == MethodKind.Constructor) is { } candidateCtor) candidate = candidateCtor.ContainingType;
+            candidate = ResolveTypeCandidate(si);
         }
 
         // Also try to resolve via the semantic model as a type symbol directly
         if (candidate is null)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(inv.Expression);
-            if (si.Symbol is INamedTypeSymbol t) candidate = t;
-            else if (si.Symbol is IMethodSymbol method && method.MethodKind == MethodKind.Constructor) candidate = method.ContainingType;
-            else if (si.CandidateSymbols.OfType<INamedTypeSymbol>().FirstOrDefault() is { } candidateType) candidate = candidateType;
-            else if (si.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(m => m.MethodKind == MethodKind.Constructor) is { } candidateCtor) candidate = candidateCtor.ContainingType;
+            candidate = ResolveTypeCandidate(si);
         }
 
         if (candidate is not INamedTypeSymbol namedCandidate) return null;
@@ -697,6 +691,23 @@ public sealed class SemanticAnalyzer
         bool hasPredicate = namedCandidate.GetAttributes()
             .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
         return hasPredicate ? candidate : null;
+    }
+
+    private static ITypeSymbol? ResolveTypeCandidate(SymbolInfo symbolInfo)
+    {
+        if (symbolInfo.Symbol is INamedTypeSymbol namedType)
+            return namedType;
+
+        if (symbolInfo.Symbol is IMethodSymbol method && method.MethodKind == MethodKind.Constructor)
+            return method.ContainingType;
+
+        if (symbolInfo.CandidateSymbols.OfType<INamedTypeSymbol>().FirstOrDefault() is { } candidateType)
+            return candidateType;
+
+        if (symbolInfo.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(m => m.MethodKind == MethodKind.Constructor) is { } candidateCtor)
+            return candidateCtor.ContainingType;
+
+        return null;
     }
 
     private static bool HasPredicateBodyForArity(INamedTypeSymbol predicateType, int arity)
