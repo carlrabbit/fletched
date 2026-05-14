@@ -82,6 +82,57 @@ Invocation Sequence
 
 ---
 
+Invocation Semantics
+
+- Predicate invocation starts at an invocation boundary between caller state and callee state.
+- Caller argument slots are copied into callee argument slots before the first callee step.
+- Callee execution is resumable and is driven only through repeated MoveNext calls.
+- Each MoveNext success represents exactly one predicate success.
+- MoveNext returning false represents predicate exhaustion.
+
+---
+
+Caller/Callee Ownership
+
+- Caller owns caller slots, caller trail, and caller choice points.
+- Callee owns callee slots, callee frame state, and callee-local trail operations.
+- Callee must never mutate caller-local slots directly.
+- Caller observes callee results only through copy-out rules.
+
+---
+
+Copy-In / Copy-Out Rules
+
+- Copy-in transfers value and bound flag from each mapped caller slot to callee slot.
+- Copy-out is allowed only for mapped terminal outputs when the callee yields success.
+- Copy-out does not transfer callee-local temporary variables.
+- Copy-out on exhausted callee is forbidden.
+
+---
+
+Invocation Frames
+
+- Each invocation instance owns one frame.
+- Frame state is sufficient to resume from the last callee suspension point.
+- Frame reuse across different invocation instances is invalid.
+
+---
+
+Invocation Backtracking
+
+- Caller-side backtracking may re-enter an existing invocation frame to request the next callee solution.
+- If callee is exhausted, control returns to caller fail/resume handling.
+- Trail unwind remains scoped to the owner of each trail.
+
+---
+
+Recursive Invocation Constraints
+
+- Invocation semantics must remain recursion-safe by preserving frame ownership per call instance.
+- Recursive optimization policies are out of scope; semantics still require deterministic copy-in/copy-out behavior.
+
+---
+
 Generated Call Pattern
 
 var frame = new AdminUsers_Frame { State = 0 };

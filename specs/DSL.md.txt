@@ -100,6 +100,7 @@ LogicExpr<bool> operator !=(LogicExpr<T> a, LogicExpr<T> b);
 
 LogicExpr<bool> operator &&(LogicExpr<bool> a, LogicExpr<bool> b);
 LogicExpr<bool> operator ||(LogicExpr<bool> a, LogicExpr<bool> b);
+LogicExpr<bool> Not(LogicExpr<bool> goal);
 
 
 ---
@@ -182,6 +183,7 @@ Composition
 
 - "&&" represents conjunction (logical AND)
 - "||" represents disjunction (logical OR)
+- "Not(expr)" represents negation-as-failure
 - Expressions are pure and declarative
 
 
@@ -218,6 +220,8 @@ Restrictions
 - No mutation of variables
 - No invocation of arbitrary external code
 - No recursion at DSL level (handled via predicate calls)
+- "Not(expr)" requires all referenced outward-visible variables to be ground at evaluation time
+- "Not(expr)" must not introduce outward-visible bindings
 
 
 ---
@@ -311,4 +315,13 @@ Example 5: Mixed Expression
 With<User, Admin>((user, admin) =>
     user.Login == admin.Login &&
     user.Name.StartsWith("A")
+);
+
+---
+
+Example 6: Negation-as-Failure
+
+With<User>(user =>
+    user.Name == name &&
+    Not(With<Admin>(admin => admin.Login == user.Login))
 );

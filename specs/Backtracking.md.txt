@@ -117,6 +117,30 @@ goto Resume;
 
 Resume
 
+---
+
+Cross-Predicate Backtracking
+
+- Backtracking across an invocation boundary resumes the caller choice point first.
+- Caller may resume a live callee frame to obtain additional results.
+- Callee exhaustion returns control to caller fail handling without mutating caller-local bindings.
+
+---
+
+Invocation Choice Points
+
+- Predicate calls act as resumable choice points from the caller perspective.
+- Resume labels for calls must target the invocation continuation path.
+- Call continuation and callee frame state must remain deterministic.
+
+---
+
+Trail Ownership Across Calls
+
+- Caller trail entries are unwound only by caller backtracking.
+- Callee trail entries are unwound only during callee execution/backtracking.
+- Invocation boundaries do not merge caller and callee trails.
+
 Resume:
 if (!ChoicePoints.TryPop(out var cp))
     goto End;

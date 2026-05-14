@@ -39,3 +39,39 @@ The method marked with `[PredicateBody]` that defines the logical constraints fo
 ## Source Generator
 
 The Roslyn component that validates attributed source, builds semantic and planning models, and emits executable code.
+
+## Ground
+
+A logical value whose slot is already bound at an evaluation point.
+
+## Negation-as-Failure
+
+Negation semantics where `Not(goal)` succeeds only when `goal` yields zero solutions.
+
+## Invocation Boundary
+
+The caller/callee separation point where predicate arguments are copied in and results are copied out.
+
+## Caller State
+
+The active predicate state that performs a predicate invocation.
+
+## Callee State
+
+The isolated predicate state owned by the invoked predicate frame.
+
+## Copy-In / Copy-Out
+
+Slot transfer contract that copies argument values and bound flags into callee state, then copies terminal outputs back on each callee success.
+
+## Predicate Frame
+
+A resumable invocation object that stores callee execution position across `MoveNext` calls.
+
+## Predicate Success
+
+A single successful `MoveNext` result that yields one logical solution to the caller.
+
+## Predicate Exhaustion
+
+The terminal `MoveNext == false` state indicating no additional callee solutions remain.

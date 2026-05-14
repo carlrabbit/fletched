@@ -158,6 +158,22 @@ var state = new <PredicateName>_State
 
 ---
 
+4.5 Invocation Boundary State Rules
+
+- Caller state and callee state are distinct state instances.
+- Copy-in transfers mapped argument values and bound flags from caller to callee.
+- Copy-out transfers mapped terminal outputs from callee to caller only on callee success.
+- Callee-local temporary bindings are not visible in caller state.
+
+---
+
+4.6 Negation Isolation
+
+- Negation evaluation must not leak temporary bindings into outer scope.
+- Trail checkpoints taken before negation must be restored after negation evaluation.
+
+---
+
 5. Examples
 
 5.1 DSL

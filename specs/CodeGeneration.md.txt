@@ -300,7 +300,18 @@ goto L_Call;
 
 ---
 
-4.10 Terminators
+4.10 Negation-as-Failure
+
+int negationTrailTop = state.Trail.Top;
+var negationSucceeded = ExecuteIsolatedSubGoal(...);
+state.Trail.UnwindTo(ref state, negationTrailTop);
+
+if (negationSucceeded)
+    goto Fail;
+
+---
+
+4.11 Terminators
 
 Goto
 
