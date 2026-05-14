@@ -16,6 +16,7 @@ public sealed class SemanticAnalyzer
     private readonly Microsoft.CodeAnalysis.SemanticModel _semanticModel;
     private readonly DiagnosticReporter _reporter;
     private readonly Dictionary<string, VariableSymbol> _scope = new();
+    private INamedTypeSymbol? _currentPredicateType;
 
     public SemanticAnalyzer(
         Microsoft.CodeAnalysis.SemanticModel semanticModel,
@@ -68,6 +69,8 @@ public sealed class SemanticAnalyzer
 
     private PredicateModel? AnalyzeBody(INamedTypeSymbol predicateType, IMethodSymbol bodyMethod)
     {
+        _currentPredicateType = predicateType;
+
         // Validate return type is LogicExpr<bool>
         if (!IsLogicExprBool(bodyMethod.ReturnType))
         {
@@ -123,6 +126,9 @@ public sealed class SemanticAnalyzer
         ITypeSymbol boolType = _semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
         SemanticExpr? body = AnalyzeExpr(bodyExpr, boolType);
         if (body is null) return null;
+
+        if (body is NotExpr standaloneNot)
+            ValidateNegationGrounding([standaloneNot], bodyExpr.GetLocation());
 
         return new PredicateModel(predicateType.Name, predicateType, bodyMethod, parameters, body);
     }
@@ -221,6 +227,7 @@ public sealed class SemanticAnalyzer
                 var parts = new List<SemanticExpr>();
                 FlattenConj(left, parts);
                 FlattenConj(right, parts);
+                ValidateNegationGrounding(parts, bin.GetLocation());
                 return new ConjExpr(parts, boolType);
             }
 
@@ -241,6 +248,7 @@ public sealed class SemanticAnalyzer
                 var parts = new List<SemanticExpr>();
                 FlattenConj(left, parts);
                 FlattenConj(right, parts);
+                ValidateNegationGrounding(parts, bin.GetLocation());
                 return new ConjExpr(parts, boolType);
             }
 
@@ -299,6 +307,252 @@ public sealed class SemanticAnalyzer
                 FlattenConj(part, parts);
         else
             parts.Add(expr);
+    }
+
+    private void ValidateNegationGrounding(IReadOnlyList<SemanticExpr> parts, Location location)
+    {
+        var grounded = new HashSet<VariableSymbol>(_scope.Values.Where(v => v.Kind == VariableKind.Local));
+
+        for (int i = 0; i < parts.Count; i++)
+        {
+            SemanticExpr part = parts[i];
+            switch (part)
+            {
+                case UnifyExpr unify:
+                {
+                    bool leftGround = IsGround(unify.Left, grounded);
+                    bool rightGround = IsGround(unify.Right, grounded);
+
+                    if (leftGround)
+                        AddVars(unify.Right, grounded);
+                    if (rightGround)
+                        AddVars(unify.Left, grounded);
+                    break;
+                }
+
+                case CallExpr call:
+                {
+                    foreach (SemanticExpr arg in call.Arguments)
+                        AddVars(arg, grounded);
+                    break;
+                }
+
+                case NotExpr not:
+                {
+                    var notVariables = new HashSet<VariableSymbol>(CollectVariables(not.Goal));
+                    var ungroundedInNot = new HashSet<VariableSymbol>();
+                    foreach (VariableSymbol variable in notVariables)
+                    {
+                        if (!grounded.Contains(variable))
+                        {
+                            _reporter.Error(DiagnosticsCatalog.UngroundedNegation, location, variable.Name);
+                            ungroundedInNot.Add(variable);
+                        }
+                    }
+
+                    var variablesUsedAfterNot = new HashSet<VariableSymbol>();
+                    for (int j = i + 1; j < parts.Count; j++)
+                    {
+                        AddVars(parts[j], variablesUsedAfterNot);
+                    }
+
+                    foreach (VariableSymbol variable in ungroundedInNot)
+                    {
+                        if (variablesUsedAfterNot.Contains(variable))
+                            _reporter.Error(DiagnosticsCatalog.NegationVariableEscape, location, variable.Name);
+                    }
+
+                    ValidateNegationGoal(not.Goal, grounded, location);
+                    break;
+                }
+            }
+        }
+    }
+
+    private void ValidateNegationGoal(SemanticExpr goal, ISet<VariableSymbol> groundedAtNegationEntry, Location location)
+    {
+        foreach (CallExpr call in CollectCalls(goal))
+        {
+            if (_currentPredicateType is not null &&
+                SymbolEqualityComparer.Default.Equals(call.PredicateType, _currentPredicateType))
+            {
+                _reporter.Error(DiagnosticsCatalog.UnsupportedRecursiveNegation, location);
+            }
+
+            bool hasUngroundedInvocationArgument = call.Arguments.Any(arg => !IsGround(arg, groundedAtNegationEntry));
+            if (hasUngroundedInvocationArgument)
+            {
+                _reporter.Error(DiagnosticsCatalog.UnsupportedInvocationPatternInNegation, location);
+            }
+        }
+    }
+
+    private static IEnumerable<CallExpr> CollectCalls(SemanticExpr expr)
+    {
+        switch (expr)
+        {
+            case CallExpr call:
+                yield return call;
+                foreach (SemanticExpr arg in call.Arguments)
+                    foreach (CallExpr nested in CollectCalls(arg))
+                        yield return nested;
+                yield break;
+
+            case FieldExpr fieldExpr:
+                foreach (CallExpr nested in CollectCalls(fieldExpr.Target))
+                    yield return nested;
+                yield break;
+
+            case UnifyExpr unifyExpr:
+                foreach (CallExpr nested in CollectCalls(unifyExpr.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCalls(unifyExpr.Right))
+                    yield return nested;
+                yield break;
+
+            case CompExpr compExpr:
+                foreach (CallExpr nested in CollectCalls(compExpr.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCalls(compExpr.Right))
+                    yield return nested;
+                yield break;
+
+            case ArithExpr arithExpr:
+                foreach (CallExpr nested in CollectCalls(arithExpr.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCalls(arithExpr.Right))
+                    yield return nested;
+                yield break;
+
+            case ConstraintExpr constraintExpr:
+                foreach (SemanticExpr argument in constraintExpr.Arguments)
+                    foreach (CallExpr nested in CollectCalls(argument))
+                        yield return nested;
+                yield break;
+
+            case ConjExpr conjExpr:
+                foreach (SemanticExpr part in conjExpr.Parts)
+                    foreach (CallExpr nested in CollectCalls(part))
+                        yield return nested;
+                yield break;
+
+            case DisjExpr disjExpr:
+                foreach (CallExpr nested in CollectCalls(disjExpr.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCalls(disjExpr.Right))
+                    yield return nested;
+                yield break;
+
+            case WithExpr withExpr:
+                foreach (CallExpr nested in CollectCalls(withExpr.Body))
+                    yield return nested;
+                yield break;
+
+            case NotExpr notExpr:
+                foreach (CallExpr nested in CollectCalls(notExpr.Goal))
+                    yield return nested;
+                yield break;
+
+            case ListConsExpr listCons:
+                foreach (CallExpr nested in CollectCalls(listCons.Head))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCalls(listCons.Tail))
+                    yield return nested;
+                yield break;
+        }
+    }
+
+    private static bool IsGround(SemanticExpr expr, ISet<VariableSymbol> grounded)
+    {
+        return expr switch
+        {
+            ConstExpr => true,
+            VarExpr varExpr => grounded.Contains(varExpr.Variable),
+            FieldExpr fieldExpr => IsGround(fieldExpr.Target, grounded),
+            ArithExpr arithExpr => IsGround(arithExpr.Left, grounded) && IsGround(arithExpr.Right, grounded),
+            ListEmptyExpr => true,
+            ListConsExpr listCons => IsGround(listCons.Head, grounded) && IsGround(listCons.Tail, grounded),
+            _ => false,
+        };
+    }
+
+    private static void AddVars(SemanticExpr expr, ISet<VariableSymbol> grounded)
+    {
+        foreach (VariableSymbol variable in CollectVariables(expr))
+            grounded.Add(variable);
+    }
+
+    private static IEnumerable<VariableSymbol> CollectVariables(SemanticExpr expr)
+    {
+        switch (expr)
+        {
+            case VarExpr varExpr:
+                yield return varExpr.Variable;
+                yield break;
+
+            case FieldExpr fieldExpr:
+                foreach (VariableSymbol variable in CollectVariables(fieldExpr.Target))
+                    yield return variable;
+                yield break;
+
+            case UnifyExpr unifyExpr:
+                foreach (VariableSymbol variable in CollectVariables(unifyExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(unifyExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case CompExpr compExpr:
+                foreach (VariableSymbol variable in CollectVariables(compExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(compExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case ArithExpr arithExpr:
+                foreach (VariableSymbol variable in CollectVariables(arithExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(arithExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case ConstraintExpr constraintExpr:
+                foreach (SemanticExpr argument in constraintExpr.Arguments)
+                    foreach (VariableSymbol variable in CollectVariables(argument))
+                        yield return variable;
+                yield break;
+
+            case ConjExpr conjExpr:
+                foreach (SemanticExpr part in conjExpr.Parts)
+                    foreach (VariableSymbol variable in CollectVariables(part))
+                        yield return variable;
+                yield break;
+
+            case DisjExpr disjExpr:
+                foreach (VariableSymbol variable in CollectVariables(disjExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(disjExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case CallExpr callExpr:
+                foreach (SemanticExpr arg in callExpr.Arguments)
+                    foreach (VariableSymbol variable in CollectVariables(arg))
+                        yield return variable;
+                yield break;
+
+            case NotExpr notExpr:
+                foreach (VariableSymbol variable in CollectVariables(notExpr.Goal))
+                    yield return variable;
+                yield break;
+
+            case ListConsExpr listCons:
+                foreach (VariableSymbol variable in CollectVariables(listCons.Head))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(listCons.Tail))
+                    yield return variable;
+                yield break;
+        }
     }
 
     private SemanticExpr? AnalyzeInvocation(InvocationExpressionSyntax inv)
@@ -417,19 +671,19 @@ public sealed class SemanticAnalyzer
         if (inv.Expression is IdentifierNameSyntax ident)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(ident);
-            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
+            candidate = ResolveTypeCandidate(si);
         }
         else if (inv.Expression is MemberAccessExpressionSyntax mem)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(mem);
-            if (si.Symbol is INamedTypeSymbol namedType) candidate = namedType;
+            candidate = ResolveTypeCandidate(si);
         }
 
         // Also try to resolve via the semantic model as a type symbol directly
         if (candidate is null)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(inv.Expression);
-            if (si.Symbol is INamedTypeSymbol t) candidate = t;
+            candidate = ResolveTypeCandidate(si);
         }
 
         if (candidate is not INamedTypeSymbol namedCandidate) return null;
@@ -437,6 +691,23 @@ public sealed class SemanticAnalyzer
         bool hasPredicate = namedCandidate.GetAttributes()
             .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
         return hasPredicate ? candidate : null;
+    }
+
+    private static ITypeSymbol? ResolveTypeCandidate(SymbolInfo symbolInfo)
+    {
+        if (symbolInfo.Symbol is INamedTypeSymbol namedType)
+            return namedType;
+
+        if (symbolInfo.Symbol is IMethodSymbol method && method.MethodKind == MethodKind.Constructor)
+            return method.ContainingType;
+
+        if (symbolInfo.CandidateSymbols.OfType<INamedTypeSymbol>().FirstOrDefault() is { } candidateType)
+            return candidateType;
+
+        if (symbolInfo.CandidateSymbols.OfType<IMethodSymbol>().FirstOrDefault(m => m.MethodKind == MethodKind.Constructor) is { } candidateCtor)
+            return candidateCtor.ContainingType;
+
+        return null;
     }
 
     private static bool HasPredicateBodyForArity(INamedTypeSymbol predicateType, int arity)
@@ -541,6 +812,7 @@ public sealed class SemanticAnalyzer
 
         // Analyze lambda body with extended scope
         var inner = new SemanticAnalyzer(_semanticModel, _reporter);
+        inner._currentPredicateType = _currentPredicateType;
         foreach (var kv in newScope) inner._scope[kv.Key] = kv.Value;
 
         ExpressionSyntax? bodyExpr = GetLambdaBody(lambda);

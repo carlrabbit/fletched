@@ -112,4 +112,36 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UngroundedNegation = new(
+        "FLG0001",
+        "Ungrounded variable in negation",
+        "Variable '{0}' is used in Logic.Not(...) before it is grounded",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor NegationVariableEscape = new(
+        "FLG0002",
+        "Variable escapes negation scope",
+        "Variable '{0}' introduced inside Logic.Not(...) escapes negation scope",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedRecursiveNegation = new(
+        "FLG0003",
+        "Unsupported recursive negation",
+        "Recursive negation is not supported",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedInvocationPatternInNegation = new(
+        "FLG0004",
+        "Unsupported invocation pattern in negation",
+        "Invocation pattern in Logic.Not(...) is not supported",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

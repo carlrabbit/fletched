@@ -2,6 +2,17 @@
 
 Define authoritative semantics and implementation boundaries for predicate invocation and negation-as-failure while preserving the compiled typed execution architecture.
 
+# Status (2026-05-14)
+
+- Overall: **In progress**
+- Phase 1 — Documentation authority and terminology synchronization: **complete**
+- Phase 2 — Invocation ABI alignment (frame contract + deterministic copy-in/copy-out): **complete**
+- Phase 3 — Negation correctness alignment: **complete** (`FLG0001`–`FLG0004` enforcement implemented and validated)
+- Phase 4 — Integration hardening and validation expansion: **in progress**
+
+Remaining Milestone 3 focus:
+- Expand end-to-end runtime coverage depth around invocation+negation compositions and additional backtracking edge cases.
+
 # Scope
 
 - Invocation lifecycle and invocation boundary semantics
