@@ -16,6 +16,9 @@ public partial record struct Employee(string Name, bool IsAdmin);
 [Fact]
 public partial record struct Product(string Name, int Price);
 
+[Fact]
+public partial record struct CandidateNumber(int Value);
+
 // ── Predicates ────────────────────────────────────────────────────────────────
 
 /// <summary>Returns the names of non-admin employees (those where IsAdmin is not true).</summary>
@@ -45,6 +48,17 @@ public partial record struct PremiumProducts
         Logic.With<Product>(p => p.Name == name && Logic.Not(p.Price <= 50));
 }
 
+[Predicate]
+public partial record struct AllowedValues
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        Logic.With<CandidateNumber>(candidate =>
+            candidate.Value == value &&
+            Logic.Not(candidate.Value == 2) &&
+            Logic.Not(candidate.Value == 4));
+}
+
 // ── Tests ─────────────────────────────────────────────────────────────────────
 
 public class NotTests
@@ -71,6 +85,19 @@ public class NotTests
             new Product("Standard", 80),
             new Product("Premium",  150),
             new Product("Luxury",   300),
+        });
+        return ctx;
+    }
+
+    private static EngineContext BuildNumberContext()
+    {
+        var ctx = new EngineContext();
+        ctx.CandidateNumbers = new FactTable<CandidateNumber>(new[]
+        {
+            new CandidateNumber(1),
+            new CandidateNumber(2),
+            new CandidateNumber(3),
+            new CandidateNumber(4),
         });
         return ctx;
     }
@@ -227,6 +254,18 @@ public class NotTests
 
         await Assert.That(results.Count).IsEqualTo(0);
     }
+
+    [Test]
+    public async Task AllowedValues_BacktrackingWithNegationIsolation_FiltersDisallowedValues()
+    {
+        EngineContext ctx = BuildNumberContext();
+        List<AllowedValuesResult> results = await default(AllowedValues).ExecuteAsync(ctx).ToListAsync();
+        List<int> values = results.Select(r => r.value).ToList();
+
+        await Assert.That(values.Count).IsEqualTo(2);
+        await Assert.That(values.Contains(1)).IsTrue();
+        await Assert.That(values.Contains(3)).IsTrue();
+    }
 }
 
 // ── Sync (IEnumerable<T>) API coverage ───────────────────────────────────────
@@ -255,6 +294,19 @@ public class NotTests_Execute
             new Product("Standard", 80),
             new Product("Premium",  150),
             new Product("Luxury",   300),
+        });
+        return ctx;
+    }
+
+    private static EngineContext BuildNumberContext()
+    {
+        var ctx = new EngineContext();
+        ctx.CandidateNumbers = new FactTable<CandidateNumber>(new[]
+        {
+            new CandidateNumber(1),
+            new CandidateNumber(2),
+            new CandidateNumber(3),
+            new CandidateNumber(4),
         });
         return ctx;
     }
@@ -293,5 +345,17 @@ public class NotTests_Execute
         List<PremiumProductsResult> results = default(PremiumProducts).Execute(ctx).ToList();
 
         await Assert.That(results.Count).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task AllowedValues_Execute_BacktracksAcrossCandidatesWithoutNegationLeakage()
+    {
+        EngineContext ctx = BuildNumberContext();
+        List<AllowedValuesResult> results = default(AllowedValues).Execute(ctx).ToList();
+        List<int> values = results.Select(r => r.value).ToList();
+
+        await Assert.That(values.Count).IsEqualTo(2);
+        await Assert.That(values.Contains(1)).IsTrue();
+        await Assert.That(values.Contains(3)).IsTrue();
     }
 }

@@ -72,6 +72,106 @@ public partial record struct GroundedNegationBitwisePredicate
         await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UngroundedNegation.Id)).IsFalse();
     }
 
+    [Test]
+    public async Task SemanticAnalyzer_NegationVariableEscape_ReportsFLG0002()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct NegationEscapePredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> number, TerminalVar<int> candidate) =>
+        Logic.Not(number == candidate) &&
+        candidate == 5;
+}
+""";
+
+        DiagnosticReporter reporter = Analyze("NegationEscapePredicate", source);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.NegationVariableEscape.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task SemanticAnalyzer_RecursiveNegation_ReportsFLG0003()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct RecursiveNegationPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> number) =>
+        number == 5 &&
+        Logic.Not(RecursiveNegationPredicate(number));
+}
+""";
+
+        DiagnosticReporter reporter = Analyze("RecursiveNegationPredicate", source);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedRecursiveNegation.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task SemanticAnalyzer_NegationInvocationPattern_ReportsFLG0004()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct NumberIsOne
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 1;
+}
+
+[Predicate]
+public partial record struct UnsupportedInvocationPatternPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> number, TerminalVar<int> candidate) =>
+        Logic.Not(NumberIsOne(candidate)) &&
+        number == 1;
+}
+""";
+
+        DiagnosticReporter reporter = Analyze("UnsupportedInvocationPatternPredicate", source);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedInvocationPatternInNegation.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task SemanticAnalyzer_GroundedInvocationPatternInNegation_DoesNotReportFLG0004()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct NumberIsOne
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 1;
+}
+
+[Predicate]
+public partial record struct GroundedInvocationPatternPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> number) =>
+        number == 2 &&
+        Logic.Not(NumberIsOne(number));
+}
+""";
+
+        DiagnosticReporter reporter = Analyze("GroundedInvocationPatternPredicate", source);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedInvocationPatternInNegation.Id)).IsFalse();
+    }
+
     private static DiagnosticReporter Analyze(string predicateName, string source)
     {
         CSharpCompilation compilation = CreateCompilation(source);

@@ -7,14 +7,11 @@ Define authoritative semantics and implementation boundaries for predicate invoc
 - Overall: **In progress**
 - Phase 1 — Documentation authority and terminology synchronization: **complete**
 - Phase 2 — Invocation ABI alignment (frame contract + deterministic copy-in/copy-out): **complete**
-- Phase 3 — Negation correctness alignment: **partially complete** (`FLG0001` grounding diagnostics implemented and validated)
+- Phase 3 — Negation correctness alignment: **complete** (`FLG0001`–`FLG0004` enforcement implemented and validated)
 - Phase 4 — Integration hardening and validation expansion: **in progress**
 
 Remaining Milestone 3 focus:
-- Implement and validate `FLG0002` (negation variable escape) enforcement.
-- Implement and validate `FLG0003` (unsupported recursive negation) enforcement.
-- Implement and validate `FLG0004` (unsupported invocation pattern in negation) enforcement.
-- Expand integration/runtime coverage for cross-predicate backtracking + negation isolation interactions.
+- Expand end-to-end runtime coverage depth around invocation+negation compositions and additional backtracking edge cases.
 
 # Scope
 
