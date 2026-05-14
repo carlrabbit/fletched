@@ -89,15 +89,28 @@ public sealed class IrLowerer
 
             case CallExpr callExpr:
             {
-                // Map argument expressions to slots
-                var argSlots = callExpr.Arguments
-                    .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
-                    .ToList();
+                // Map argument expressions to slots and copy non-slot values into anonymous slots.
+                var argSlots = new List<int>(callExpr.Arguments.Count);
+                var callInstructions = new List<PlanInstruction>();
+                foreach (SemanticExpr arg in callExpr.Arguments)
+                {
+                    if (arg is VarExpr varExpr)
+                    {
+                        argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                        continue;
+                    }
+
+                    int tmpSlot = ctx.AllocateAnonymousSlot();
+                    argSlots.Add(tmpSlot);
+                    callInstructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                }
+
+                callInstructions.Add(new CallInstr(callExpr.PredicateType, argSlots, callExpr.Arity));
 
                 string label = ctx.NextLabel("call");
                 startLabel = label;
                 var block = new PlanBlock(label,
-                    new[] { new CallInstr(callExpr.PredicateType, argSlots, callExpr.Arity) },
+                    callInstructions,
                     new SucceedTerm());
                 ctx.AddBlock(block);
                 return block;
@@ -473,9 +486,20 @@ public sealed class IrLowerer
                 break;
             case CallExpr call:
             {
-                var argSlots = call.Arguments
-                    .Select(a => a is VarExpr ve ? ctx.GetSlot(ve.Variable) : ctx.AllocateAnonymousSlot())
-                    .ToList();
+                var argSlots = new List<int>(call.Arguments.Count);
+                foreach (SemanticExpr arg in call.Arguments)
+                {
+                    if (arg is VarExpr varExpr)
+                    {
+                        argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                        continue;
+                    }
+
+                    int tmpSlot = ctx.AllocateAnonymousSlot();
+                    argSlots.Add(tmpSlot);
+                    instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                }
+
                 instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
                 break;
             }

@@ -221,6 +221,7 @@ public sealed class SemanticAnalyzer
                 var parts = new List<SemanticExpr>();
                 FlattenConj(left, parts);
                 FlattenConj(right, parts);
+                ValidateNegationGrounding(parts, bin.GetLocation());
                 return new ConjExpr(parts, boolType);
             }
 
@@ -241,6 +242,7 @@ public sealed class SemanticAnalyzer
                 var parts = new List<SemanticExpr>();
                 FlattenConj(left, parts);
                 FlattenConj(right, parts);
+                ValidateNegationGrounding(parts, bin.GetLocation());
                 return new ConjExpr(parts, boolType);
             }
 
@@ -299,6 +301,139 @@ public sealed class SemanticAnalyzer
                 FlattenConj(part, parts);
         else
             parts.Add(expr);
+    }
+
+    private void ValidateNegationGrounding(IReadOnlyList<SemanticExpr> parts, Location location)
+    {
+        var grounded = new HashSet<VariableSymbol>(_scope.Values.Where(v => v.Kind == VariableKind.Local));
+
+        foreach (SemanticExpr part in parts)
+        {
+            switch (part)
+            {
+                case UnifyExpr unify:
+                {
+                    bool leftGround = IsGround(unify.Left, grounded);
+                    bool rightGround = IsGround(unify.Right, grounded);
+
+                    if (leftGround)
+                        AddVars(unify.Right, grounded);
+                    if (rightGround)
+                        AddVars(unify.Left, grounded);
+                    break;
+                }
+
+                case CallExpr call:
+                {
+                    foreach (SemanticExpr arg in call.Arguments)
+                        AddVars(arg, grounded);
+                    break;
+                }
+
+                case NotExpr not:
+                {
+                    foreach (VariableSymbol variable in CollectVariables(not.Goal))
+                    {
+                        if (!grounded.Contains(variable))
+                            _reporter.Error(DiagnosticsCatalog.UngroundedNegation, location, variable.Name);
+                    }
+                    break;
+                }
+            }
+        }
+    }
+
+    private static bool IsGround(SemanticExpr expr, ISet<VariableSymbol> grounded)
+    {
+        return expr switch
+        {
+            ConstExpr => true,
+            VarExpr varExpr => grounded.Contains(varExpr.Variable),
+            FieldExpr fieldExpr => IsGround(fieldExpr.Target, grounded),
+            ArithExpr arithExpr => IsGround(arithExpr.Left, grounded) && IsGround(arithExpr.Right, grounded),
+            ListEmptyExpr => true,
+            ListConsExpr listCons => IsGround(listCons.Head, grounded) && IsGround(listCons.Tail, grounded),
+            _ => false,
+        };
+    }
+
+    private static void AddVars(SemanticExpr expr, ISet<VariableSymbol> grounded)
+    {
+        foreach (VariableSymbol variable in CollectVariables(expr))
+            grounded.Add(variable);
+    }
+
+    private static IEnumerable<VariableSymbol> CollectVariables(SemanticExpr expr)
+    {
+        switch (expr)
+        {
+            case VarExpr varExpr:
+                yield return varExpr.Variable;
+                yield break;
+
+            case FieldExpr fieldExpr:
+                foreach (VariableSymbol variable in CollectVariables(fieldExpr.Target))
+                    yield return variable;
+                yield break;
+
+            case UnifyExpr unifyExpr:
+                foreach (VariableSymbol variable in CollectVariables(unifyExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(unifyExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case CompExpr compExpr:
+                foreach (VariableSymbol variable in CollectVariables(compExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(compExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case ArithExpr arithExpr:
+                foreach (VariableSymbol variable in CollectVariables(arithExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(arithExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case ConstraintExpr constraintExpr:
+                foreach (SemanticExpr argument in constraintExpr.Arguments)
+                    foreach (VariableSymbol variable in CollectVariables(argument))
+                        yield return variable;
+                yield break;
+
+            case ConjExpr conjExpr:
+                foreach (SemanticExpr part in conjExpr.Parts)
+                    foreach (VariableSymbol variable in CollectVariables(part))
+                        yield return variable;
+                yield break;
+
+            case DisjExpr disjExpr:
+                foreach (VariableSymbol variable in CollectVariables(disjExpr.Left))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(disjExpr.Right))
+                    yield return variable;
+                yield break;
+
+            case CallExpr callExpr:
+                foreach (SemanticExpr arg in callExpr.Arguments)
+                    foreach (VariableSymbol variable in CollectVariables(arg))
+                        yield return variable;
+                yield break;
+
+            case NotExpr notExpr:
+                foreach (VariableSymbol variable in CollectVariables(notExpr.Goal))
+                    yield return variable;
+                yield break;
+
+            case ListConsExpr listCons:
+                foreach (VariableSymbol variable in CollectVariables(listCons.Head))
+                    yield return variable;
+                foreach (VariableSymbol variable in CollectVariables(listCons.Tail))
+                    yield return variable;
+                yield break;
+        }
     }
 
     private SemanticExpr? AnalyzeInvocation(InvocationExpressionSyntax inv)

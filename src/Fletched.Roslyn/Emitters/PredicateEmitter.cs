@@ -23,10 +23,18 @@ public sealed class PredicateEmitter
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
+    private readonly List<CallEmitInfo> _calls = [];
+    private int _nextCallToEmit;
 
     // Label → unique integer id for switch dispatch
     private readonly Dictionary<string, int> _labelIds = new();
     private int _labelIdCounter;
+
+    private sealed record CallEmitInfo(
+        int Id,
+        string EnumeratorVar,
+        string ActiveVar,
+        string ResultTypeName);
 
     private string GeneratedName => _generatedName;
 
@@ -56,7 +64,18 @@ public sealed class PredicateEmitter
         foreach (PlanBlock block in new[] { plan.Entry }.Concat(plan.Blocks))
         {
             foreach (PlanInstruction instruction in block.Instructions)
+            {
                 CollectSlots(instruction, slotNames, slotTypes);
+                if (instruction is CallInstr call)
+                {
+                    int callId = _calls.Count;
+                    _calls.Add(new CallEmitInfo(
+                        callId,
+                        EnumeratorVar: $"_callEnum_{callId}",
+                        ActiveVar: $"_callActive_{callId}",
+                        ResultTypeName: GetCallResultTypeName(call)));
+                }
+            }
         }
 
         _slots = slotTypes
@@ -197,6 +216,7 @@ public sealed class PredicateEmitter
 
     private void EmitExecuteMethod(EmitContext ctx)
     {
+        _nextCallToEmit = 0;
         ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> {ExecuteMethodName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
         ctx.AppendLine("{");
         using (ctx.Indent())
@@ -206,6 +226,7 @@ public sealed class PredicateEmitter
 
             // Emit index variables
             EmitIndexVarDecls(ctx);
+            EmitCallVarDecls(ctx);
 
             ctx.AppendLine($"goto L_{_plan.Entry.Label};");
             ctx.AppendLine();
@@ -316,19 +337,28 @@ public sealed class PredicateEmitter
         }
     }
 
+    private void EmitCallVarDecls(EmitContext ctx)
+    {
+        foreach (CallEmitInfo call in _calls)
+        {
+            ctx.AppendLine($"System.Collections.Generic.IEnumerator<{call.ResultTypeName}>? {call.EnumeratorVar} = null;");
+            ctx.AppendLine($"bool {call.ActiveVar} = false;");
+        }
+    }
+
     private void EmitBlock(PlanBlock block, EmitContext ctx)
     {
         ctx.AppendLine($"L_{block.Label}:");
         using (ctx.Indent())
         {
             foreach (PlanInstruction instr in block.Instructions)
-                EmitInstruction(instr, ctx);
+                EmitInstruction(instr, block.Label, ctx);
             EmitTerminator(block.Terminator, block.Label, ctx);
         }
         ctx.AppendLine();
     }
 
-    private void EmitInstruction(PlanInstruction instr, EmitContext ctx)
+    private void EmitInstruction(PlanInstruction instr, string blockLabel, EmitContext ctx)
     {
         switch (instr)
         {
@@ -362,7 +392,7 @@ public sealed class PredicateEmitter
                 break;
 
             case CallInstr call:
-                EmitCall(call, ctx);
+                EmitCall(call, blockLabel, ctx);
                 break;
 
             case NotInstr not:
@@ -502,35 +532,53 @@ public sealed class PredicateEmitter
         }
     }
 
-    private void EmitCall(CallInstr call, EmitContext ctx)
+    private void EmitCall(CallInstr call, string blockLabel, EmitContext ctx)
     {
-        // Invoke the referenced predicate's Execute method and iterate results.
-        // For each result we bind the argument slots and continue execution.
-        // If no results remain we fall through to Fail.
+        CallEmitInfo callInfo = _calls[_nextCallToEmit++];
         string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        string resultVar = $"_callResult_{call.PredicateType.Name}";
+        string resultVar = $"_callResult_{callInfo.Id}";
 
-        ctx.AppendMetricIncrement("PredicateInvocations");
-        ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
-        ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer))");
+        ctx.AppendLine($"if (!{callInfo.ActiveVar})");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
-            // Bind caller argument slots from the call result fields.
-            // The result record fields are named after the predicate's terminal parameters
-            // and capitalized to match the generated Result record's constructor parameters.
-            for (int i = 0; i < call.ArgumentSlots.Count; i++)
-            {
-                int slot = call.ArgumentSlots[i];
-                string slotName = SlotName(slot);
-                string resultField = Capitalize(slotName);
-                ctx.AppendLine($"state.{slotName} = {resultVar}.{resultField};");
-                ctx.AppendLine($"state.{slotName}_bound = true;");
-            }
-            ctx.AppendLine("goto Success;");
+            ctx.AppendMetricIncrement("PredicateInvocations");
+            ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
+            ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            ctx.AppendLine($"{callInfo.ActiveVar} = true;");
         }
         ctx.AppendLine("}");
-        ctx.AppendLine("goto Fail;");
+
+        ctx.AppendLine($"if ({callInfo.EnumeratorVar} is null || !{callInfo.EnumeratorVar}.MoveNext())");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine($"{callInfo.EnumeratorVar}?.Dispose();");
+            ctx.AppendLine($"{callInfo.EnumeratorVar} = null;");
+            ctx.AppendLine($"{callInfo.ActiveVar} = false;");
+            ctx.AppendLine("goto Fail;");
+        }
+        ctx.AppendLine("}");
+
+        ctx.AppendLine($"var {resultVar} = {callInfo.EnumeratorVar}.Current;");
+        ctx.AppendLine("cps.Push(new global::Fletched.Core.Runtime.ChoicePoint");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine($"LabelId = {_labelIds[blockLabel]},");
+            ctx.AppendLine("TrailTop = state.Trail.Top");
+        }
+        ctx.AppendLine("});");
+        ctx.AppendMetricIncrement("ChoicePointCount");
+        ctx.AppendLine("observer?.OnChoicePoint();");
+
+        for (int i = 0; i < call.ArgumentSlots.Count; i++)
+        {
+            int slot = call.ArgumentSlots[i];
+            string slotName = SlotName(slot);
+            string resultField = slotName;
+            EmitSlotConstUnify(slotName, $"{resultVar}.{resultField}", ctx);
+        }
     }
 
     private int _notCounter;
@@ -555,7 +603,7 @@ public sealed class PredicateEmitter
                 for (int i = 0; i < call.ArgumentSlots.Count; i++)
                 {
                     string slotName = SlotName(call.ArgumentSlots[i]);
-                    string resultField = Capitalize(slotName);
+                    string resultField = slotName;
                     conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
                 }
                 string guard = conditions.Count > 0
@@ -979,6 +1027,19 @@ public sealed class PredicateEmitter
 
         value = string.Empty;
         return false;
+    }
+
+    private static string GetCallResultTypeName(CallInstr call)
+    {
+        bool singleArityPredicate = call.PredicateType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Count(method => method.GetAttributes().Any(attr => attr.AttributeClass?.Name == "PredicateBodyAttribute")) == 1;
+
+        string resultTypeName = singleArityPredicate
+            ? $"{call.PredicateType.Name}Result"
+            : $"{call.PredicateType.Name}Arity{call.Arity}Result";
+
+        return SourceSymbolHelpers.GetQualifiedSiblingTypeName(call.PredicateType, resultTypeName);
     }
 
     private static string TablePropertyName(ITypeSymbol factType)
