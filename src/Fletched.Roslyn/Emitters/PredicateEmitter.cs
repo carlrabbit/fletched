@@ -34,6 +34,7 @@ public sealed class PredicateEmitter
         int Id,
         string EnumeratorVar,
         string ActiveVar,
+        string ProducedVar,
         string ResultTypeName);
 
     private string GeneratedName => _generatedName;
@@ -73,6 +74,7 @@ public sealed class PredicateEmitter
                         callId,
                         EnumeratorVar: $"_callEnum_{callId}",
                         ActiveVar: $"_callActive_{callId}",
+                        ProducedVar: $"_callProduced_{callId}",
                         ResultTypeName: GetCallResultTypeName(call)));
                 }
             }
@@ -343,6 +345,7 @@ public sealed class PredicateEmitter
         {
             ctx.AppendLine($"System.Collections.Generic.IEnumerator<{call.ResultTypeName}>? {call.EnumeratorVar} = null;");
             ctx.AppendLine($"bool {call.ActiveVar} = false;");
+            ctx.AppendLine($"bool {call.ProducedVar} = false;");
         }
     }
 
@@ -546,6 +549,7 @@ public sealed class PredicateEmitter
             ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
             ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
             ctx.AppendLine($"{callInfo.ActiveVar} = true;");
+            ctx.AppendLine($"{callInfo.ProducedVar} = false;");
         }
         ctx.AppendLine("}");
         ctx.AppendLine("else");
@@ -559,15 +563,21 @@ public sealed class PredicateEmitter
         using (ctx.Indent())
         {
             ctx.AppendMetricIncrement("PredicateInvocationExhaustions");
-            ctx.AppendMetricIncrement("PredicateInvocationFailures");
+            ctx.AppendLine($"if (!{callInfo.ProducedVar})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+                ctx.AppendMetricIncrement("PredicateInvocationFailures");
+            ctx.AppendLine("}");
             ctx.AppendLine($"{callInfo.EnumeratorVar}?.Dispose();");
             ctx.AppendLine($"{callInfo.EnumeratorVar} = null;");
             ctx.AppendLine($"{callInfo.ActiveVar} = false;");
+            ctx.AppendLine($"{callInfo.ProducedVar} = false;");
             ctx.AppendLine("goto Fail;");
         }
         ctx.AppendLine("}");
 
         ctx.AppendLine($"var {resultVar} = {callInfo.EnumeratorVar}.Current;");
+        ctx.AppendLine($"{callInfo.ProducedVar} = true;");
         ctx.AppendLine("cps.Push(new global::Fletched.Core.Runtime.ChoicePoint");
         ctx.AppendLine("{");
         using (ctx.Indent())
