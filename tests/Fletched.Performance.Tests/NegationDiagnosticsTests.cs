@@ -21,7 +21,7 @@ public partial record struct UngroundedNegationPredicate
     [PredicateBody]
     public static LogicExpr<bool> Body(TerminalVar<int> number) =>
         Logic.Not(number == 5) &&
-        number == 5;
+        number == 7;
 }
 """;
 
