@@ -1,0 +1,45 @@
+name: Bug report
+description: Report a defect with links to the authoritative documents that define the expected behavior.
+title: "Bug: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review `docs/tbps/bug-investigation.md`, `docs/TERMINOLOGY.md`, and the authoritative spec, architecture, or workflow document before filing.
+  - type: textarea
+    id: authoritative-docs
+    attributes:
+      label: Relevant authoritative documents
+      description: List the specs, architecture docs, workflow docs, milestones, or TBPs that define the affected behavior.
+      placeholder: |
+        - docs/specs/...
+        - docs/architecture/...
+        - docs/workflows/...
+    validations:
+      required: true
+  - type: textarea
+    id: expected-behavior
+    attributes:
+      label: Expected behavior
+    validations:
+      required: true
+  - type: textarea
+    id: actual-behavior
+    attributes:
+      label: Actual behavior
+    validations:
+      required: true
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Reproduction or evidence
+      description: Include steps, failing validation, logs, or code paths that demonstrate the defect.
+    validations:
+      required: true
+  - type: textarea
+    id: constraints
+    attributes:
+      label: Constraints
+      description: Note any constraints, impacted branches, or validation boundaries.

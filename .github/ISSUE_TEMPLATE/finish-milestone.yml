@@ -1,0 +1,43 @@
+name: Finish milestone
+description: Close a milestone with explicit exit-criteria review and follow-up capture.
+title: "Finish milestone: "
+labels:
+  - documentation
+  - milestone
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review `docs/tbps/finish-milestone.md`, the milestone document, related specs, and related decisions before filing.
+  - type: input
+    id: milestone-doc
+    attributes:
+      label: Milestone document
+      placeholder: docs/milestones/milestone-xx-name.md
+    validations:
+      required: true
+  - type: textarea
+    id: delivered
+    attributes:
+      label: Completed deliverables
+    validations:
+      required: true
+  - type: textarea
+    id: exit-criteria-check
+    attributes:
+      label: Exit criteria check
+      description: State whether each exit criterion passed, failed, or moved to follow-up work.
+    validations:
+      required: true
+  - type: textarea
+    id: document-sync
+    attributes:
+      label: Spec, decision, and document synchronization
+    validations:
+      required: true
+  - type: textarea
+    id: follow-ups
+    attributes:
+      label: Follow-up issues or milestone candidates
+    validations:
+      required: true

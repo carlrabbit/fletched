@@ -1,0 +1,54 @@
+name: Create milestone
+description: Define a new milestone with explicit scope, deliverables, and exit criteria.
+title: "Create milestone: "
+labels:
+  - documentation
+  - milestone
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Review `docs/tbps/create-milestone.md`, `docs/milestones/README.md`, `docs/SPECS.md`, and `docs/TERMINOLOGY.md` before filing.
+  - type: input
+    id: milestone-name
+    attributes:
+      label: Milestone name
+    validations:
+      required: true
+  - type: textarea
+    id: goal
+    attributes:
+      label: Goal
+    validations:
+      required: true
+  - type: textarea
+    id: scope
+    attributes:
+      label: Scope
+    validations:
+      required: true
+  - type: textarea
+    id: non-goals
+    attributes:
+      label: Non-goals
+    validations:
+      required: true
+  - type: textarea
+    id: required-specs
+    attributes:
+      label: Required specs
+      description: List the authoritative specs that govern the milestone.
+    validations:
+      required: true
+  - type: textarea
+    id: deliverables
+    attributes:
+      label: Deliverables
+    validations:
+      required: true
+  - type: textarea
+    id: exit-criteria
+    attributes:
+      label: Exit criteria
+    validations:
+      required: true

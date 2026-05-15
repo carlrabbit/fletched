@@ -1,5 +1,43 @@
 # Terminology
 
+## Purpose
+
+This document defines canonical project terminology.
+
+## Rules
+
+- One sentence per term.
+- One canonical meaning per term.
+- Avoid aliases unless explicitly listed.
+- New domain terms must be added here before broad usage.
+- Documentation must use these terms consistently.
+
+## Terms
+
+### Task Best Practice
+
+Reusable operational guidance for a class of repository work.
+
+### Specification
+
+Authoritative behavioral description of a system, component, feature, or process.
+
+### Milestone
+
+Controlled implementation phase with explicit scope, deliverables, and exit criteria.
+
+### Document Authority
+
+Declaration of what a document is allowed to define.
+
+### Document Contract
+
+Declaration of related documents and synchronization obligations.
+
+### Workflow Specification
+
+High-level operational description that a CI workflow implementation must conform to.
+
 ## EngineContext
 
 The runtime container that exposes fact tables to generated predicate entry points.
@@ -75,3 +113,33 @@ A single successful `MoveNext` result that yields one logical solution to the ca
 ## Predicate Exhaustion
 
 The terminal `MoveNext == false` state indicating no additional callee solutions remain.
+
+# Authority
+
+This document is authoritative for:
+- canonical repository vocabulary
+- documentation naming consistency
+- cross-document terminology synchronization
+
+This document is not authoritative for:
+- behavioral specifications
+- architecture decisions
+- workflow implementation details
+
+# Document Contract
+
+## Related Documents
+
+- `README.md`
+- `docs/SPECS.md`
+- `docs/WORKFLOWS.md`
+- `docs/TBPS.md`
+
+## Must Be Updated Together
+
+When canonical terminology changes, review and update:
+- `README.md`
+- `AGENTS.md`
+- `copilot-instructions.md`
+- `.github/copilot-instructions.md`
+- related specs, workflow documents, and TBPs
