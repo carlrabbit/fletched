@@ -35,7 +35,7 @@ Define and implement variable scope and non-terminal variable semantics for pred
 - New authoritative spec:
   - `docs/specs/variable-scope-and-non-terminal-variables.md`
 - Synchronized updates to:
-  - `docs/SPECS.md`
+  - `docs/specs/README.md`
   - `docs/specs/README.md`
   - `docs/TERMINOLOGY.md`
   - `docs/milestones/README.md`
@@ -72,7 +72,7 @@ Define and implement variable scope and non-terminal variable semantics for pred
 # Phase 1 — Documentation Authority and Spec Synchronization
 
 - Create `docs/specs/variable-scope-and-non-terminal-variables.md`.
-- Add the spec to `docs/SPECS.md`.
+- Add the spec to `docs/specs/README.md`.
 - Add the spec to `docs/specs/README.md`.
 - Add milestone entry to `docs/milestones/README.md`.
 - Add canonical terminology for terminal variable, non-terminal variable, source variable, fresh variable, and local scope.
@@ -140,7 +140,7 @@ Define and implement variable scope and non-terminal variable semantics for pred
 # Related Documents
 
 - `docs/specs/variable-scope-and-non-terminal-variables.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
 - `specs/DSL.md.txt`
@@ -166,6 +166,6 @@ This milestone is not authoritative for:
 When milestone scope or delivery status changes, review and update:
 - `docs/milestones/README.md`
 - `docs/specs/variable-scope-and-non-terminal-variables.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`

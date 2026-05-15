@@ -21,7 +21,7 @@ Review repository documentation for authority clarity, terminology consistency, 
 
 - `README.md`
 - `docs/TERMINOLOGY.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/WORKFLOWS.md`
 - `docs/TBPS.md`
 

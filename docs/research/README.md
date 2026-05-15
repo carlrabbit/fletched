@@ -27,7 +27,7 @@ This document is not authoritative for:
 ## Related Documents
 
 - `README.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/TBPS.md`
 
 ## Must Be Updated Together

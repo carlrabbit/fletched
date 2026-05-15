@@ -51,7 +51,7 @@ This document is authoritative for:
 
 ## Related Documents
 
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
 - `docs/TBPS.md`
 
