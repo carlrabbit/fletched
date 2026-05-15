@@ -27,5 +27,5 @@ Define how attributed source moves from user-written facts and predicates to gen
 - `docs/TERMINOLOGY.md`
 - `docs/architecture/system-overview.md`
 - `docs/architecture/execution-model.md`
-- `specs/EngineContext.md.txt`
-- `specs/IndexedSources.md.txt`
+- `docs/specs/EngineContext.md`
+- `docs/specs/IndexedSources.md`

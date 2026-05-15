@@ -27,6 +27,6 @@ Define how fact data is stored, exposed, and optimized for generated predicate e
 - `docs/TERMINOLOGY.md`
 - `docs/architecture/system-overview.md`
 - `docs/architecture/execution-model.md`
-- `specs/FactStorage.md.txt`
-- `specs/IndexedSources.md.txt`
-- `specs/EngineContext.md.txt`
+- `docs/specs/FactStorage.md`
+- `docs/specs/IndexedSources.md`
+- `docs/specs/EngineContext.md`

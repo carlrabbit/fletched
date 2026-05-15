@@ -194,12 +194,12 @@ The inner `With<User>` scope may reference `login` from the outer scope.
 
 # Related Architecture
 
-- `specs/DSL.md.txt`
-- `specs/SemanticModel.md.txt`
-- `specs/IR.md.txt`
-- `specs/LoweringRules.md.txt`
-- `specs/StateModel.md.txt`
-- `specs/Diagnostics.md.txt`
+- `docs/specs/DSL.md`
+- `docs/specs/SemanticModel.md`
+- `docs/specs/IR.md`
+- `docs/specs/LoweringRules.md`
+- `docs/specs/StateModel.md`
+- `docs/specs/Diagnostics.md`
 
 # Related Decisions
 
@@ -228,19 +228,19 @@ This document is not authoritative for:
 
 - `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
-- `specs/DSL.md.txt`
-- `specs/SemanticModel.md.txt`
-- `specs/LoweringRules.md.txt`
-- `specs/StateModel.md.txt`
+- `docs/specs/DSL.md`
+- `docs/specs/SemanticModel.md`
+- `docs/specs/LoweringRules.md`
+- `docs/specs/StateModel.md`
 
 ## Must Be Updated Together
 
 When variable scope or non-terminal variable behavior changes, review and update:
 - `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
-- `specs/DSL.md.txt`
-- `specs/SemanticModel.md.txt`
-- `specs/IR.md.txt`
-- `specs/LoweringRules.md.txt`
-- `specs/StateModel.md.txt`
-- `specs/Diagnostics.md.txt`
+- `docs/specs/DSL.md`
+- `docs/specs/SemanticModel.md`
+- `docs/specs/IR.md`
+- `docs/specs/LoweringRules.md`
+- `docs/specs/StateModel.md`
+- `docs/specs/Diagnostics.md`

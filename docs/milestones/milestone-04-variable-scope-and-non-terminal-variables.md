@@ -140,12 +140,12 @@ Define and implement variable scope and non-terminal variable semantics for pred
 - `docs/specs/variable-scope-and-non-terminal-variables.md`
 - `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
-- `specs/DSL.md.txt`
-- `specs/SemanticModel.md.txt`
-- `specs/IR.md.txt`
-- `specs/LoweringRules.md.txt`
-- `specs/StateModel.md.txt`
-- `specs/Diagnostics.md.txt`
+- `docs/specs/DSL.md`
+- `docs/specs/SemanticModel.md`
+- `docs/specs/IR.md`
+- `docs/specs/LoweringRules.md`
+- `docs/specs/StateModel.md`
+- `docs/specs/Diagnostics.md`
 
 # Authority
 

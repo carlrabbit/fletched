@@ -24,11 +24,11 @@ GitHub Actions YAML files are implementation artifacts.
 
 Changes to predicate invocation or negation semantics must update the authoritative documentation set together:
 
-- `specs/PredicateInvocation.md.txt`
-- `specs/Backtracking.md.txt`
-- `specs/LoweringRules.md.txt`
-- `specs/Diagnostics.md.txt`
-- `specs/DSL.md.txt`
+- `docs/specs/PredicateInvocation.md`
+- `docs/specs/Backtracking.md`
+- `docs/specs/LoweringRules.md`
+- `docs/specs/Diagnostics.md`
+- `docs/specs/DSL.md`
 - `docs/TERMINOLOGY.md`
 
 # Authority

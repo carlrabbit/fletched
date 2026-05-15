@@ -28,29 +28,29 @@ Specs are not architecture overviews.
 
 | Spec | Purpose |
 | --- | --- |
-| [`Architecture.md.txt`](Architecture.md.txt) | Architecture specification |
-| [`Backtracking.md.txt`](Backtracking.md.txt) | Backtracking behavior specification |
-| [`BuiltinPrecicate_AllDistinct.md.txt`](BuiltinPrecicate_AllDistinct.md.txt) | Built-in `allDistinct` behavior specification |
-| [`CodeGeneration.md.txt`](CodeGeneration.md.txt) | Code generation specification |
-| [`Diagnostics.md.txt`](Diagnostics.md.txt) | Diagnostics behavior specification |
-| [`DSL.md.txt`](DSL.md.txt) | DSL behavior specification |
-| [`EngineContext.md.txt`](EngineContext.md.txt) | Engine context specification |
-| [`ExecutionPlan.md.txt`](ExecutionPlan.md.txt) | Execution plan specification |
-| [`FactStorage.md.txt`](FactStorage.md.txt) | Fact storage specification |
-| [`IndexedSources.md.txt`](IndexedSources.md.txt) | Indexed source specification |
-| [`IR.md.txt`](IR.md.txt) | IR specification |
-| [`Lists.md.txt`](Lists.md.txt) | List behavior specification |
-| [`LoweringRules.md.txt`](LoweringRules.md.txt) | Lowering rules specification |
-| [`ModulesAndScopes.md.txt`](ModulesAndScopes.md.txt) | Module and scope specification |
-| [`Not.md.txt`](Not.md.txt) | Negation behavior specification |
-| [`Optimization.md.txt`](Optimization.md.txt) | Optimization specification |
-| [`Overview.md.txt`](Overview.md.txt) | System overview specification |
-| [`Performance.md.txt`](Performance.md.txt) | Performance specification |
-| [`PredicateInvocation.md.txt`](PredicateInvocation.md.txt) | Predicate invocation specification |
-| [`ResultProjection.md.txt`](ResultProjection.md.txt) | Result projection specification |
-| [`SemanticModel.md.txt`](SemanticModel.md.txt) | Semantic model specification |
-| [`StateModel.md.txt`](StateModel.md.txt) | State model specification |
-| [`Unification.md.txt`](Unification.md.txt) | Unification specification |
+| [`Architecture.md`](Architecture.md) | Architecture specification |
+| [`Backtracking.md`](Backtracking.md) | Backtracking behavior specification |
+| [`BuiltinPrecicate_AllDistinct.md`](BuiltinPrecicate_AllDistinct.md) | Built-in `allDistinct` behavior specification |
+| [`CodeGeneration.md`](CodeGeneration.md) | Code generation specification |
+| [`Diagnostics.md`](Diagnostics.md) | Diagnostics behavior specification |
+| [`DSL.md`](DSL.md) | DSL behavior specification |
+| [`EngineContext.md`](EngineContext.md) | Engine context specification |
+| [`ExecutionPlan.md`](ExecutionPlan.md) | Execution plan specification |
+| [`FactStorage.md`](FactStorage.md) | Fact storage specification |
+| [`IndexedSources.md`](IndexedSources.md) | Indexed source specification |
+| [`IR.md`](IR.md) | IR specification |
+| [`Lists.md`](Lists.md) | List behavior specification |
+| [`LoweringRules.md`](LoweringRules.md) | Lowering rules specification |
+| [`ModulesAndScopes.md`](ModulesAndScopes.md) | Module and scope specification |
+| [`Not.md`](Not.md) | Negation behavior specification |
+| [`Optimization.md`](Optimization.md) | Optimization specification |
+| [`Overview.md`](Overview.md) | System overview specification |
+| [`Performance.md`](Performance.md) | Performance specification |
+| [`PredicateInvocation.md`](PredicateInvocation.md) | Predicate invocation specification |
+| [`ResultProjection.md`](ResultProjection.md) | Result projection specification |
+| [`SemanticModel.md`](SemanticModel.md) | Semantic model specification |
+| [`StateModel.md`](StateModel.md) | State model specification |
+| [`Unification.md`](Unification.md) | Unification specification |
 | [`example-spec.md`](example-spec.md) | Example structure for future specs |
 | [`variable-scope-and-non-terminal-variables.md`](variable-scope-and-non-terminal-variables.md) | Variable scope, terminal variables, non-terminal variables, and `With<T>` source/fresh behavior |
 
