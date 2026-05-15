@@ -78,6 +78,26 @@ The method marked with `[PredicateBody]` that defines the logical constraints fo
 
 The Roslyn component that validates attributed source, builds semantic and planning models, and emits executable code.
 
+## Terminal Variable
+
+A query-boundary logical variable declared as a `TerminalVar<T>` predicate body parameter and eligible for result materialization.
+
+## Non-Terminal Variable
+
+A predicate-local logical variable that is not part of the query result boundary.
+
+## Source Variable
+
+A non-terminal variable introduced by `With<T>` where `T` is a fact type and candidates are enumerated from the corresponding fact table.
+
+## Fresh Variable
+
+A non-terminal variable introduced by `With<T>` where `T` is not a fact type and no fact source is enumerated.
+
+## Local Scope
+
+The visibility region introduced by a `With<T...>` lambda for the variables declared by that lambda.
+
 ## Ground
 
 A logical value whose slot is already bound at an evaluation point.
