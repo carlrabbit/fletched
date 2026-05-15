@@ -156,11 +156,11 @@ Negation and Invocation Safety
 - Variables introduced inside "Not(...)" must not escape negation scope.
   → otherwise: "FLG0002 / NegationVariableEscape"
 
-- Unsupported recursive invocation patterns must be rejected during source generation validation.
-  → otherwise: "FLG0003 / UnsupportedInvocationRecursionPattern"
+- Predicate call graph cycles that contain a negative invocation edge must be rejected during source generation validation.
+  → otherwise: "FLG0003 / UnsupportedRecursiveNegation"
 
-- Invocation argument/result mapping conflicts must be rejected before emission.
-  → otherwise: "FLG0004 / InvocationBindingConflict"
+- Invocation patterns inside `Not(...)` that are not safely ground must be rejected before emission.
+  → otherwise: "FLG0004 / UnsupportedInvocationPatternInNegation"
 
 ---
 

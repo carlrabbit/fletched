@@ -140,6 +140,7 @@ Trail Ownership Across Calls
 - Caller trail entries are unwound only by caller backtracking.
 - Callee trail entries are unwound only during callee execution/backtracking.
 - Invocation boundaries do not merge caller and callee trails.
+- Recursive invocation frames remain isolated: unwinding one recursive frame must not leak bindings into caller or sibling frames.
 
 Resume:
 if (!ChoicePoints.TryPop(out var cp))

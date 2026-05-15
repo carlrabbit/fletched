@@ -232,6 +232,8 @@ Rules:
 - Call behaves as a choice point
 - Lowering must emit explicit invocation boundaries between caller and callee state
 - Copy-in/copy-out behavior must be deterministic and positional per argument map
+- Positive recursive calls lower identically to non-recursive calls; no special recursive instruction form is introduced
+- Negative recursive cycles must be rejected by call-graph validation before lowering begins
 
 ---
 
