@@ -52,6 +52,7 @@ Specs are not architecture overviews.
 | [`specs/StateModel.md.txt`](specs/StateModel.md.txt) | State model specification |
 | [`specs/Unification.md.txt`](specs/Unification.md.txt) | Unification specification |
 | [`specs/example-spec.md`](specs/example-spec.md) | Example structure for future specs |
+| [`specs/variable-scope-and-non-terminal-variables.md`](specs/variable-scope-and-non-terminal-variables.md) | Variable scope, terminal variables, non-terminal variables, and `With<T>` source/fresh behavior |
 
 # Authority
 
