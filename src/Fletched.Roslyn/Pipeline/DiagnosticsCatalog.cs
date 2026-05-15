@@ -148,7 +148,7 @@ public static class DiagnosticsCatalog
     public static readonly DiagnosticDescriptor UnsupportedRecursiveNegation = new(
         "FLG0003",
         "Unsupported recursive negation",
-        "Recursive negation is not supported",
+        "Recursive negation is not supported{0}",
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);

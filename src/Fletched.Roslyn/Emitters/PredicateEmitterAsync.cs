@@ -544,7 +544,7 @@ public sealed class PredicateEmitterAsync
         {
             int slot = call.ArgumentSlots[i];
             string slotName = SlotName(slot);
-            string resultField = slotName;
+            string resultField = GetCallResultFieldName(call, i);
             EmitSlotConstUnify(slotName, $"{resultVar}.{resultField}", ctx);
         }
     }
@@ -570,7 +570,7 @@ public sealed class PredicateEmitterAsync
                 for (int i = 0; i < call.ArgumentSlots.Count; i++)
                 {
                     string slotName = SlotName(call.ArgumentSlots[i]);
-                    string resultField = slotName;
+                    string resultField = GetCallResultFieldName(call, i);
                     conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
                 }
                 string guard = conditions.Count > 0
@@ -1003,6 +1003,17 @@ public sealed class PredicateEmitterAsync
             : $"{call.PredicateType.Name}Arity{call.Arity}Result";
 
         return SourceSymbolHelpers.GetQualifiedSiblingTypeName(call.PredicateType, resultTypeName);
+    }
+
+    private static string GetCallResultFieldName(CallInstr call, int argumentIndex)
+    {
+        IMethodSymbol bodyMethod = call.PredicateType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Single(method =>
+                method.GetAttributes().Any(attr => attr.AttributeClass?.Name == "PredicateBodyAttribute")
+                && method.Parameters.Length == call.Arity);
+
+        return bodyMethod.Parameters[argumentIndex].Name;
     }
 
     private static string TablePropertyName(ITypeSymbol factType)
