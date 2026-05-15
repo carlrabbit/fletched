@@ -29,6 +29,7 @@ Specs are not architecture overviews.
 | Spec | Purpose |
 | --- | --- |
 | [`specs/example-spec.md`](specs/example-spec.md) | Example structure for future specs |
+| [`specs/variable-scope-and-non-terminal-variables.md`](specs/variable-scope-and-non-terminal-variables.md) | Variable scope, terminal variables, non-terminal variables, and `With<T>` source/fresh behavior |
 
 ## Relationship to `specs/`
 
