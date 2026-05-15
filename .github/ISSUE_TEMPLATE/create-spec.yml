@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Review `docs/tbps/create-spec.md`, `docs/SPECS.md`, and `docs/TERMINOLOGY.md` before filing.
+        Review `docs/tbps/create-spec.md`, `docs/specs/README.md`, and `docs/TERMINOLOGY.md` before filing.
   - type: input
     id: spec-name
     attributes:

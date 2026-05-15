@@ -25,7 +25,7 @@ This document is not authoritative for:
 
 - `docs/architecture/README.md`
 - `docs/architecture/system-overview.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 
 ## Must Be Updated Together
 

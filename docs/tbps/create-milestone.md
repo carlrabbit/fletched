@@ -21,7 +21,7 @@ Define a controlled implementation phase with explicit scope and exit criteria.
 
 - `docs/TERMINOLOGY.md`
 - `docs/TBPS.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - related specs
 - related decisions
 
@@ -57,7 +57,7 @@ This document is authoritative for:
 ## Related Documents
 
 - `docs/TBPS.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/milestones/README.md`
 
 ## Must Be Updated Together

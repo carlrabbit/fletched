@@ -66,12 +66,12 @@ This document is authoritative for:
 
 ## Related Documents
 
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/tbps/create-spec.md`
 
 ## Must Be Updated Together
 
 When spec structure changes, review and update:
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/tbps/create-spec.md`
 - `.github/ISSUE_TEMPLATE/create-spec.yml`

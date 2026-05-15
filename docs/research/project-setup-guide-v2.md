@@ -21,7 +21,7 @@ Research / setup rationale.
 
 See:
 - `docs/TBPS.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/WORKFLOWS.md`
 - `docs/TERMINOLOGY.md`
 - `docs/tbps/`
@@ -43,7 +43,7 @@ This document is not authoritative for:
 ## Related Documents
 
 - `docs/TBPS.md`
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/WORKFLOWS.md`
 - `docs/TERMINOLOGY.md`
 

@@ -31,7 +31,7 @@ This document is not authoritative for:
 
 ## Related Documents
 
-- `docs/SPECS.md`
+- `docs/specs/README.md`
 - `docs/TBPS.md`
 - `docs/tbps/create-milestone.md`
 - `docs/tbps/start-milestone.md`

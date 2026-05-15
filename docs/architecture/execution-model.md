@@ -27,5 +27,5 @@ Describe the runtime execution behavior of generated predicates, including enume
 - `docs/architecture/system-overview.md`
 - `docs/architecture/fact-storage-and-indexing.md`
 - `docs/TERMINOLOGY.md`
-- `specs/FactStorage.md.txt`
-- `specs/EngineContext.md.txt`
+- `docs/specs/FactStorage.md`
+- `docs/specs/EngineContext.md`
