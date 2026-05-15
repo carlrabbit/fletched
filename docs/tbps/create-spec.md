@@ -54,12 +54,10 @@ This document is authoritative for:
 ## Related Documents
 
 - `docs/specs/README.md`
-- `docs/specs/README.md`
 - `docs/TERMINOLOGY.md`
 
 ## Must Be Updated Together
 
 When spec authoring rules change, review and update:
-- `docs/specs/README.md`
 - `docs/specs/README.md`
 - `.github/ISSUE_TEMPLATE/create-spec.yml`
