@@ -33,7 +33,7 @@ Create a specification that defines behavioral truth before implementation.
 5. Define behavioral rules.
 6. Define failure semantics.
 7. Define validation expectations.
-8. Add the spec to `docs/specs/README.md` and `docs/specs/README.md`.
+8. Add the spec to `docs/specs/README.md`.
 9. Create or update related decisions if rationale is missing.
 
 # Validation
