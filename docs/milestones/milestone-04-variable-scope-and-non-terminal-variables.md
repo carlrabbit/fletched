@@ -4,11 +4,12 @@ Define and implement variable scope and non-terminal variable semantics for pred
 
 # Status (2026-05-15)
 
-- Overall: **Planned**
+- Overall: **In progress**
 - Phase 1 — Documentation authority and spec synchronization: **complete**
-- Phase 2 — Semantic analysis alignment: **not started**
-- Phase 3 — Lowering and state model alignment: **not started**
-- Phase 4 — Integration hardening and validation expansion: **not started**
+- Phase 2 — Semantic analysis alignment: **complete**
+- Phase 3 — Lowering and state model alignment: **complete**
+- Phase 4 — Integration hardening and validation expansion: **complete**
+- Phase 5 — Integration hardening: **in progress**
 
 # Scope
 

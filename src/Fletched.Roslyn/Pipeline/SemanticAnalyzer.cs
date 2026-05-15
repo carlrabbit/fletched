@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Fletched.Roslyn.Emitters;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
@@ -16,6 +17,7 @@ public sealed class SemanticAnalyzer
     private readonly Microsoft.CodeAnalysis.SemanticModel _semanticModel;
     private readonly DiagnosticReporter _reporter;
     private readonly Dictionary<string, VariableSymbol> _scope = new();
+    private readonly HashSet<string> _scopedVariableNames = new(StringComparer.Ordinal);
     private INamedTypeSymbol? _currentPredicateType;
 
     public SemanticAnalyzer(
@@ -59,6 +61,7 @@ public sealed class SemanticAnalyzer
         foreach (IMethodSymbol bodyMethod in bodyMethods.OrderBy(m => m.Parameters.Length))
         {
             _scope.Clear();
+            _scopedVariableNames.Clear();
             PredicateModel? model = AnalyzeBody(predicateType, bodyMethod);
             if (model is not null)
                 models.Add(model);
@@ -311,7 +314,7 @@ public sealed class SemanticAnalyzer
 
     private void ValidateNegationGrounding(IReadOnlyList<SemanticExpr> parts, Location location)
     {
-        var grounded = new HashSet<VariableSymbol>(_scope.Values.Where(v => v.Kind == VariableKind.Local));
+        var grounded = new HashSet<VariableSymbol>(_scope.Values.Where(v => v.Kind == VariableKind.Source));
 
         for (int i = 0; i < parts.Count; i++)
         {
@@ -805,15 +808,21 @@ public sealed class SemanticAnalyzer
                 _reporter.Error(DiagnosticsCatalog.DuplicateVariable, lambda.GetLocation(), name);
                 return null;
             }
-            var v = new VariableSymbol(name, typeArgs[i], VariableKind.Local);
+            VariableKind variableKind = ClassifyWithVariableKind(typeArgs[i], lambda.GetLocation());
+            if (_reporter.HasErrors)
+                return null;
+
+            var v = new VariableSymbol(name, typeArgs[i], variableKind);
             variables.Add(v);
             newScope[name] = v;
+            _scopedVariableNames.Add(name);
         }
 
         // Analyze lambda body with extended scope
         var inner = new SemanticAnalyzer(_semanticModel, _reporter);
         inner._currentPredicateType = _currentPredicateType;
         foreach (var kv in newScope) inner._scope[kv.Key] = kv.Value;
+        foreach (string scopedName in _scopedVariableNames) inner._scopedVariableNames.Add(scopedName);
 
         ExpressionSyntax? bodyExpr = GetLambdaBody(lambda);
         if (bodyExpr is null)
@@ -864,7 +873,7 @@ public sealed class SemanticAnalyzer
         {
             // Could be a Proxy<T> field access — the Proxy type doesn't have the fields yet
             // since they're generated. Try to resolve via the variable type.
-            if (target is VarExpr varExpr && varExpr.Variable.Kind == VariableKind.Local)
+            if (target is VarExpr varExpr && varExpr.Variable.Kind is not VariableKind.Terminal)
             {
                 ITypeSymbol factType = varExpr.Variable.Type;
                 string fieldName = mem.Name.Identifier.Text;
@@ -925,6 +934,12 @@ public sealed class SemanticAnalyzer
         {
             if (_scope.TryGetValue(local.Name, out VariableSymbol? lv))
                 return new VarExpr(lv);
+        }
+
+        if (_scopedVariableNames.Contains(name))
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidScopedVariableEscape, ident.GetLocation(), name);
+            return null;
         }
 
         _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
@@ -1047,5 +1062,21 @@ public sealed class SemanticAnalyzer
         if (goal is null) return null;
 
         return new NotExpr(goal, boolType);
+    }
+
+    private VariableKind ClassifyWithVariableKind(ITypeSymbol typeSymbol, Location location)
+    {
+        if (typeSymbol.Kind == SymbolKind.ErrorType)
+        {
+            _reporter.Error(
+                DiagnosticsCatalog.UnsupportedOrAmbiguousWithResolution,
+                location,
+                typeSymbol.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat));
+            return VariableKind.Fresh;
+        }
+
+        return SourceSymbolHelpers.HasAttribute(typeSymbol, "Fletched.Core.FactAttribute", "FactAttribute")
+            ? VariableKind.Source
+            : VariableKind.Fresh;
     }
 }

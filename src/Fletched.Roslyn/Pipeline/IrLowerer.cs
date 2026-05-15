@@ -179,6 +179,26 @@ public sealed class IrLowerer
                         LowerValue(comp.Left, ctx), LowerValue(comp.Right, ctx)));
                     break;
 
+                case CallExpr call:
+                {
+                    var argSlots = new List<int>(call.Arguments.Count);
+                    foreach (SemanticExpr arg in call.Arguments)
+                    {
+                        if (arg is VarExpr varExpr)
+                        {
+                            argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                            continue;
+                        }
+
+                        int tmpSlot = ctx.AllocateAnonymousSlot();
+                        argSlots.Add(tmpSlot);
+                        instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                    }
+
+                    instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
+                    break;
+                }
+
                 case WithExpr w:
                 {
                     if (instructions.Count > 0)
@@ -296,21 +316,22 @@ public sealed class IrLowerer
 
     private PlanBlock? LowerWith(WithExpr with, LoweringContext ctx, out string? startLabel)
     {
-        // Each variable in the With gets its own slot + loop.
-        // For multiple variables we nest loops: the outer loop's "body" block
-        // simply redirects to the next inner loop's init, and only the innermost
-        // body block contains the actual predicate body instructions.
+        // Source variables enumerate fact tables. Fresh variables only allocate
+        // slots and start unbound.
         startLabel = null;
-        string? outerStart = null;
         SemanticExpr? remainingBody = with.Body;
+        string? outerStart = null;
 
         var bodyLabels = new List<string>();
         var initLabels = new List<string>();
 
         foreach (VariableSymbol variable in with.Variables)
         {
-            IndexedLookupSpec? indexedLookup = TryExtractIndexedLookup(variable, ref remainingBody, ctx);
             int slot = ctx.AllocateSlot(variable);
+            if (variable.Kind != VariableKind.Source)
+                continue;
+
+            IndexedLookupSpec? indexedLookup = TryExtractIndexedLookup(variable, ref remainingBody, ctx);
             string initLabel = ctx.NextLabel("init");
             string checkLabel = ctx.NextLabel("chk");
             string bindLabel = ctx.NextLabel("bind");
@@ -341,6 +362,19 @@ public sealed class IrLowerer
             ctx.AddBlock(new PlanBlock(nextLabel,
                 new PlanInstruction[] { new IndexIncrInstr(idxVar) },
                 new GotoTerm(checkLabel)));
+        }
+
+        if (bodyLabels.Count == 0)
+        {
+            if (remainingBody is null)
+            {
+                string label = ctx.NextLabel("with");
+                ctx.AddBlock(new PlanBlock(label, Array.Empty<PlanInstruction>(), new SucceedTerm()));
+                startLabel = label;
+                return ctx.FindBlock(label);
+            }
+
+            return LowerExpr(remainingBody, ctx, out startLabel);
         }
 
         // Chain nested loops: each outer body block redirects to the next inner loop's init.
