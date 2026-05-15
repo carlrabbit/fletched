@@ -7,6 +7,7 @@ This directory indexes authoritative behavioral specifications.
 ## Contents
 
 - `example-spec.md`
+- `variable-scope-and-non-terminal-variables.md`
 
 # Authority
 
