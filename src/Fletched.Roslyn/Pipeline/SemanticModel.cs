@@ -5,7 +5,12 @@ namespace Fletched.Roslyn.Pipeline;
 
 // ─── VariableSymbol ────────────────────────────────────────────────────────
 
-public enum VariableKind { Terminal, Local }
+public enum VariableKind
+{
+    Terminal,
+    Source,
+    Fresh
+}
 
 /// <summary>A resolved logical variable with a name, type, and kind.</summary>
 public record VariableSymbol(string Name, ITypeSymbol Type, VariableKind Kind);

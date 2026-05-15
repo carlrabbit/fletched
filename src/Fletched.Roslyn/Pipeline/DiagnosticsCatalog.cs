@@ -113,6 +113,22 @@ public static class DiagnosticsCatalog
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
 
+    public static readonly DiagnosticDescriptor UnsupportedOrAmbiguousWithResolution = new(
+        "FLTCH014",
+        "Unsupported or ambiguous With<T> resolution",
+        "With<T> type '{0}' cannot be resolved deterministically as a source variable or fresh variable",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidScopedVariableEscape = new(
+        "FLTCH015",
+        "Invalid scoped variable escape",
+        "Variable '{0}' escapes its local scope",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
     public static readonly DiagnosticDescriptor UngroundedNegation = new(
         "FLG0001",
         "Ungrounded variable in negation",
