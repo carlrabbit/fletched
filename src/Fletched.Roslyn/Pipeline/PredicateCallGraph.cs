@@ -389,6 +389,10 @@ public static class PredicateRecursionValidator
         return $"{model.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{model.Arity}";
     }
 
+    /// <summary>
+    /// Returns the recursive-negation diagnostic for a cycle.
+    /// Uses FLT2002 when any predicate in the cycle is tabled; otherwise uses FLG0003.
+    /// </summary>
     private static DiagnosticDescriptor GetNegationCycleDiagnostic(PredicateCallGraphCycle cycle)
     {
         return cycle.Nodes.Any(node => PredicateAttributeHelpers.IsTabledPredicate(node.PredicateType))
