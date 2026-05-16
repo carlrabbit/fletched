@@ -391,13 +391,8 @@ public static class PredicateRecursionValidator
 
     private static DiagnosticDescriptor GetNegationCycleDiagnostic(PredicateCallGraphCycle cycle)
     {
-        return cycle.Nodes.Any(IsTabledPredicateNode)
+        return cycle.Nodes.Any(node => PredicateAttributeHelpers.IsTabledPredicate(node.PredicateType))
             ? DiagnosticsCatalog.InvalidTabledNegationCycle
             : DiagnosticsCatalog.UnsupportedRecursiveNegation;
-    }
-
-    private static bool IsTabledPredicateNode(PredicateCallGraphNode node)
-    {
-        return node.PredicateType.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "TabledAttribute");
     }
 }
