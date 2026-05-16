@@ -19,6 +19,7 @@ public sealed class PredicateEmitterAsync
     private readonly string _generatedName;
     private readonly string _resultTypeName;
     private readonly string _contextTypeName;
+    private readonly bool _isTabledPredicate;
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
@@ -57,6 +58,7 @@ public sealed class PredicateEmitterAsync
             ? $"{_model.Name}Result"
             : $"{_generatedName}Result";
         _contextTypeName = SourceSymbolHelpers.GetContextTypeName(_model.Symbol);
+        _isTabledPredicate = PredicateAttributeHelpers.IsTabledPredicate(_model.Symbol);
 
         var slotTypes = plan.SlotMap.ToDictionary(
             kv => kv.Value,
@@ -125,10 +127,17 @@ public sealed class PredicateEmitterAsync
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
-                    ctx.AppendLine($"await foreach (var item in ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
+                    if (_isTabledPredicate)
+                        ctx.AppendLine($"foreach (var item in ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer))");
+                    else
+                        ctx.AppendLine($"await foreach (var item in ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
                     ctx.AppendLine("{");
                     using (ctx.Indent())
+                    {
+                        if (_isTabledPredicate)
+                            ctx.AppendLine("cancellationToken.ThrowIfCancellationRequested();");
                         ctx.AppendLine("yield return item;");
+                    }
                     ctx.AppendLine("}");
                 }
                 ctx.AppendLine("}");
@@ -246,10 +255,17 @@ public sealed class PredicateEmitterAsync
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                ctx.AppendLine($"await foreach (var item in default({predicateTypeName}).ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
+                if (_isTabledPredicate)
+                    ctx.AppendLine($"foreach (var item in default({predicateTypeName}).ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer))");
+                else
+                    ctx.AppendLine($"await foreach (var item in default({predicateTypeName}).ExecuteAsyncArity{_model.Arity}(ctx, observer, cancellationToken))");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
+                {
+                    if (_isTabledPredicate)
+                        ctx.AppendLine("cancellationToken.ThrowIfCancellationRequested();");
                     ctx.AppendLine("yield return item;");
+                }
                 ctx.AppendLine("}");
             }
             ctx.AppendLine("}");
@@ -957,6 +973,13 @@ public sealed class PredicateEmitterAsync
         }
 
         return $"global::System.String.Concat({string.Join(", ", parts)})";
+    }
+
+    private string GetDefaultCanonicalCall()
+    {
+        return _model.Arity == 0
+            ? string.Empty
+            : string.Join("|", Enumerable.Repeat("f", _model.Arity));
     }
 
     private static string IndexMatchesVar(string indexVar) => $"{indexVar}_matches";

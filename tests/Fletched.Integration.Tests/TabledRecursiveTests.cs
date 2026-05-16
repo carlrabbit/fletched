@@ -55,6 +55,33 @@ public class TabledRecursiveTests
     }
 
     [Test]
+    public async Task TabledDirectRecursion_AsyncReturnsExpectedTransitiveClosure()
+    {
+        EngineContext ctx = BuildAncestorContext();
+
+        HashSet<(string Parent, string Child)> results = (await default(TabledAncestor)
+                .ExecuteAsync(ctx)
+                .ToListAsync())
+            .Select(result => (result.parent, result.child))
+            .ToHashSet();
+
+        HashSet<(string Parent, string Child)> expected =
+        [
+            ("A", "B"),
+            ("A", "C"),
+            ("A", "D"),
+            ("A", "E"),
+            ("B", "D"),
+            ("B", "E"),
+            ("C", "D"),
+            ("C", "E"),
+            ("D", "E"),
+        ];
+
+        await Assert.That(results.SetEquals(expected)).IsTrue();
+    }
+
+    [Test]
     [Category("LongRunning")]
     [LongRunningIntegrationTest]
     public async Task TabledDirectRecursion_SyncAndAsyncReturnEquivalentSets()
