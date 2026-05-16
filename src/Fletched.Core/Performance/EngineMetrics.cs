@@ -39,6 +39,12 @@ public static class EngineMetrics
     /// <summary>Incremented whenever a predicate invocation fails in the caller.</summary>
     public static Counter<long> PredicateInvocationFailures = null!;
 
+    /// <summary>Incremented when a recursive invocation frame is entered.</summary>
+    public static Counter<long> RecursiveInvocations = null!;
+
+    /// <summary>Records observed recursive invocation depth values.</summary>
+    public static Histogram<long> RecursiveDepth = null!;
+
     /// <summary>
     /// Convenience initialiser: creates a <see cref="Meter"/> named <paramref name="meterName"/>
     /// and registers all counters. Call once at application startup before running queries.
@@ -56,6 +62,8 @@ public static class EngineMetrics
         PredicateInvocationResumes = meter.CreateCounter<long>("predicate_invocation_resumes");
         PredicateInvocationExhaustions = meter.CreateCounter<long>("predicate_invocation_exhaustions");
         PredicateInvocationFailures = meter.CreateCounter<long>("predicate_invocation_failures");
+        RecursiveInvocations = meter.CreateCounter<long>("recursive_invocations");
+        RecursiveDepth = meter.CreateHistogram<long>("recursive_depth");
         return meter;
     }
 }

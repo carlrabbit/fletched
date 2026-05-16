@@ -497,7 +497,24 @@ public sealed class PredicateEmitterAsync
         {
             ctx.AppendMetricIncrement("PredicateInvocations");
             ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
-            ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            ctx.AppendLine($"global::Fletched.Core.Runtime.RecursionGuard.EnterPredicateInvocation(ctx, \"{call.PredicateType.Name}\", observer);");
+            ctx.AppendMetricIncrement("RecursiveInvocations");
+            ctx.AppendDirective("#if METRICS");
+            ctx.AppendLine("global::Fletched.Core.Performance.EngineMetrics.RecursiveDepth.Record(global::Fletched.Core.Runtime.RecursionGuard.GetCurrentDepth(ctx));");
+            ctx.AppendDirective("#endif");
+            ctx.AppendLine("try");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+                ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            ctx.AppendLine("}");
+            ctx.AppendLine("catch");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.ExitPredicateInvocation(ctx);");
+                ctx.AppendLine("throw;");
+            }
+            ctx.AppendLine("}");
             ctx.AppendLine($"{callInfo.ActiveVar} = true;");
             ctx.AppendLine($"{callInfo.ProducedVar} = false;");
         }
@@ -508,7 +525,27 @@ public sealed class PredicateEmitterAsync
             ctx.AppendMetricIncrement("PredicateInvocationResumes");
         ctx.AppendLine("}");
 
-        ctx.AppendLine($"if ({callInfo.EnumeratorVar} is null || !{callInfo.EnumeratorVar}.MoveNext())");
+        string movedNextVar = $"_callMovedNext_{callInfo.Id}";
+        ctx.AppendLine($"bool {movedNextVar};");
+        ctx.AppendLine("try");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+            ctx.AppendLine($"{movedNextVar} = {callInfo.EnumeratorVar} is not null && {callInfo.EnumeratorVar}.MoveNext();");
+        ctx.AppendLine("}");
+        ctx.AppendLine("catch");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine($"{callInfo.EnumeratorVar}?.Dispose();");
+            ctx.AppendLine($"{callInfo.EnumeratorVar} = null;");
+            ctx.AppendLine($"{callInfo.ActiveVar} = false;");
+            ctx.AppendLine($"{callInfo.ProducedVar} = false;");
+            ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.ExitPredicateInvocation(ctx);");
+            ctx.AppendLine("throw;");
+        }
+        ctx.AppendLine("}");
+
+        ctx.AppendLine($"if (!{movedNextVar})");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
@@ -522,6 +559,7 @@ public sealed class PredicateEmitterAsync
             ctx.AppendLine($"{callInfo.EnumeratorVar} = null;");
             ctx.AppendLine($"{callInfo.ActiveVar} = false;");
             ctx.AppendLine($"{callInfo.ProducedVar} = false;");
+            ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.ExitPredicateInvocation(ctx);");
             ctx.AppendLine($"_pc = {PcFail};");
             ctx.AppendLine("break;");
         }
@@ -562,23 +600,39 @@ public sealed class PredicateEmitterAsync
             string notFoundVar = $"_notFound_{_notCounter++}";
             string resultVar = $"_notResult_{call.PredicateType.Name}";
             ctx.AppendLine($"bool {notFoundVar} = false;");
-            ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
+            ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.EnterNegationScope(ctx);");
+            ctx.AppendLine("try");
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                var conditions = new List<string>();
-                for (int i = 0; i < call.ArgumentSlots.Count; i++)
+                ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
                 {
-                    string slotName = SlotName(call.ArgumentSlots[i]);
-                    string resultField = GetCallResultFieldName(call, i);
-                    conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
+                    var conditions = new List<string>();
+                    for (int i = 0; i < call.ArgumentSlots.Count; i++)
+                    {
+                        string slotName = SlotName(call.ArgumentSlots[i]);
+                        string resultField = GetCallResultFieldName(call, i);
+                        conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
+                    }
+                    string guard = conditions.Count > 0
+                        ? string.Join(" && ", conditions)
+                        : "true";
+                    ctx.AppendLine($"if ({guard}) {{ {notFoundVar} = true; break; }}");
                 }
-                string guard = conditions.Count > 0
-                    ? string.Join(" && ", conditions)
-                    : "true";
-                ctx.AppendLine($"if ({guard}) {{ {notFoundVar} = true; break; }}");
+                ctx.AppendLine("}");
             }
             ctx.AppendLine("}");
+            ctx.AppendLine("catch");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.ExitNegationScope(ctx);");
+                ctx.AppendLine("throw;");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("global::Fletched.Core.Runtime.RecursionGuard.ExitNegationScope(ctx);");
             ctx.AppendLine($"if ({notFoundVar}) {{ _pc = {PcFail}; break; }}");
             return;
         }

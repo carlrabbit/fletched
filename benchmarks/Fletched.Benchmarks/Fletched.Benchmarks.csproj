@@ -16,5 +16,9 @@
     <ProjectReference Include="../../src/Fletched.Core/Fletched.Core.csproj" />
     <!-- Regular (non-analyzer) reference so we can call the pipeline types directly. -->
     <ProjectReference Include="../../src/Fletched.Roslyn/Fletched.Roslyn.csproj" />
+    <!-- Analyzer reference so benchmark predicate/fact declarations are source-generated. -->
+    <ProjectReference Include="../../src/Fletched.Roslyn/Fletched.Roslyn.csproj"
+                      OutputItemType="Analyzer"
+                      ReferenceOutputAssembly="false" />
   </ItemGroup>
 </Project>

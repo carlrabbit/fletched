@@ -25,6 +25,8 @@ public class EngineMetricsTests
         await Assert.That(EngineMetrics.PredicateInvocationResumes).IsNotNull();
         await Assert.That(EngineMetrics.PredicateInvocationExhaustions).IsNotNull();
         await Assert.That(EngineMetrics.PredicateInvocationFailures).IsNotNull();
+        await Assert.That(EngineMetrics.RecursiveInvocations).IsNotNull();
+        await Assert.That(EngineMetrics.RecursiveDepth).IsNotNull();
     }
 
     [Test]
@@ -53,6 +55,8 @@ public class EngineMetricsTests
             EngineMetrics.PredicateInvocationResumes.Add(1);
             EngineMetrics.PredicateInvocationExhaustions.Add(1);
             EngineMetrics.PredicateInvocationFailures.Add(1);
+            EngineMetrics.RecursiveInvocations.Add(1);
+            EngineMetrics.RecursiveDepth.Record(2);
         }
         catch (Exception e)
         {
@@ -81,5 +85,26 @@ public class EngineMetricsTests
         listener.RecordObservableInstruments();
 
         await Assert.That(received).IsGreaterThanOrEqualTo(3L);
+    }
+
+    [Test]
+    public async Task MeterListener_ReceivesRecursiveDepthMeasurements()
+    {
+        long receivedDepth = 0;
+        using var listener = new MeterListener();
+        listener.InstrumentPublished = (instrument, l) =>
+        {
+            if (instrument.Name == "recursive_depth")
+                l.EnableMeasurementEvents(instrument);
+        };
+        listener.SetMeasurementEventCallback<long>((_, value, _, _) =>
+            System.Threading.Interlocked.Add(ref receivedDepth, value));
+        listener.Start();
+
+        using Meter meter = EngineMetrics.Initialize("test-meter-recursive-depth");
+        EngineMetrics.RecursiveDepth.Record(3);
+        listener.RecordObservableInstruments();
+
+        await Assert.That(receivedDepth).IsGreaterThanOrEqualTo(3L);
     }
 }

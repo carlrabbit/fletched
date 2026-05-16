@@ -27,4 +27,10 @@ public interface IExecutionObserver
 
     /// <summary>Called when a sub-predicate is invoked.</summary>
     void OnPredicateInvocation(string predicateName);
+
+    /// <summary>Called when a predicate invocation enters a deeper recursion depth.</summary>
+    void OnRecursiveInvocation(string predicateName, int depth);
+
+    /// <summary>Called when recursion depth exceeds the configured maximum.</summary>
+    void OnRecursiveDepthExceeded(string predicateName, int depth, int maxDepth, bool insideNegation);
 }
