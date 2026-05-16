@@ -37,6 +37,14 @@ public partial record struct BenchAncestor
 }
 
 [Predicate]
+public partial record struct BenchAncestorFromRoot
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> child) =>
+        BenchAncestor("node-0", child);
+}
+
+[Predicate]
 public partial record struct BenchAncestorStep
 {
     [PredicateBody]
@@ -163,6 +171,10 @@ public class RecursivePredicateBenchmarks
     public int LinearAncestorTraversal_ResultCount() =>
         default(BenchAncestor).Execute(_linearContext).Count();
 
+    [Benchmark(Description = "RPB-001B Bound linear ancestor traversal")]
+    public int BoundLinearAncestorTraversal_ResultCount() =>
+        default(BenchAncestorFromRoot).Execute(_linearContext).Count();
+
     [Benchmark(Description = "RPB-002 Branching tree traversal")]
     public int BranchingTreeTraversal_ResultCount() =>
         default(BenchTreeDescendant).Execute(_treeContext).Count();
@@ -190,6 +202,10 @@ public class RecursivePredicateBenchmarks
         int expectedLinearCount = LinearEdgeCount * (LinearEdgeCount + 1) / 2;
         Ensure(linearCount == expectedLinearCount,
             $"Unexpected linear recursive result count: expected {expectedLinearCount}, actual {linearCount}.");
+
+        int boundLinearCount = default(BenchAncestorFromRoot).Execute(_linearContext).Count();
+        Ensure(boundLinearCount == LinearEdgeCount,
+            $"Unexpected bound linear recursive result count: expected {LinearEdgeCount}, actual {boundLinearCount}.");
 
         int treeCount = default(BenchTreeDescendant).Execute(_treeContext).Count();
         int expectedTreeCount = ExpectedTreeAncestorPairs(BranchingFactor, TreeDepth);

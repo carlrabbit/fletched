@@ -175,6 +175,11 @@ Runtime Recursion Safety Diagnostics
 | FLT2002 | InvalidTabledNegationCycle | Tabled predicate participates in recursive negation cycle. |
 | FLT2003 | AmbiguousTableKey | Table key cannot be constructed deterministically. |
 | FLT2004 | UnsupportedAsyncTablePattern | Async tabled recursive pattern is unsupported. |
+| FLM3001 | MagicRewriteUnsupported | Magic-set rewriting is unsupported for the predicate/query shape. |
+| FLM3002 | MagicRewriteSkippedAllFree | Magic-set rewriting skipped because all arguments are free. |
+| FLM3003 | MagicRewriteRejectedNegation | Magic-set rewriting rejected because recursive negation is involved. |
+| FLM3004 | MissingRecursiveIndex | Recursive access path could benefit from a missing index. |
+| FLM3005 | AmbiguousAdornment | Binding pattern could not be determined safely. |
 
 ---
 

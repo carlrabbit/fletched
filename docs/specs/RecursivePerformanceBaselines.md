@@ -27,6 +27,17 @@ Metrics:
 - recursive depth observations
 - backtracks
 
+### RPB-001B — Bound Linear Ancestor Traversal
+
+Measures the same linear ancestor workload with the root argument bound at query entry.
+
+Metrics:
+
+- total results
+- elapsed time
+- allocations
+- index hits/scans
+
 ### RPB-002 — Branching Tree Traversal
 
 Measures recursive branching behavior over tree-like facts.

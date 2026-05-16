@@ -29,3 +29,5 @@ Define how attributed source moves from user-written facts and predicates to gen
 - `docs/architecture/execution-model.md`
 - `docs/specs/EngineContext.md`
 - `docs/specs/IndexedSources.md`
+- `docs/specs/FactSourcesAndIndexes.md`
+- `docs/specs/RecursiveAccessPaths.md`
