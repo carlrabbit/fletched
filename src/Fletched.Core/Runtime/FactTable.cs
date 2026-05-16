@@ -7,6 +7,11 @@ namespace Fletched.Core.Runtime;
 /// <summary>
 /// In-memory table of fact instances of type <typeparamref name="T"/>.
 /// </summary>
+public readonly record struct GeneratedFactIndexAccessor<T>(string Name, Func<T, object?> GetValue);
+
+/// <summary>
+/// In-memory table of fact instances of type <typeparamref name="T"/>.
+/// </summary>
 public sealed class FactTable<T>
 {
     private readonly Dictionary<string, FactIndex> _indexes = new(StringComparer.Ordinal);
@@ -20,35 +25,45 @@ public sealed class FactTable<T>
 
     public bool TryGetIndex(string memberName, object? key, out int[] indices)
     {
-        FactIndex index = GetOrCreateIndex(memberName);
+        FactIndex index = GetOrCreateIndex(memberName, getValue: null);
         return index.TryGetIndices(key, out indices);
     }
 
-    private FactIndex GetOrCreateIndex(string memberName)
+    public bool TryGetIndex(GeneratedFactIndexAccessor<T> accessor, object? key, out int[] indices)
+    {
+        if (string.IsNullOrWhiteSpace(accessor.Name))
+            throw new ArgumentException("Accessor name must not be null or whitespace.", nameof(accessor));
+
+        if (accessor.GetValue is null)
+            throw new ArgumentException("Accessor getter must not be null.", nameof(accessor));
+
+        FactIndex index = GetOrCreateIndex(accessor.Name, accessor.GetValue);
+        return index.TryGetIndices(key, out indices);
+    }
+
+    private FactIndex GetOrCreateIndex(string memberName, Func<T, object?>? getValue)
     {
         lock (_sync)
         {
             if (_indexes.TryGetValue(memberName, out FactIndex? existing))
                 return existing;
 
-            FactIndex created = BuildIndex(memberName);
+            FactIndex created = BuildIndex(memberName, getValue);
             _indexes[memberName] = created;
             return created;
         }
     }
 
-    private FactIndex BuildIndex(string memberName)
+    private FactIndex BuildIndex(string memberName, Func<T, object?>? getValue)
     {
-        MemberInfo member = (MemberInfo?)typeof(T).GetProperty(memberName)
-            ?? typeof(T).GetField(memberName)
-            ?? throw new InvalidOperationException($"Fact type '{typeof(T).Name}' does not contain member '{memberName}'.");
+        getValue ??= CreateReflectionAccessor(memberName);
 
         var buckets = new Dictionary<object, List<int>>();
         List<int>? nullBucket = null;
 
         for (int index = 0; index < Data.Length; index++)
         {
-            object? key = GetMemberValue(member, Data[index]);
+            object? key = getValue(Data[index]);
             if (key is null)
             {
                 nullBucket ??= [];
@@ -70,6 +85,15 @@ public sealed class FactTable<T>
             frozenBuckets[bucket.Key] = bucket.Value.ToArray();
 
         return new FactIndex(frozenBuckets, nullBucket?.ToArray());
+    }
+
+    private static Func<T, object?> CreateReflectionAccessor(string memberName)
+    {
+        MemberInfo member = (MemberInfo?)typeof(T).GetProperty(memberName)
+            ?? typeof(T).GetField(memberName)
+            ?? throw new InvalidOperationException($"Fact type '{typeof(T).Name}' does not contain member '{memberName}'.");
+
+        return value => GetMemberValue(member, value);
     }
 
     private static object? GetMemberValue(MemberInfo member, T value)

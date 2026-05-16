@@ -371,6 +371,8 @@ public sealed class PredicateEmitterAsync
     {
         string tableProp = TablePropertyName(init.FactType);
         string matchesVar = IndexMatchesVar(init.IndexVar);
+        string factTypeName = init.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        string accessorExpression = $"new global::Fletched.Core.Runtime.GeneratedFactIndexAccessor<{factTypeName}>(\"{init.IndexedLookup?.MemberName}\", static fact => fact.{init.IndexedLookup?.MemberName})";
 
         if (init.IndexedLookup is null)
         {
@@ -392,7 +394,7 @@ public sealed class PredicateEmitterAsync
                 {
                     ctx.AppendMetricIncrement("IndexHits");
                     ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", state.{slotName}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
+                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
                 }
                 ctx.AppendLine("}");
                 ctx.AppendLine("else");
@@ -411,7 +413,7 @@ public sealed class PredicateEmitterAsync
                 ctx.AppendLine($"{init.IndexVar} = 0;");
                 ctx.AppendMetricIncrement("IndexHits");
                 ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex(\"{init.IndexedLookup.MemberName}\", {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
+                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
                 return;
         }
     }

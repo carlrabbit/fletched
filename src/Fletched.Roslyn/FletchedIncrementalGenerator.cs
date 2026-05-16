@@ -107,7 +107,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             foreach (PredicateModel model in models)
             {
                 var lowerer = new IrLowerer(reporter);
-                PlanProgram? plan = lowerer.Lower(model);
+                PlanProgram? plan = lowerer.Lower(model, callGraph);
 
                 foreach (Diagnostic d in reporter.Diagnostics)
                     spc.ReportDiagnostic(d);

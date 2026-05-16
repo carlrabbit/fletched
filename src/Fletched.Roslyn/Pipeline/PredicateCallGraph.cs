@@ -114,6 +114,27 @@ public sealed class PredicateCallGraph
         return tabledCount > 1;
     }
 
+    public bool IsInSameRecursiveComponent(PredicateCallGraphNode left, PredicateCallGraphNode right)
+    {
+        if (!_componentsByNodeId.TryGetValue(left.Id, out IReadOnlyList<PredicateCallGraphNode>? component))
+            return false;
+
+        return component.Any(node => node.Id == right.Id)
+            && (component.Count > 1 || left.Id == right.Id && IsDirectRecursive(left));
+    }
+
+    public bool HasNegativeCycle(PredicateCallGraphNode node)
+    {
+        if (!_componentsByNodeId.TryGetValue(node.Id, out IReadOnlyList<PredicateCallGraphNode>? component))
+            return false;
+
+        var componentIds = new HashSet<string>(component.Select(componentNode => componentNode.Id), StringComparer.Ordinal);
+        return _edges.Any(edge =>
+            edge.IsNegative
+            && componentIds.Contains(edge.From.Id)
+            && componentIds.Contains(edge.To.Id));
+    }
+
     public IReadOnlyList<PredicateCallGraphCycle> GetNegativeCycles()
     {
         var cycles = new List<PredicateCallGraphCycle>();

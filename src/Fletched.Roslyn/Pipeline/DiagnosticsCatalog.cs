@@ -200,4 +200,44 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MagicRewriteUnsupported = new(
+        "FLM3001",
+        "Magic rewrite unsupported",
+        "Magic-set rewriting is unsupported for '{0}' and the planner will use the conservative fallback plan",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MagicRewriteSkippedAllFree = new(
+        "FLM3002",
+        "Magic rewrite skipped for all-free call",
+        "Magic-set rewriting was skipped for '{0}' because all arguments are free",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MagicRewriteRejectedNegation = new(
+        "FLM3003",
+        "Magic rewrite rejected by negation",
+        "Magic-set rewriting was rejected for '{0}' because recursive negation is involved",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor MissingRecursiveIndex = new(
+        "FLM3004",
+        "Missing recursive index",
+        "Recursive predicate '{0}' could benefit from an indexed access path",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor AmbiguousAdornment = new(
+        "FLM3005",
+        "Ambiguous adornment",
+        "Binding pattern for '{0}' could not be determined safely and the planner used a conservative free adornment",
+        Category,
+        DiagnosticSeverity.Warning,
+        isEnabledByDefault: true);
 }
