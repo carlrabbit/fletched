@@ -50,6 +50,8 @@ static class EngineMetrics
     public static Counter<long> IndexHits;
 
     public static Counter<long> PredicateInvocations;
+    public static Counter<long> RecursiveInvocations;
+    public static Histogram<long> RecursiveDepth;
 }
 
 ---
@@ -89,6 +91,8 @@ interface IExecutionObserver
     void OnIndexHit(string factName);
 
     void OnPredicateInvocation(string predicateName);
+    void OnRecursiveInvocation(string predicateName, int depth);
+    void OnRecursiveDepthExceeded(string predicateName, int depth, int maxDepth, bool insideNegation);
 }
 
 ---
@@ -170,6 +174,10 @@ interface IExecutionObserver
 
 - Each predicate call MUST increment:
   - "PredicateInvocations"
+- Recursive invocation entry MUST increment:
+  - "RecursiveInvocations"
+- Recursive invocation depth MUST be recorded:
+  - "RecursiveDepth"
 
 ---
 

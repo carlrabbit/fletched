@@ -15,9 +15,10 @@ Defines the runtime container that exposes fact tables to generated predicates.
 
 public partial class EngineContext
 {
+    public EngineRuntimeOptions RuntimeOptions { get; }
 }
 
-The base declaration contains no hand-written members beyond the partial type itself.
+The base declaration includes runtime options and recursion-safety tracking helpers.
 
 ---
 
@@ -68,6 +69,7 @@ The context provides access to fact data but does not store per-query execution 
 - Each generated fact property MUST default to a non-null `FactTable<TFact>` instance.
 - Predicates MUST receive `EngineContext` as an explicit parameter; no ambient/global context is used.
 - `EngineContext` holds shared runtime fact storage only; bindings, frames, and trail state live in generated execution state.
+- Runtime options MUST support recursion safety policy configuration (`MaxRecursionDepth`).
 
 ---
 

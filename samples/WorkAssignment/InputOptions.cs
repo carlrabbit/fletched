@@ -1,11 +1,17 @@
 namespace WorkAssignment;
 
-public sealed record InputOptions(int Year, int Month, string? CsvPath, int? WorkerCount, string? Seed)
+public sealed record InputOptions(
+    int Year,
+    int Month,
+    string? CsvPath,
+    int? WorkerCount,
+    string? Seed,
+    int? MaxRecursionDepth)
 {
     public const string UsageText =
         "Usage:\n" +
-        "  WorkAssignment --year <year> --month <month> --csv <path-to-workers.csv>\n" +
-        "  WorkAssignment --year <year> --month <month> --workers <number> --seed <seed-text>";
+        "  WorkAssignment --year <year> --month <month> [--max-recursion-depth <positive-integer>] --csv <path-to-workers.csv>\n" +
+        "  WorkAssignment --year <year> --month <month> [--max-recursion-depth <positive-integer>] --workers <number> --seed <seed-text>";
 
     public static InputOptions Parse(string[] args)
     {
@@ -19,6 +25,7 @@ public sealed record InputOptions(int Year, int Month, string? CsvPath, int? Wor
         string? csvPath = null;
         int? workerCount = null;
         string? seed = null;
+        int? maxRecursionDepth = null;
 
         for (int index = 0; index < args.Length; index++)
         {
@@ -46,6 +53,9 @@ public sealed record InputOptions(int Year, int Month, string? CsvPath, int? Wor
                 case "--seed":
                     seed = ReadValue(args, ref index, "--seed");
                     break;
+                case "--max-recursion-depth":
+                    maxRecursionDepth = ParsePositiveInt(ReadValue(args, ref index, "--max-recursion-depth"), "--max-recursion-depth");
+                    break;
                 case "--help":
                 case "-h":
                     throw new InvalidOperationException("Help requested.");
@@ -66,7 +76,7 @@ public sealed record InputOptions(int Year, int Month, string? CsvPath, int? Wor
                 throw new InvalidOperationException("--csv cannot be combined with --workers or --seed.");
             }
 
-            return new InputOptions(year.Value, month.Value, csvPath, null, null);
+            return new InputOptions(year.Value, month.Value, csvPath, null, null, maxRecursionDepth);
         }
 
         if (workerCount is null)
@@ -75,7 +85,7 @@ public sealed record InputOptions(int Year, int Month, string? CsvPath, int? Wor
         }
 
         seed ??= "default";
-        return new InputOptions(year.Value, month.Value, null, workerCount, seed);
+        return new InputOptions(year.Value, month.Value, null, workerCount, seed, maxRecursionDepth);
     }
 
     private static string ReadValue(string[] args, ref int index, string option)

@@ -150,6 +150,26 @@ Recursive predicate behavior where a cycle spans two or more predicate identitie
 
 A recursive predicate cycle that contains at least one predicate call evaluated inside `Not(...)`.
 
+## Recursive Depth
+
+Number of active predicate invocation frames in a recursive call chain.
+
+## Recursion Guard
+
+Operational recursion-depth limit that prevents unbounded recursive execution from exhausting runtime resources.
+
+## Guard Violation
+
+Runtime operational failure event emitted when recursive depth exceeds configured maximum depth.
+
+## Productive Recursion
+
+Recursive execution that yields at least one solution before guard violation or search exhaustion.
+
+## Non-Productive Recursion
+
+Recursive execution that continues recursive expansion without yielding a solution first.
+
 ## Predicate Call Graph
 
 The directed graph of predicate identities and positive or negative invocation edges used for recursion classification and recursive-negation diagnostics.

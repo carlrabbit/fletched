@@ -44,9 +44,13 @@ Specs are not architecture overviews.
 | [`ModulesAndScopes.md`](ModulesAndScopes.md) | Module and scope specification |
 | [`Not.md`](Not.md) | Negation behavior specification |
 | [`Optimization.md`](Optimization.md) | Optimization specification |
+| [`Observability.md`](Observability.md) | Runtime observability and metrics specification |
 | [`Overview.md`](Overview.md) | System overview specification |
 | [`Performance.md`](Performance.md) | Performance specification |
 | [`PredicateInvocation.md`](PredicateInvocation.md) | Predicate invocation specification |
+| [`RecursivePerformanceBaselines.md`](RecursivePerformanceBaselines.md) | Recursive benchmark and baseline specification |
+| [`RecursivePredicates.md`](RecursivePredicates.md) | Recursive predicate behavior and constraints specification |
+| [`RecursiveSafety.md`](RecursiveSafety.md) | Recursive operational safety and guard behavior specification |
 | [`ResultProjection.md`](ResultProjection.md) | Result projection specification |
 | [`SemanticModel.md`](SemanticModel.md) | Semantic model specification |
 | [`StateModel.md`](StateModel.md) | State model specification |

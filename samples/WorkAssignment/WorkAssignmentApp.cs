@@ -27,7 +27,11 @@ public static class WorkAssignmentApp
             using Meter meter = EngineMetrics.Initialize("work-assignment");
 
             IReadOnlyList<AssignmentResult> assignments =
-                WorkAssignmentSolver.FindFirstAssignments(shifts, workers, MaxAssignmentsToShow);
+                WorkAssignmentSolver.FindFirstAssignments(
+                    shifts,
+                    workers,
+                    MaxAssignmentsToShow,
+                    options.MaxRecursionDepth);
 
             Console.WriteLine($"Schedule month: {options.Year:D4}-{options.Month:D2}");
             Console.WriteLine();
@@ -103,15 +107,31 @@ public static class WorkAssignmentApp
     {
         Console.WriteLine("Collected metrics (in-memory collector):");
 
-        if (metrics.Count == 0)
+        string[] expectedMetrics =
+        [
+            "unify_attempts",
+            "unify_failures",
+            "backtrack_count",
+            "choice_point_count",
+            "fact_scans",
+            "index_hits",
+            "predicate_invocations",
+            "predicate_invocation_resumes",
+            "predicate_invocation_exhaustions",
+            "predicate_invocation_failures",
+            "recursive_invocations",
+            "recursive_depth",
+        ];
+
+        foreach (string metricName in expectedMetrics)
         {
-            Console.WriteLine("- (none)");
-            return;
+            long value = metrics.TryGetValue(metricName, out long measuredValue) ? measuredValue : 0;
+            Console.WriteLine($"- {metricName}: {value}");
         }
 
-        foreach (KeyValuePair<string, long> metric in metrics.OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
-        {
+        foreach (KeyValuePair<string, long> metric in metrics
+                     .Where(kvp => !expectedMetrics.Contains(kvp.Key, StringComparer.Ordinal))
+                     .OrderBy(kvp => kvp.Key, StringComparer.Ordinal))
             Console.WriteLine($"- {metric.Key}: {metric.Value}");
-        }
     }
 }

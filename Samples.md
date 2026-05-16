@@ -22,7 +22,7 @@ It:
 ### Generated input
 
 ```bash
-dotnet run --project samples/WorkAssignment -- --year 2026 --month 2 --workers 4 --seed alpha
+dotnet run --project samples/WorkAssignment -- --year 2026 --month 2 --workers 4 --seed alpha --max-recursion-depth 64
 ```
 
 This generates a deterministic worker set for the requested month from the
@@ -32,7 +32,7 @@ excluded automatically.
 ### CSV input
 
 ```bash
-dotnet run --project samples/WorkAssignment -- --year 2026 --month 2 --csv /path/to/workers.csv
+dotnet run --project samples/WorkAssignment -- --year 2026 --month 2 --csv /path/to/workers.csv --max-recursion-depth 64
 ```
 
 The CSV format is:
@@ -59,4 +59,5 @@ belong to the requested `--year` and `--month`.
 - module-scoped Fletched facts and predicates in an application project
 - describing a month-sized assignment problem in the Fletched DSL
 - executing the generated query code from a console app
-- formatting multiple solutions and engine metrics gathered from `EngineMetrics`
+- configuring runtime recursion guard policy via `--max-recursion-depth`
+- formatting multiple solutions and engine metrics gathered from `EngineMetrics`, including recursive metrics such as `recursive_invocations` and `recursive_depth`

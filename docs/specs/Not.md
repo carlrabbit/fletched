@@ -122,6 +122,10 @@ No Binding Effect
 
 Not(G) must not bind or modify any variable in outer scope
 
+Operational Errors
+
+Operational guard violations (for example recursion depth guard failures) inside `Not(...)` must propagate as operational failures and must not be converted into negation success.
+
 
 
 ---

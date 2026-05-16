@@ -52,6 +52,28 @@ public partial record struct ObserverSkuJoin
                 p.Sku == sku && q.Sku == sku));
 }
 
+[Fact]
+public partial record struct ObserverEdge(string Parent, string Child);
+
+[Predicate]
+public partial record struct ObserverAncestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<ObserverEdge>(edge => edge.Parent == parent && edge.Child == child) ||
+        ObserverAncestorStep(parent, child);
+}
+
+[Predicate]
+public partial record struct ObserverAncestorStep
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<string>(middle =>
+            Logic.With<ObserverEdge>(edge => edge.Parent == parent && edge.Child == middle) &&
+            ObserverAncestor(middle, child));
+}
+
 // ── Recording observer implementation ───────────────────────────────────────
 
 internal sealed class RecordingObserver : IExecutionObserver
@@ -65,6 +87,9 @@ internal sealed class RecordingObserver : IExecutionObserver
     public void OnFactScan(string factName) => Events.Add(("FactScan", factName));
     public void OnIndexHit(string factName) => Events.Add(("IndexHit", factName));
     public void OnPredicateInvocation(string predicateName) => Events.Add(("PredicateInvocation", predicateName));
+    public void OnRecursiveInvocation(string predicateName, int depth) => Events.Add(("RecursiveInvocation", (predicateName, depth)));
+    public void OnRecursiveDepthExceeded(string predicateName, int depth, int maxDepth, bool insideNegation) =>
+        Events.Add(("RecursiveDepthExceeded", (predicateName, depth, maxDepth, insideNegation)));
 }
 
 // ── Tests ────────────────────────────────────────────────────────────────────
@@ -79,6 +104,18 @@ public class ExecutionObserverTests
             new ObserverProduct("SKU-001", "Electronics", 299),
             new ObserverProduct("SKU-002", "Books",       15),
             new ObserverProduct("SKU-003", "Electronics", 499),
+        });
+        return ctx;
+    }
+
+    private static EngineContext BuildRecursiveContext()
+    {
+        var ctx = new EngineContext();
+        ctx.ObserverEdges = new FactTable<ObserverEdge>(new[]
+        {
+            new ObserverEdge("A", "B"),
+            new ObserverEdge("B", "C"),
+            new ObserverEdge("C", "D"),
         });
         return ctx;
     }
@@ -229,5 +266,25 @@ public class ExecutionObserverTests
         bool hasIndexHit = observer.Events.Any(e => e.Event == "IndexHit" && Equals(e.Arg, "ObserverProduct"));
         await Assert.That(results.Count).IsEqualTo(3);
         await Assert.That(hasIndexHit).IsTrue();
+    }
+
+    [Test]
+    public async Task RecursiveExecute_WithObserver_ReceivesRecursiveInvocationEvents()
+    {
+        EngineContext ctx = BuildRecursiveContext();
+        RecursionGuard.SetMaxRecursionDepth(ctx, 4);
+        var observer = new RecordingObserver();
+        try
+        {
+            _ = default(ObserverAncestor).Execute(ctx, observer).ToList();
+        }
+        catch (RecursiveDepthExceededException)
+        {
+        }
+
+        bool hasRecursiveInvocation = observer.Events.Any(e => e.Event == "RecursiveInvocation");
+        bool hasDepthExceeded = observer.Events.Any(e => e.Event == "RecursiveDepthExceeded");
+        await Assert.That(hasRecursiveInvocation).IsTrue();
+        await Assert.That(hasDepthExceeded).IsTrue();
     }
 }

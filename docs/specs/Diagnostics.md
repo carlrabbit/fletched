@@ -69,7 +69,7 @@ record PlanDebugView(string Text);
 General
 
 - Diagnostics are emitted only during source generation.
-- No runtime diagnostics are generated.
+- Runtime operational diagnostics are limited to recursion-safety guard violations (`FLR1001`-`FLR1003`).
 - All errors prevent code generation for the affected predicate.
 - Warnings do not prevent code generation.
 - Each diagnostic must reference a precise "Location".
@@ -161,6 +161,16 @@ Negation and Invocation Safety
 
 - Invocation patterns inside `Not(...)` that are not safely ground must be rejected before emission.
   → otherwise: "FLG0004 / UnsupportedInvocationPatternInNegation"
+
+---
+
+Runtime Recursion Safety Diagnostics
+
+| ID | Name | Meaning |
+|---|---|---|
+| FLR1001 | RecursiveDepthExceeded | Runtime recursive depth exceeded configured maximum. |
+| FLR1002 | InvalidRecursionDepthConfiguration | Configured recursion depth is zero or negative. |
+| FLR1003 | RecursiveGuardInsideNegation | Guard violation occurred inside negation and is reported as operational failure. |
 
 ---
 

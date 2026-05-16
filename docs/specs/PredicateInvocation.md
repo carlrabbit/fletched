@@ -134,6 +134,12 @@ Recursive Invocation Constraints
 - Each recursive success still copies results back by callee terminal parameter position rather than caller-local slot naming.
 - Recursive classification is determined from the predicate call graph using predicate identity plus arity.
 
+Operational Safety
+
+- Recursive predicates do not guarantee termination.
+- Operational recursion safety, including recursion depth guard behavior, is defined in `RecursiveSafety.md`.
+- Recursion guard violations are operational errors and are not logical predicate failure.
+
 ---
 
 Generated Call Pattern
