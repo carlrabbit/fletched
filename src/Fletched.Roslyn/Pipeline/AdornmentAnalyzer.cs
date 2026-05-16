@@ -114,9 +114,9 @@ public static class AdornmentAnalyzer
     private static void PropagateBindings(
         SemanticExpr source,
         SemanticExpr target,
-        IDictionary<VariableSymbol, bool> state)
+        Dictionary<VariableSymbol, bool> state)
     {
-        if (!IsGround(source, state.ToDictionary(pair => pair.Key, pair => pair.Value)))
+        if (!IsGround(source, state))
             return;
 
         BindIntroducedVariables(target, state);

@@ -68,8 +68,8 @@ public static class QueryMagicRuntime
         {
             lock (_gate)
             {
-                if (_activeScopes <= 0)
-                    return;
+                if (_activeScopes == 0)
+                    throw new InvalidOperationException("Query magic scope exited without a matching active scope.");
 
                 _activeScopes--;
                 if (_activeScopes == 0)
