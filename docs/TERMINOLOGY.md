@@ -134,6 +134,26 @@ A single successful `MoveNext` result that yields one logical solution to the ca
 
 The terminal `MoveNext == false` state indicating no additional callee solutions remain.
 
+## Recursive Predicate
+
+A predicate whose invocation call graph contains a path from that predicate identity back to itself.
+
+## Direct Recursion
+
+Recursive predicate behavior where a predicate identity calls itself directly.
+
+## Mutual Recursion
+
+Recursive predicate behavior where a cycle spans two or more predicate identities.
+
+## Negative Recursion
+
+A recursive predicate cycle that contains at least one predicate call evaluated inside `Not(...)`.
+
+## Predicate Call Graph
+
+The directed graph of predicate identities and positive or negative invocation edges used for recursion classification and recursive-negation diagnostics.
+
 # Authority
 
 This document is authoritative for:

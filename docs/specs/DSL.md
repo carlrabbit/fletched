@@ -219,7 +219,8 @@ Restrictions
 - No loops, assignments, or control flow constructs
 - No mutation of variables
 - No invocation of arbitrary external code
-- No recursion at DSL level (handled via predicate calls)
+- Positive recursion is allowed only through predicate calls and keeps ordinary predicate invocation semantics
+- Recursive negation is not allowed
 - "Not(expr)" requires all referenced outward-visible variables to be ground at evaluation time
 - "Not(expr)" must not introduce outward-visible bindings
 

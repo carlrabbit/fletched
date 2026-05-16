@@ -130,6 +130,9 @@ Recursive Invocation Constraints
 
 - Invocation semantics must remain recursion-safe by preserving frame ownership per call instance.
 - Recursive optimization policies are out of scope; semantics still require deterministic copy-in/copy-out behavior.
+- Recursive calls use the same `CallInstr` / `ExecuteArity...` invocation ABI as non-recursive calls.
+- Each recursive success still copies results back by callee terminal parameter position rather than caller-local slot naming.
+- Recursive classification is determined from the predicate call graph using predicate identity plus arity.
 
 ---
 

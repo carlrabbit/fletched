@@ -87,6 +87,13 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
 
             IReadOnlyList<PredicateModel> models = analyzer.AnalyzeAll(predicateType);
 
+            IReadOnlyList<PredicateModel> compilationModels = CollectCompilationPredicateModels(
+                semanticModel.Compilation,
+                predicateType,
+                models);
+            PredicateCallGraph callGraph = PredicateCallGraph.Create(compilationModels);
+            PredicateRecursionValidator.ReportMutualNegativeCycles(callGraph, models, reporter);
+
             // Report diagnostics
             foreach (Diagnostic d in reporter.Diagnostics)
                 spc.ReportDiagnostic(d);
@@ -131,5 +138,62 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
     {
         foreach (Diagnostic diagnostic in reporter.Diagnostics)
             context.ReportDiagnostic(diagnostic);
+    }
+
+    private static IReadOnlyList<PredicateModel> CollectCompilationPredicateModels(
+        Compilation compilation,
+        INamedTypeSymbol currentPredicateType,
+        IReadOnlyList<PredicateModel> currentModels)
+    {
+        var models = new List<PredicateModel>();
+
+        foreach (INamedTypeSymbol predicateType in EnumeratePredicateTypes(compilation.GlobalNamespace))
+        {
+            if (SymbolEqualityComparer.Default.Equals(predicateType, currentPredicateType))
+            {
+                models.AddRange(currentModels);
+                continue;
+            }
+
+            SyntaxReference? syntaxReference = predicateType.DeclaringSyntaxReferences.FirstOrDefault();
+            if (syntaxReference is null)
+                continue;
+
+            Microsoft.CodeAnalysis.SemanticModel semanticModel = compilation.GetSemanticModel(syntaxReference.SyntaxTree);
+            var reporter = new DiagnosticReporter();
+            var analyzer = new SemanticAnalyzer(semanticModel, reporter);
+            models.AddRange(analyzer.AnalyzeAll(predicateType));
+        }
+
+        return models;
+    }
+
+    private static IEnumerable<INamedTypeSymbol> EnumeratePredicateTypes(INamespaceSymbol namespaceSymbol)
+    {
+        foreach (INamedTypeSymbol type in EnumerateTypes(namespaceSymbol))
+        {
+            if (type.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "PredicateAttribute"))
+                yield return type;
+        }
+    }
+
+    private static IEnumerable<INamedTypeSymbol> EnumerateTypes(INamespaceOrTypeSymbol container)
+    {
+        foreach (INamedTypeSymbol type in container.GetTypeMembers())
+        {
+            yield return type;
+
+            foreach (INamedTypeSymbol nestedType in EnumerateTypes(type))
+                yield return nestedType;
+        }
+
+        if (container is INamespaceSymbol namespaceSymbol)
+        {
+            foreach (INamespaceSymbol nestedNamespace in namespaceSymbol.GetNamespaceMembers())
+            {
+                foreach (INamedTypeSymbol nestedType in EnumerateTypes(nestedNamespace))
+                    yield return nestedType;
+            }
+        }
     }
 }

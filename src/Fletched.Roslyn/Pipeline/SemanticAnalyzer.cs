@@ -19,6 +19,7 @@ public sealed class SemanticAnalyzer
     private readonly Dictionary<string, VariableSymbol> _scope = new();
     private readonly HashSet<string> _scopedVariableNames = new(StringComparer.Ordinal);
     private INamedTypeSymbol? _currentPredicateType;
+    private int _currentPredicateArity;
 
     public SemanticAnalyzer(
         Microsoft.CodeAnalysis.SemanticModel semanticModel,
@@ -73,6 +74,7 @@ public sealed class SemanticAnalyzer
     private PredicateModel? AnalyzeBody(INamedTypeSymbol predicateType, IMethodSymbol bodyMethod)
     {
         _currentPredicateType = predicateType;
+        _currentPredicateArity = bodyMethod.Parameters.Length;
 
         // Validate return type is LogicExpr<bool>
         if (!IsLogicExprBool(bodyMethod.ReturnType))
@@ -377,9 +379,14 @@ public sealed class SemanticAnalyzer
         foreach (CallExpr call in CollectCalls(goal))
         {
             if (_currentPredicateType is not null &&
-                SymbolEqualityComparer.Default.Equals(call.PredicateType, _currentPredicateType))
+                SymbolEqualityComparer.Default.Equals(call.PredicateType, _currentPredicateType) &&
+                call.Arity == _currentPredicateArity)
             {
-                _reporter.Error(DiagnosticsCatalog.UnsupportedRecursiveNegation, location);
+                string predicateName = $"{_currentPredicateType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}/{_currentPredicateArity}";
+                _reporter.Error(
+                    DiagnosticsCatalog.UnsupportedRecursiveNegation,
+                    location,
+                    $": {predicateName} -not-> {predicateName}");
             }
 
             bool hasUngroundedInvocationArgument = call.Arguments.Any(arg => !IsGround(arg, groundedAtNegationEntry));
@@ -674,12 +681,12 @@ public sealed class SemanticAnalyzer
         if (inv.Expression is IdentifierNameSyntax ident)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(ident);
-            candidate = ResolveTypeCandidate(si);
+            candidate = ResolveTypeCandidate(si) ?? ResolvePredicateTypeByName(ident.Identifier.ValueText, ident.SpanStart);
         }
         else if (inv.Expression is MemberAccessExpressionSyntax mem)
         {
             SymbolInfo si = _semanticModel.GetSymbolInfo(mem);
-            candidate = ResolveTypeCandidate(si);
+            candidate = ResolveTypeCandidate(si) ?? ResolveMemberPredicateType(mem);
         }
 
         // Also try to resolve via the semantic model as a type symbol directly
@@ -694,6 +701,28 @@ public sealed class SemanticAnalyzer
         bool hasPredicate = namedCandidate.GetAttributes()
             .Any(a => a.AttributeClass?.Name == "PredicateAttribute");
         return hasPredicate ? candidate : null;
+    }
+
+    private INamedTypeSymbol? ResolvePredicateTypeByName(string name, int position)
+    {
+        INamedTypeSymbol[] matches = _semanticModel.LookupNamespacesAndTypes(position, name: name)
+            .OfType<INamedTypeSymbol>()
+            .Where(type => type.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "PredicateAttribute"))
+            .ToArray();
+
+        return matches.Length == 1 ? matches[0] : null;
+    }
+
+    private INamedTypeSymbol? ResolveMemberPredicateType(MemberAccessExpressionSyntax memberAccess)
+    {
+        if (_semanticModel.GetSymbolInfo(memberAccess.Expression).Symbol is not INamespaceOrTypeSymbol container)
+            return null;
+
+        INamedTypeSymbol[] matches = container.GetTypeMembers(memberAccess.Name.Identifier.ValueText)
+            .Where(type => type.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "PredicateAttribute"))
+            .ToArray();
+
+        return matches.Length == 1 ? matches[0] : null;
     }
 
     private static ITypeSymbol? ResolveTypeCandidate(SymbolInfo symbolInfo)

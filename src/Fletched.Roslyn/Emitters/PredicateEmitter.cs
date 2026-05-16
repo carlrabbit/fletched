@@ -202,6 +202,8 @@ public sealed class PredicateEmitter
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
+            EmitPredicateCallHelpers(ctx);
+
             if (_generateLegacyNames)
             {
                 ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
@@ -214,6 +216,30 @@ public sealed class PredicateEmitter
             EmitExecuteMethod(ctx);
         }
         ctx.AppendLine("}");
+    }
+
+    private void EmitPredicateCallHelpers(EmitContext ctx)
+    {
+        CallExpr[] callExpressions = CollectCallExpressions(_model.Body)
+            .Where(call => !SymbolEqualityComparer.Default.Equals(call.PredicateType, _model.Symbol))
+            .GroupBy(call => $"{call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{call.Arity}", StringComparer.Ordinal)
+            .Select(group => group.First())
+            .ToArray();
+
+        if (callExpressions.Length == 0)
+            return;
+
+        foreach (CallExpr call in callExpressions)
+        {
+            IMethodSymbol bodyMethod = ResolvePredicateBodyMethod(call.PredicateType, call.Arity);
+            string parameterList = string.Join(", ",
+                bodyMethod.Parameters.Select((parameter, index) =>
+                    $"global::Fletched.Core.LogicExpr<{GetPredicateParameterValueType(parameter).ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}> arg{index}"));
+
+            ctx.AppendLine($"private static global::Fletched.Core.LogicExpr<bool> {call.PredicateType.Name}({parameterList}) => default;");
+        }
+
+        ctx.AppendLine();
     }
 
     private void EmitExecuteMethod(EmitContext ctx)
@@ -593,7 +619,7 @@ public sealed class PredicateEmitter
         {
             int slot = call.ArgumentSlots[i];
             string slotName = SlotName(slot);
-            string resultField = slotName;
+            string resultField = GetCallResultFieldName(call, i);
             EmitSlotConstUnify(slotName, $"{resultVar}.{resultField}", ctx);
         }
     }
@@ -620,7 +646,7 @@ public sealed class PredicateEmitter
                 for (int i = 0; i < call.ArgumentSlots.Count; i++)
                 {
                     string slotName = SlotName(call.ArgumentSlots[i]);
-                    string resultField = slotName;
+                    string resultField = GetCallResultFieldName(call, i);
                     conditions.Add($"object.Equals(state.{slotName}, {resultVar}.{resultField})");
                 }
                 string guard = conditions.Count > 0
@@ -1057,6 +1083,115 @@ public sealed class PredicateEmitter
             : $"{call.PredicateType.Name}Arity{call.Arity}Result";
 
         return SourceSymbolHelpers.GetQualifiedSiblingTypeName(call.PredicateType, resultTypeName);
+    }
+
+    private static string GetCallResultFieldName(CallInstr call, int argumentIndex)
+    {
+        IMethodSymbol bodyMethod = ResolvePredicateBodyMethod(call.PredicateType, call.Arity);
+
+        return bodyMethod.Parameters[argumentIndex].Name;
+    }
+
+    private static IMethodSymbol ResolvePredicateBodyMethod(INamedTypeSymbol predicateType, int arity)
+    {
+        return predicateType.GetMembers()
+            .OfType<IMethodSymbol>()
+            .Single(method =>
+                method.GetAttributes().Any(attr => attr.AttributeClass?.Name == "PredicateBodyAttribute")
+                && method.Parameters.Length == arity);
+    }
+
+    private static ITypeSymbol GetPredicateParameterValueType(IParameterSymbol parameter)
+    {
+        if (parameter.Type is INamedTypeSymbol namedType &&
+            namedType.Name == "TerminalVar" &&
+            namedType.TypeArguments.Length == 1)
+        {
+            return namedType.TypeArguments[0];
+        }
+
+        return parameter.Type;
+    }
+
+    private static IEnumerable<CallExpr> CollectCallExpressions(SemanticExpr expr)
+    {
+        switch (expr)
+        {
+            case CallExpr call:
+                yield return call;
+                foreach (SemanticExpr argument in call.Arguments)
+                {
+                    foreach (CallExpr nested in CollectCallExpressions(argument))
+                        yield return nested;
+                }
+                 yield break;
+
+            case FieldExpr field:
+                foreach (CallExpr nested in CollectCallExpressions(field.Target))
+                    yield return nested;
+                yield break;
+
+            case UnifyExpr unify:
+                foreach (CallExpr nested in CollectCallExpressions(unify.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCallExpressions(unify.Right))
+                    yield return nested;
+                yield break;
+
+            case ConjExpr conjunction:
+                foreach (SemanticExpr part in conjunction.Parts)
+                {
+                    foreach (CallExpr nested in CollectCallExpressions(part))
+                        yield return nested;
+                }
+                yield break;
+
+            case DisjExpr disjunction:
+                foreach (CallExpr nested in CollectCallExpressions(disjunction.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCallExpressions(disjunction.Right))
+                    yield return nested;
+                yield break;
+
+            case ConstraintExpr constraint:
+                foreach (SemanticExpr argument in constraint.Arguments)
+                {
+                    foreach (CallExpr nested in CollectCallExpressions(argument))
+                        yield return nested;
+                }
+                yield break;
+
+            case WithExpr withExpr:
+                foreach (CallExpr nested in CollectCallExpressions(withExpr.Body))
+                    yield return nested;
+                yield break;
+
+            case NotExpr notExpr:
+                foreach (CallExpr nested in CollectCallExpressions(notExpr.Goal))
+                    yield return nested;
+                yield break;
+
+            case CompExpr comp:
+                foreach (CallExpr nested in CollectCallExpressions(comp.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCallExpressions(comp.Right))
+                    yield return nested;
+                yield break;
+
+            case ArithExpr arith:
+                foreach (CallExpr nested in CollectCallExpressions(arith.Left))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCallExpressions(arith.Right))
+                    yield return nested;
+                yield break;
+
+            case ListConsExpr listCons:
+                foreach (CallExpr nested in CollectCallExpressions(listCons.Head))
+                    yield return nested;
+                foreach (CallExpr nested in CollectCallExpressions(listCons.Tail))
+                    yield return nested;
+                yield break;
+        }
     }
 
     private static string TablePropertyName(ITypeSymbol factType)
