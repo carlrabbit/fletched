@@ -61,6 +61,14 @@ public partial record struct BenchTabledAncestor
     [PredicateBody]
     public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
         BenchTabledParent(parent, child) ||
+        BenchTabledAncestorStep(parent, child);
+}
+
+[Predicate]
+public partial record struct BenchTabledAncestorStep
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
         Logic.With<string>(middle =>
             BenchTabledParent(parent, middle) &&
             BenchTabledAncestor(middle, child));
