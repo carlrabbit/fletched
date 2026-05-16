@@ -7,6 +7,7 @@ This directory indexes workflow specifications that define operational intent be
 ## Contents
 
 - `build-and-test.md`
+- `build-and-test-long-running.md`
 - `nuget-pack-and-publish.md`
 - `performance-testing.md`
 

@@ -1,12 +1,13 @@
 # Goal
 
-Validate repository restore, release build, and automated test execution for the maintained solution and sample test projects.
+Validate repository restore, release build, and automated test execution including long-running integration tests that are guarded by `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS`.
 
 # Constraints
 
 - Use `Fletched.slnx` as the build entry point.
 - Build in `Release` configuration.
 - Run existing test projects without rebuilding after the release build step.
+- Enable long-running integration tests by setting `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` for the integration test execution step.
 - Keep workflow implementation focused on execution and artifact handling.
 
 # Non-Goals
@@ -17,7 +18,7 @@ Validate repository restore, release build, and automated test execution for the
 
 # Relevant Other Workflows
 
-- `build-and-test-long-running.md`
+- `build-and-test.md`
 - `performance-testing.md`
 - `nuget-pack-and-publish.md`
 
@@ -41,11 +42,11 @@ Validate repository restore, release build, and automated test execution for the
 
 - Restore failure
 - Release build failure
-- Any core, feature, or integration test failure (excluding long-running integration tests unless `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` is set)
+- Any core, feature, or integration test failure (including long-running integration tests when enabled)
 - Coverage artifact generation failure caused by missing prerequisite outputs
 
 # Synchronization Rules
 
-- Update this document before changing `.github/workflows/build-and-test.yml`.
+- Update this document before changing `.github/workflows/build-and-test-long-running.yml`.
 - Keep the documented test project set synchronized with the workflow YAML.
 - Update `docs/TBPS.md` and relevant TBPs when the workflow introduces a new recurring execution pattern.
