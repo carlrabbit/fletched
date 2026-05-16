@@ -55,6 +55,8 @@ public class TabledRecursiveTests
     }
 
     [Test]
+    [Category("LongRunning")]
+    [LongRunningIntegrationTest]
     public async Task TabledDirectRecursion_SyncAndAsyncReturnEquivalentSets()
     {
         EngineContext ctx = BuildAncestorContext();
@@ -75,6 +77,8 @@ public class TabledRecursiveTests
     }
 
     [Test]
+    [Category("LongRunning")]
+    [LongRunningIntegrationTest]
     public async Task TabledDirectRecursion_DuplicatePathsYieldSingleAnswer()
     {
         EngineContext ctx = BuildAncestorContext();
