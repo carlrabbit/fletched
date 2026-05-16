@@ -108,8 +108,7 @@ public class RecursivePredicateBenchmarks
     [Params(2, 3, 4)]
     public int BranchingFactor { get; set; }
 
-    [Params(5, 4)]
-    public int TreeDepth { get; set; }
+    private int TreeDepth => BranchingFactor == 4 ? 4 : 5;
 
     [Params(32)]
     public int MutualRecursionMaxValue { get; set; }

@@ -498,10 +498,18 @@ public sealed class PredicateEmitterAsync
             ctx.AppendMetricIncrement("PredicateInvocations");
             ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
             ctx.AppendLine($"global::Fletched.Core.Runtime.RecursionGuard.EnterPredicateInvocation(ctx, \"{call.PredicateType.Name}\", observer);");
-            ctx.AppendMetricIncrement("RecursiveInvocations");
-            ctx.AppendDirective("#if METRICS");
-            ctx.AppendLine("global::Fletched.Core.Performance.EngineMetrics.RecursiveDepth.Record(global::Fletched.Core.Runtime.RecursionGuard.GetCurrentDepth(ctx));");
-            ctx.AppendDirective("#endif");
+            string recursionDepthVar = $"_recursionDepth_{callInfo.Id}";
+            ctx.AppendLine($"int {recursionDepthVar} = global::Fletched.Core.Runtime.RecursionGuard.GetCurrentDepth(ctx);");
+            ctx.AppendLine($"if ({recursionDepthVar} > 1)");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendMetricIncrement("RecursiveInvocations");
+                ctx.AppendDirective("#if METRICS");
+                ctx.AppendLine($"global::Fletched.Core.Performance.EngineMetrics.RecursiveDepth.Record({recursionDepthVar});");
+                ctx.AppendDirective("#endif");
+            }
+            ctx.AppendLine("}");
             ctx.AppendLine("try");
             ctx.AppendLine("{");
             using (ctx.Indent())
