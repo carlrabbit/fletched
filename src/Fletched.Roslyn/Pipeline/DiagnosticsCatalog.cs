@@ -160,4 +160,36 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedSubsumptiveTabling = new(
+        "FLT2001",
+        "Unsupported subsumptive tabling",
+        "Subsumptive tabling is not supported in this milestone",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidTabledNegationCycle = new(
+        "FLT2002",
+        "Invalid tabled negation cycle",
+        "Tabled predicate participates in an unsupported recursive negation cycle",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor AmbiguousTableKey = new(
+        "FLT2003",
+        "Ambiguous table key",
+        "Table key cannot be constructed deterministically",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedAsyncTablePattern = new(
+        "FLT2004",
+        "Unsupported async table pattern",
+        "Async tabled recursive pattern is unsupported",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

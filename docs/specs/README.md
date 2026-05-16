@@ -28,6 +28,7 @@ Specs are not architecture overviews.
 
 | Spec | Purpose |
 | --- | --- |
+| [`AsyncRecursivePredicates.md`](AsyncRecursivePredicates.md) | Async recursive predicate semantics specification |
 | [`Architecture.md`](Architecture.md) | Architecture specification |
 | [`Backtracking.md`](Backtracking.md) | Backtracking behavior specification |
 | [`BuiltinPrecicate_AllDistinct.md`](BuiltinPrecicate_AllDistinct.md) | Built-in `allDistinct` behavior specification |
@@ -42,18 +43,22 @@ Specs are not architecture overviews.
 | [`Lists.md`](Lists.md) | List behavior specification |
 | [`LoweringRules.md`](LoweringRules.md) | Lowering rules specification |
 | [`ModulesAndScopes.md`](ModulesAndScopes.md) | Module and scope specification |
+| [`Negation.md`](Negation.md) | Compatibility alias for negation semantics (`Not.md`) |
 | [`Not.md`](Not.md) | Negation behavior specification |
 | [`Optimization.md`](Optimization.md) | Optimization specification |
 | [`Observability.md`](Observability.md) | Runtime observability and metrics specification |
 | [`Overview.md`](Overview.md) | System overview specification |
 | [`Performance.md`](Performance.md) | Performance specification |
 | [`PredicateInvocation.md`](PredicateInvocation.md) | Predicate invocation specification |
+| [`RecursiveMemoization.md`](RecursiveMemoization.md) | Runtime memoization behavior for tabled recursion |
 | [`RecursivePerformanceBaselines.md`](RecursivePerformanceBaselines.md) | Recursive benchmark and baseline specification |
 | [`RecursivePredicates.md`](RecursivePredicates.md) | Recursive predicate behavior and constraints specification |
+| [`RecursiveQueryPlanning.md`](RecursiveQueryPlanning.md) | Planning behavior for recursive predicates with table boundaries |
 | [`RecursiveSafety.md`](RecursiveSafety.md) | Recursive operational safety and guard behavior specification |
 | [`ResultProjection.md`](ResultProjection.md) | Result projection specification |
 | [`SemanticModel.md`](SemanticModel.md) | Semantic model specification |
 | [`StateModel.md`](StateModel.md) | State model specification |
+| [`Tabling.md`](Tabling.md) | Tabled predicate semantics and table lifecycle specification |
 | [`Unification.md`](Unification.md) | Unification specification |
 | [`example-spec.md`](example-spec.md) | Example structure for future specs |
 | [`variable-scope-and-non-terminal-variables.md`](variable-scope-and-non-terminal-variables.md) | Variable scope, terminal variables, non-terminal variables, and `With<T>` source/fresh behavior |

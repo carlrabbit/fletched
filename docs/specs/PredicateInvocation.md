@@ -133,6 +133,9 @@ Recursive Invocation Constraints
 - Recursive calls use the same `CallInstr` / `ExecuteArity...` invocation ABI as non-recursive calls.
 - Each recursive success still copies results back by callee terminal parameter position rather than caller-local slot naming.
 - Recursive classification is determined from the predicate call graph using predicate identity plus arity.
+- Tabled recursive invocation semantics are defined in `Tabling.md`, `RecursiveMemoization.md`, and `RecursiveQueryPlanning.md`.
+- Predicate invocation ABI remains unchanged for non-tabled predicates.
+- Tabled predicates must preserve logical result equivalence while allowing table-managed operational ordering.
 
 Operational Safety
 

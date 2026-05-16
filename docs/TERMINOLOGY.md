@@ -154,6 +154,22 @@ A recursive predicate cycle that contains at least one predicate call evaluated 
 
 Number of active predicate invocation frames in a recursive call chain.
 
+## Tabled Predicate
+
+A predicate explicitly marked for table-backed recursive execution where calls and answers are memoized per query scope.
+
+## Variant Call
+
+A predicate call equivalent to another call modulo variable names and therefore sharing the same variant tabling compatibility class.
+
+## Table Key
+
+The canonical deterministic identity used to store and retrieve memoized answers for a tabled predicate call.
+
+## Answer Table
+
+The query-scoped storage set containing deduplicated answers and completion state for a single table key.
+
 ## Recursion Guard
 
 Operational recursion-depth limit that prevents unbounded recursive execution from exhausting runtime resources.

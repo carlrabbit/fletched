@@ -79,6 +79,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             var reporter = new DiagnosticReporter();
             var validator = new SourceSymbolValidator(reporter);
             validator.ValidatePredicateType(predicateType);
+            validator.ValidateTabledPredicateOptions(predicateType);
             ReportDiagnostics(spc, reporter);
             if (reporter.HasErrors)
                 return;

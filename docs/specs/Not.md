@@ -126,6 +126,14 @@ Operational Errors
 
 Operational guard violations (for example recursion depth guard failures) inside `Not(...)` must propagate as operational failures and must not be converted into negation success.
 
+Tabling and Negation
+
+Recursive cycles through negation remain unsupported.
+
+Tabling does not make recursive negation valid.
+
+Tabled predicates may appear inside `Not(...)` only when all existing negation grounding and isolation requirements are satisfied and the tabled call does not participate in a negative recursion cycle.
+
 
 
 ---

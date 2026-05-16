@@ -103,6 +103,51 @@ public static partial class IdentityModule
         await Assert.That(reporter.HasErrors).IsFalse();
     }
 
+    [Test]
+    public async Task ValidateTabledPredicateOptions_RejectsSubsumptiveMode()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+[Tabled(TablingMode.Subsumptive)]
+public partial record struct Reachable
+{
+}
+""";
+
+        DiagnosticReporter reporter = Validate("Reachable", source, static (validator, symbol) =>
+        {
+            validator.ValidateTabledPredicateOptions(symbol);
+            return true;
+        });
+
+        await Assert.That(reporter.HasErrors).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedSubsumptiveTabling.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task ValidateTabledPredicateOptions_AllowsVariantMode()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+[Tabled]
+public partial record struct Reachable
+{
+}
+""";
+
+        DiagnosticReporter reporter = Validate("Reachable", source, static (validator, symbol) =>
+        {
+            validator.ValidateTabledPredicateOptions(symbol);
+            return true;
+        });
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+    }
+
     private static DiagnosticReporter Validate(
         string metadataName,
         string source,
