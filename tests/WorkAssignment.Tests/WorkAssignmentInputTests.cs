@@ -8,6 +8,33 @@ namespace WorkAssignment.Tests;
 public class WorkAssignmentInputTests
 {
     [Test]
+    public async Task InputOptions_Parse_WithMaxRecursionDepth_ParsesOption()
+    {
+        InputOptions options = InputOptions.Parse([
+            "--year", "2026",
+            "--month", "2",
+            "--workers", "4",
+            "--seed", "alpha",
+            "--max-recursion-depth", "64",
+        ]);
+
+        await Assert.That(options.MaxRecursionDepth).IsEqualTo(64);
+    }
+
+    [Test]
+    public async Task InputOptions_Parse_WithInvalidMaxRecursionDepth_Throws()
+    {
+        await Assert.That(() => InputOptions.Parse([
+                "--year", "2026",
+                "--month", "2",
+                "--workers", "4",
+                "--seed", "alpha",
+                "--max-recursion-depth", "0",
+            ]))
+            .Throws<InvalidOperationException>();
+    }
+
+    [Test]
     public async Task GetMonthShifts_WeekdayMonth_ExcludesWeekendsAndBuildsEarlyLatePairs()
     {
         IReadOnlyList<WorkShift> shifts = WorkAssignmentInput.GetMonthShifts(2026, 2);
@@ -127,6 +154,8 @@ public class WorkAssignmentAppTests
             await Assert.That(output.ToString().Contains("Schedule month: 2026-02", StringComparison.Ordinal)).IsTrue();
             await Assert.That(output.ToString().Contains("Collected metrics (in-memory collector):", StringComparison.Ordinal)).IsTrue();
             await Assert.That(output.ToString().Contains("unify_attempts", StringComparison.Ordinal)).IsTrue();
+            await Assert.That(output.ToString().Contains("recursive_invocations", StringComparison.Ordinal)).IsTrue();
+            await Assert.That(output.ToString().Contains("recursive_depth", StringComparison.Ordinal)).IsTrue();
             await Assert.That(error.ToString()).IsEqualTo(string.Empty);
         }
         finally

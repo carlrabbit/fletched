@@ -7,7 +7,8 @@ public static class WorkAssignmentSolver
     public static IReadOnlyList<AssignmentResult> FindFirstAssignments(
         IReadOnlyList<WorkShift> shifts,
         IReadOnlyList<WorkerAvailability> workers,
-        int maxAssignments)
+        int maxAssignments,
+        int? maxRecursionDepth = null)
     {
         if (shifts.Count == 0 || workers.Count == 0 || maxAssignments <= 0)
         {
@@ -20,7 +21,7 @@ public static class WorkAssignmentSolver
 
         var assignments = new List<AssignmentResult>(capacity: maxAssignments);
 
-        WorkAssignmentModule.EngineContext ctx = BuildEngineContext(shifts, workers);
+        WorkAssignmentModule.EngineContext ctx = BuildEngineContext(shifts, workers, maxRecursionDepth);
         Dictionary<WorkShift, IReadOnlyList<string>> availabilityByShift = GetAvailabilityByShift(shifts, ctx);
 
         foreach (int[] extraWorkerIndexes in EnumerateExtraWorkerIndexes(workers.Count, workersWithExtraShift))
@@ -47,9 +48,12 @@ public static class WorkAssignmentSolver
 
     private static WorkAssignmentModule.EngineContext BuildEngineContext(
         IReadOnlyList<WorkShift> shifts,
-        IReadOnlyList<WorkerAvailability> workers)
+        IReadOnlyList<WorkerAvailability> workers,
+        int? maxRecursionDepth)
     {
         var ctx = new WorkAssignmentModule.EngineContext();
+        if (maxRecursionDepth.HasValue)
+            RecursionGuard.SetMaxRecursionDepth(ctx, maxRecursionDepth.Value);
 
         ctx.AvailableShiftFacts = new FactTable<WorkAssignmentModule.AvailableShiftFact>(
             BuildAvailableShifts(shifts, workers));
