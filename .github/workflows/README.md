@@ -4,6 +4,13 @@
 
 This directory contains the GitHub Actions workflow implementations for the workflow specifications documented under `docs/workflows/`.
 
+## Current workflow implementations
+
+- `build-and-test.yml`
+- `build-and-test-long-running.yml`
+- `performance-testing.yml`
+- `nuget-pack-and-publish.yml`
+
 ## Authority
 
 This document is authoritative for:
