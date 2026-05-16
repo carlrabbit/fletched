@@ -144,6 +144,46 @@ public partial record struct B
     }
 
     [Test]
+    public async Task PredicateRecursionValidator_TabledMutualRecursiveNegation_ReportsFLT2002WithCyclePath()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Tabled]
+[Predicate]
+public partial record struct A
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 1 &&
+        Logic.Not(B(value));
+}
+
+[Predicate]
+public partial record struct B
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        A(value);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+
+        PredicateRecursionValidator.ReportMutualNegativeCycles(
+            graph,
+            models.Where(model => model.Name == "A"),
+            reporter);
+
+        Diagnostic? diagnostic = reporter.Diagnostics.SingleOrDefault(d => d.Id == DiagnosticsCatalog.InvalidTabledNegationCycle.Id);
+
+        await Assert.That(diagnostic).IsNotNull();
+        await Assert.That(diagnostic!.GetMessage().Contains("recursive negation cycle", StringComparison.OrdinalIgnoreCase)).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedRecursiveNegation.Id)).IsFalse();
+    }
+
+    [Test]
     public async Task PredicateEmitter_RecursivePredicate_UsesExistingExecuteArityInvocation()
     {
         const string source = """

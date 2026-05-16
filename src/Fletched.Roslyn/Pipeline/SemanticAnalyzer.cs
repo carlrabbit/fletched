@@ -383,8 +383,11 @@ public sealed class SemanticAnalyzer
                 call.Arity == _currentPredicateArity)
             {
                 string predicateName = $"{_currentPredicateType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}/{_currentPredicateArity}";
+                DiagnosticDescriptor descriptor = IsTabledPredicate(_currentPredicateType)
+                    ? DiagnosticsCatalog.InvalidTabledNegationCycle
+                    : DiagnosticsCatalog.UnsupportedRecursiveNegation;
                 _reporter.Error(
-                    DiagnosticsCatalog.UnsupportedRecursiveNegation,
+                    descriptor,
                     location,
                     $": {predicateName} -not-> {predicateName}");
             }
@@ -470,6 +473,11 @@ public sealed class SemanticAnalyzer
                     yield return nested;
                 yield break;
         }
+    }
+
+    private static bool IsTabledPredicate(INamedTypeSymbol predicateType)
+    {
+        return predicateType.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "TabledAttribute");
     }
 
     private static bool IsGround(SemanticExpr expr, ISet<VariableSymbol> grounded)

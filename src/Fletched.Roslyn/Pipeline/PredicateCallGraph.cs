@@ -378,7 +378,7 @@ public static class PredicateRecursionValidator
                 .FirstOrDefault(edgeLocation => edgeLocation is not null);
 
             reporter.Error(
-                DiagnosticsCatalog.UnsupportedRecursiveNegation,
+                GetNegationCycleDiagnostic(cycle),
                 location,
                 $": {graph.FormatCycle(cycle)}");
         }
@@ -387,5 +387,17 @@ public static class PredicateRecursionValidator
     private static string PredicateCallGraphNodeId(PredicateModel model)
     {
         return $"{model.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{model.Arity}";
+    }
+
+    private static DiagnosticDescriptor GetNegationCycleDiagnostic(PredicateCallGraphCycle cycle)
+    {
+        return cycle.Nodes.Any(IsTabledPredicateNode)
+            ? DiagnosticsCatalog.InvalidTabledNegationCycle
+            : DiagnosticsCatalog.UnsupportedRecursiveNegation;
+    }
+
+    private static bool IsTabledPredicateNode(PredicateCallGraphNode node)
+    {
+        return node.PredicateType.GetAttributes().Any(attribute => attribute.AttributeClass?.Name == "TabledAttribute");
     }
 }
