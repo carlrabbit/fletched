@@ -94,6 +94,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                 models);
             PredicateCallGraph callGraph = PredicateCallGraph.Create(compilationModels);
             PredicateRecursionValidator.ReportMutualNegativeCycles(callGraph, models, reporter);
+            PredicateRecursionValidator.ReportUnsupportedTabledMutualRecursion(callGraph, models, reporter);
 
             // Report diagnostics
             foreach (Diagnostic d in reporter.Diagnostics)

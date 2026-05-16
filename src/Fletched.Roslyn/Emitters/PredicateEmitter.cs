@@ -20,6 +20,8 @@ public sealed class PredicateEmitter
     private readonly string _resultTypeName;
     private readonly string _executeMethodName;
     private readonly string _contextTypeName;
+    private readonly bool _isTabledPredicate;
+    private readonly string _predicateIdentity;
 
     // Ordered slot list: (variableName, typeName, slot index)
     private readonly List<(string Name, string TypeName, int Slot)> _slots;
@@ -56,6 +58,8 @@ public sealed class PredicateEmitter
             : $"{_generatedName}Result";
         _executeMethodName = $"ExecuteArity{_model.Arity}";
         _contextTypeName = SourceSymbolHelpers.GetContextTypeName(_model.Symbol);
+        _isTabledPredicate = PredicateAttributeHelpers.IsTabledPredicate(_model.Symbol);
+        _predicateIdentity = _model.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
 
         var slotTypes = plan.SlotMap.ToDictionary(
             kv => kv.Value,
@@ -209,11 +213,21 @@ public sealed class PredicateEmitter
                 ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
-                    ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer);");
+                {
+                    if (_isTabledPredicate)
+                        ctx.AppendLine($"return ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer);");
+                    else
+                        ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer);");
+                }
                 ctx.AppendLine("}");
                 ctx.AppendLine();
             }
             EmitExecuteMethod(ctx);
+            if (_isTabledPredicate)
+            {
+                ctx.AppendLine();
+                EmitExecuteTabledMethod(ctx);
+            }
         }
         ctx.AppendLine("}");
     }
@@ -310,6 +324,67 @@ public sealed class PredicateEmitter
         ctx.AppendLine("}");
     }
 
+    private void EmitExecuteTabledMethod(EmitContext ctx)
+    {
+        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> ExecuteTabledArity{_model.Arity}({_contextTypeName} ctx, string canonicalCall, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendLine("if (string.IsNullOrWhiteSpace(canonicalCall))");
+            using (ctx.Indent())
+                ctx.AppendLine("throw new global::System.ArgumentException(\"Canonical call must not be null or whitespace.\", nameof(canonicalCall));");
+            ctx.AppendLine("using var _tableScope = global::Fletched.Core.Runtime.QueryTableRuntime.EnterScope(ctx);");
+            ctx.AppendLine($"var _tableStore = global::Fletched.Core.Runtime.QueryTableRuntime.GetStore<{ResultTypeName}>(ctx);");
+            ctx.AppendLine($"var _tableKey = global::Fletched.Core.Runtime.TableKey.Create(\"{_predicateIdentity}\", {_model.Arity}, canonicalCall);");
+            ctx.AppendLine("var _table = _tableStore.GetOrAddTable(_tableKey, out bool _isProducer);");
+            ctx.AppendLine("if (!_isProducer)");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine("_table.ThrowIfFaulted();");
+                ctx.AppendLine("var _snapshot = _table.Answers.ToArray();");
+                ctx.AppendLine("foreach (var _answer in _snapshot)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                    ctx.AppendLine("yield return _answer;");
+                ctx.AppendLine("}");
+                ctx.AppendLine("yield break;");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine($"using var _producer = {ExecuteMethodName}(ctx, observer).GetEnumerator();");
+            ctx.AppendLine("while (true)");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine($"{ResultTypeName} _answer;");
+                ctx.AppendLine("try");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendLine("if (!_producer.MoveNext())");
+                    using (ctx.Indent())
+                        ctx.AppendLine("break;");
+                    ctx.AppendLine("_answer = _producer.Current;");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("catch (global::System.Exception _tableException)");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendLine("_table.MarkFaulted(_tableException);");
+                    ctx.AppendLine("throw;");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("if (_table.TryAddAnswer(_answer))");
+                using (ctx.Indent())
+                    ctx.AppendLine("yield return _answer;");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("_table.MarkComplete();");
+        }
+        ctx.AppendLine("}");
+    }
+
     private void EmitModuleQueryWrapper(EmitContext ctx)
     {
         INamedTypeSymbol? moduleRoot = SourceSymbolHelpers.GetModuleRoot(_model.Symbol);
@@ -331,7 +406,12 @@ public sealed class PredicateEmitter
             ctx.AppendLine($"public static System.Collections.Generic.IEnumerable<{resultTypeName}> {wrapperName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
             ctx.AppendLine("{");
             using (ctx.Indent())
-                ctx.AppendLine($"return default({predicateTypeName}).{ExecuteMethodName}(ctx, observer);");
+            {
+                if (_isTabledPredicate)
+                    ctx.AppendLine($"return default({predicateTypeName}).ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer);");
+                else
+                    ctx.AppendLine($"return default({predicateTypeName}).{ExecuteMethodName}(ctx, observer);");
+            }
             ctx.AppendLine("}");
         }
         ctx.AppendLine("}");
@@ -589,7 +669,12 @@ public sealed class PredicateEmitter
             ctx.AppendLine("try");
             ctx.AppendLine("{");
             using (ctx.Indent())
-                ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            {
+                if (call.IsTabledCall)
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, observer).GetEnumerator();");
+                else
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            }
             ctx.AppendLine("}");
             ctx.AppendLine("catch");
             ctx.AppendLine("{");
@@ -688,7 +773,10 @@ public sealed class PredicateEmitter
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
+                if (call.IsTabledCall)
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, null))");
+                else
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
@@ -1012,6 +1100,30 @@ public sealed class PredicateEmitter
     {
         var entry = _slots.FirstOrDefault(s => s.Slot == slot);
         return entry.Name ?? $"_slot{slot}";
+    }
+
+    private string EmitCanonicalCallExpression(CallInstr call)
+    {
+        if (call.ArgumentSlots.Count == 0)
+            return "\"\"";
+
+        var parts = new List<string>(call.ArgumentSlots.Count * 2 - 1);
+        for (int i = 0; i < call.ArgumentSlots.Count; i++)
+        {
+            string slotName = SlotName(call.ArgumentSlots[i]);
+            parts.Add($"(state.{slotName}_bound ? \"b:\" + global::Fletched.Core.Runtime.TableKeyFormatter.Format(state.{slotName}) : \"f\")");
+            if (i < call.ArgumentSlots.Count - 1)
+                parts.Add("\"|\"");
+        }
+
+        return $"global::System.String.Concat({string.Join(", ", parts)})";
+    }
+
+    private string GetDefaultCanonicalCall()
+    {
+        return _model.Arity == 0
+            ? string.Empty
+            : string.Join("|", Enumerable.Repeat("f", _model.Arity));
     }
 
     private static string IndexMatchesVar(string indexVar) => $"{indexVar}_matches";

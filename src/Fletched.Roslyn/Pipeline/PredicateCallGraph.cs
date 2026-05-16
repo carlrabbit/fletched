@@ -103,6 +103,17 @@ public sealed class PredicateCallGraph
         return _componentsByNodeId[node.Id].Count > 1;
     }
 
+    public bool HasMutuallyRecursiveTabledCycle(PredicateCallGraphNode node)
+    {
+        IReadOnlyList<PredicateCallGraphNode> component = _componentsByNodeId[node.Id];
+        if (component.Count <= 1)
+            return false;
+
+        int tabledCount = component.Count(componentNode =>
+            PredicateAttributeHelpers.IsTabledPredicate(componentNode.PredicateType));
+        return tabledCount > 1;
+    }
+
     public IReadOnlyList<PredicateCallGraphCycle> GetNegativeCycles()
     {
         var cycles = new List<PredicateCallGraphCycle>();
@@ -381,6 +392,26 @@ public static class PredicateRecursionValidator
                 GetNegationCycleDiagnostic(cycle),
                 location,
                 $": {graph.FormatCycle(cycle)}");
+        }
+    }
+
+    public static void ReportUnsupportedTabledMutualRecursion(
+        PredicateCallGraph graph,
+        IEnumerable<PredicateModel> currentModels,
+        DiagnosticReporter reporter)
+    {
+        foreach (PredicateModel model in currentModels)
+        {
+            if (!PredicateAttributeHelpers.IsTabledPredicate(model.Symbol))
+                continue;
+
+            PredicateCallGraphNode? node = graph.TryGetNode(model.Symbol, model.Arity);
+            if (node is null || !graph.HasMutuallyRecursiveTabledCycle(node))
+                continue;
+
+            reporter.Error(
+                DiagnosticsCatalog.UnsupportedTabledMutualRecursion,
+                model.BodyMethod.Locations.FirstOrDefault());
         }
     }
 

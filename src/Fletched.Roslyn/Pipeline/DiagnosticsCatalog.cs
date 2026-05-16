@@ -192,4 +192,12 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Error,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedTabledMutualRecursion = new(
+        "FLT2005",
+        "Unsupported tabled mutual recursion",
+        "Mutually recursive [Tabled] predicates are not supported in this milestone",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }

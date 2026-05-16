@@ -4,14 +4,14 @@ Introduce controlled recursive execution improvements through tabling, memoizati
 
 # Status (2026-05-16)
 
-- Overall: **in progress**
+- Overall: **complete**
 - Phase 1 — Docs and specs: **complete**
 - Phase 2 — Tabled predicate declaration: **complete**
 - Phase 3 — Table key and answer table runtime: **complete**
-- Phase 4 — Tabled recursive execution: **not started**
-- Phase 5 — Recursive planning: **not started**
-- Phase 6 — Async recursive semantics: **not started**
-- Phase 7 — Validation and benchmarks: **not started**
+- Phase 4 — Tabled recursive execution: **complete**
+- Phase 5 — Recursive planning: **complete**
+- Phase 6 — Async recursive semantics: **complete**
+- Phase 7 — Validation and benchmarks: **complete**
 
 # Scope
 
@@ -59,8 +59,8 @@ Introduce controlled recursive execution improvements through tabling, memoizati
 - [x] Variant table keys are deterministic.
 - [x] Query-scoped table store exists.
 - [x] Duplicate answers are suppressed.
-- [ ] Positive direct recursion supports tabling.
-- [ ] Positive mutual recursion supports tabling or is explicitly constrained.
+- [x] Positive direct recursion supports tabling.
+- [x] Positive mutual recursion supports tabling or is explicitly constrained.
 - [x] Recursive negation remains rejected.
-- [ ] Async recursive behavior is specified and tested.
-- [ ] Performance comparison against Milestone 6 exists.
+- [x] Async recursive behavior is specified and tested.
+- [x] Performance comparison against Milestone 6 exists.
