@@ -2,12 +2,19 @@
 
 Define and implement baseline recursive predicate support using the existing predicate invocation ABI, typed state model, and source-order depth-first backtracking semantics.
 
-# Status (2026-05-15)
+# Status (2026-05-16)
 
-- Overall: **In progress**
+- Overall: **complete**
 - Phase 1 — Call graph analysis and recursive-negation diagnostics: **complete**
 - Phase 2 — Invocation ABI alignment for recursive argument/result mapping: **complete**
-- Phase 3 — Runtime and validation expansion: **in progress**
+- Phase 3 — Runtime and validation expansion: **complete**
+
+Completed validation:
+- `dotnet build Fletched.slnx -c Release --no-restore`
+- `dotnet run --no-build -c Release --project tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj`
+- `dotnet run --no-build -c Release --project tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj`
+- `dotnet run --no-build -c Release --project tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj`
+- `dotnet run --no-build -c Release --project tests/Fletched.Performance.Tests/Fletched.Performance.Tests.csproj`
 
 # Scope
 
