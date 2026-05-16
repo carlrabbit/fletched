@@ -5,12 +5,12 @@ namespace Fletched.Roslyn.Pipeline;
 
 internal static class PredicateAttributeHelpers
 {
-    private const string TabledAttributeMetadataName = "Fletched.Core.TabledAttribute";
+    private const string FullyQualifiedTabledAttributeName = "global::Fletched.Core.TabledAttribute";
 
     public static bool IsTabledPredicate(INamedTypeSymbol predicateType)
     {
         return predicateType.GetAttributes()
             .Any(attribute => attribute.AttributeClass?.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)
-                is $"global::{TabledAttributeMetadataName}");
+                == FullyQualifiedTabledAttributeName);
     }
 }
