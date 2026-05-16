@@ -316,6 +316,49 @@ public partial record struct DirectParent
         await Assert.That(calls.Single(call => call.PredicateType.Name == "DirectParent").IsTabledCall).IsFalse();
     }
 
+    [Test]
+    public async Task PredicateEmitterAsync_TabledPredicate_UsesTabledWrapperForTopLevelAsyncExecution()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct ParentLink(string Parent, string Child);
+
+[Predicate]
+public partial record struct DirectParent
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<ParentLink>(link => link.Parent == parent && link.Child == child);
+}
+
+[Tabled]
+[Predicate]
+public partial record struct Ancestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        DirectParent(parent, child) ||
+        Logic.With<string>(middle =>
+            DirectParent(parent, middle) &&
+            Ancestor(middle, child));
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Ancestor");
+        var lowerer = new IrLowerer(reporter);
+        PlanProgram? plan = lowerer.Lower(model);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(plan).IsNotNull();
+
+        string generatedSource = new PredicateEmitterAsync(model, plan!, generateLegacyNames: true).Emit();
+
+        await Assert.That(generatedSource.Contains("foreach (var item in ExecuteTabledArity2(ctx, \"f|f\", observer))", StringComparison.Ordinal)).IsTrue();
+    }
+
     private static (IReadOnlyList<PredicateModel> Models, DiagnosticReporter Reporter) AnalyzeAll(string source)
     {
         CSharpCompilation compilation = CreateCompilation(source);

@@ -34,6 +34,7 @@ public sealed class PredicateEmitter
 
     private sealed record CallEmitInfo(
         int Id,
+        string ResumeLabel,
         string EnumeratorVar,
         string ActiveVar,
         string ProducedVar,
@@ -76,6 +77,7 @@ public sealed class PredicateEmitter
                     int callId = _calls.Count;
                     _calls.Add(new CallEmitInfo(
                         callId,
+                        ResumeLabel: $"call_resume_{callId}",
                         EnumeratorVar: $"_callEnum_{callId}",
                         ActiveVar: $"_callActive_{callId}",
                         ProducedVar: $"_callProduced_{callId}",
@@ -95,6 +97,9 @@ public sealed class PredicateEmitter
         {
             _labelIds[block.Label] = _labelIdCounter++;
         }
+
+        foreach (CallEmitInfo call in _calls)
+            _labelIds[call.ResumeLabel] = _labelIdCounter++;
     }
 
     public string Emit()
@@ -647,6 +652,8 @@ public sealed class PredicateEmitter
         string predTypeName = call.PredicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
         string resultVar = $"_callResult_{callInfo.Id}";
 
+        ctx.AppendLine($"L_{callInfo.ResumeLabel}:");
+
         ctx.AppendLine($"if (!{callInfo.ActiveVar})");
         ctx.AppendLine("{");
         using (ctx.Indent())
@@ -739,7 +746,7 @@ public sealed class PredicateEmitter
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
-            ctx.AppendLine($"LabelId = {_labelIds[blockLabel]},");
+            ctx.AppendLine($"LabelId = {_labelIds[callInfo.ResumeLabel]},");
             ctx.AppendLine("TrailTop = state.Trail.Top");
         }
         ctx.AppendLine("});");
