@@ -26,7 +26,7 @@ internal static class PlanAnalysis
         List<PlanBlock> blocks = AllBlocks(program).Select(transform).ToList();
         return blocks.Count == 0
             ? program
-            : new PlanProgram(blocks[0], blocks.Skip(1).ToList(), program.SlotMap);
+            : new PlanProgram(blocks[0], blocks.Skip(1).ToList(), program.SlotMap, program.Metadata);
     }
 
     public static IReadOnlyList<AccessSet> AnalyzeBlock(PlanBlock block) =>
@@ -374,7 +374,7 @@ public sealed class NormalizeSequence : IPlanOptimization
 
         return result.Count == 0
             ? program
-            : new PlanProgram(result[0], result.Skip(1).ToList(), program.SlotMap);
+            : new PlanProgram(result[0], result.Skip(1).ToList(), program.SlotMap, program.Metadata);
     }
 }
 
@@ -555,7 +555,7 @@ public sealed class DeadCodeElimination : IPlanOptimization
 
         return live.Count == 0
             ? simplified
-            : new PlanProgram(live[0], live.Skip(1).ToList(), simplified.SlotMap);
+            : new PlanProgram(live[0], live.Skip(1).ToList(), simplified.SlotMap, simplified.Metadata);
     }
 
     private static PlanBlock TrimDeadInstructions(PlanBlock block)

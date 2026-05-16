@@ -91,6 +91,14 @@ Tabled predicates may produce answers in table-production order.
 
 If ordering differs from untabled depth-first behavior, the difference must be documented and tested.
 
+## Magic-Set Interaction
+
+Magic-set rewriting may restrict the producer search space for tabled predicates.
+
+Table keys remain defined by tabled predicate call identity and binding state.
+
+Magic predicates must not be included in answer tuples, and magic planning must not create duplicate table answers.
+
 ## Required Tests
 
 - tabled direct recursion returns expected answers

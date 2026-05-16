@@ -29,4 +29,6 @@ Define how fact data is stored, exposed, and optimized for generated predicate e
 - `docs/architecture/execution-model.md`
 - `docs/specs/FactStorage.md`
 - `docs/specs/IndexedSources.md`
+- `docs/specs/FactSourcesAndIndexes.md`
+- `docs/specs/RecursiveAccessPaths.md`
 - `docs/specs/EngineContext.md`

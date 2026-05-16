@@ -28,6 +28,7 @@ Specs are not architecture overviews.
 
 | Spec | Purpose |
 | --- | --- |
+| [`AdornmentAnalysis.md`](AdornmentAnalysis.md) | Bound/free adornment analysis specification |
 | [`AsyncRecursivePredicates.md`](AsyncRecursivePredicates.md) | Async recursive predicate semantics specification |
 | [`Architecture.md`](Architecture.md) | Architecture specification |
 | [`Backtracking.md`](Backtracking.md) | Backtracking behavior specification |
@@ -37,7 +38,9 @@ Specs are not architecture overviews.
 | [`DSL.md`](DSL.md) | DSL behavior specification |
 | [`EngineContext.md`](EngineContext.md) | Engine context specification |
 | [`ExecutionPlan.md`](ExecutionPlan.md) | Execution plan specification |
+| [`FactSourcesAndIndexes.md`](FactSourcesAndIndexes.md) | Fact source and index selection specification |
 | [`FactStorage.md`](FactStorage.md) | Fact storage specification |
+| [`FactStorageRefinement.md`](FactStorageRefinement.md) | Recursive fact-storage refinement specification |
 | [`IndexedSources.md`](IndexedSources.md) | Indexed source specification |
 | [`IR.md`](IR.md) | IR specification |
 | [`Lists.md`](Lists.md) | List behavior specification |
@@ -45,12 +48,14 @@ Specs are not architecture overviews.
 | [`ModulesAndScopes.md`](ModulesAndScopes.md) | Module and scope specification |
 | [`Negation.md`](Negation.md) | Compatibility alias for negation semantics (`Not.md`) |
 | [`Not.md`](Not.md) | Negation behavior specification |
+| [`MagicSetRewriting.md`](MagicSetRewriting.md) | Magic-set rewriting behavior specification |
 | [`Optimization.md`](Optimization.md) | Optimization specification |
 | [`Observability.md`](Observability.md) | Runtime observability and metrics specification |
 | [`Overview.md`](Overview.md) | System overview specification |
 | [`Performance.md`](Performance.md) | Performance specification |
 | [`PredicateInvocation.md`](PredicateInvocation.md) | Predicate invocation specification |
 | [`RecursiveMemoization.md`](RecursiveMemoization.md) | Runtime memoization behavior for tabled recursion |
+| [`RecursiveAccessPaths.md`](RecursiveAccessPaths.md) | Recursive access-path selection specification |
 | [`RecursivePerformanceBaselines.md`](RecursivePerformanceBaselines.md) | Recursive benchmark and baseline specification |
 | [`RecursivePredicates.md`](RecursivePredicates.md) | Recursive predicate behavior and constraints specification |
 | [`RecursiveQueryPlanning.md`](RecursiveQueryPlanning.md) | Planning behavior for recursive predicates with table boundaries |

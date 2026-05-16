@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.CodeAnalysis;
 
 namespace Fletched.Roslyn.Pipeline;
@@ -29,6 +30,18 @@ public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
 
 /// <summary>Metadata for a loop that can use an index on a fact member.</summary>
 public sealed record IndexedLookupSpec(string MemberName, PlanValue Key);
+
+public readonly record struct Adornment(string Pattern)
+{
+    public static Adornment FromBoundArguments(IEnumerable<bool> isBound) =>
+        new(string.Concat(isBound.Select(bound => bound ? 'b' : 'f')));
+
+    public bool HasBoundArguments => Pattern.IndexOf('b') >= 0;
+
+    public bool IsAllFree => Pattern.All(marker => marker == 'f');
+
+    public override string ToString() => Pattern;
+}
 
 /// <summary>Comparison instruction (!=, &lt;, &gt;, &lt;=, &gt;= in DSL).</summary>
 public record CompInstr(CompOp Op, PlanValue Left, PlanValue Right) : PlanInstruction;
@@ -69,4 +82,62 @@ public record PlanBlock(string Label, IReadOnlyList<PlanInstruction> Instruction
 public record PlanProgram(
     PlanBlock Entry,
     IReadOnlyList<PlanBlock> Blocks,
-    IReadOnlyDictionary<VariableSymbol, int> SlotMap);
+    IReadOnlyDictionary<VariableSymbol, int> SlotMap,
+    RecursivePlanMetadata? Metadata = null);
+
+public enum RecursiveAccessPathKind
+{
+    FullFactScan,
+    IndexedFactLookup,
+    MagicSourceLookup,
+    TableLookup
+}
+
+public sealed record RecursiveAccessPathPlan(
+    string Label,
+    RecursiveAccessPathKind Kind,
+    string TargetName);
+
+public sealed record RecursiveCallPlan(
+    string CallingPredicateName,
+    string TargetPredicateName,
+    Adornment Adornment,
+    bool IsTabledCall,
+    bool IsInsideNegation,
+    string? BlockLabel);
+
+public sealed record MagicPredicatePlan(
+    string PredicateName,
+    Adornment Adornment,
+    IReadOnlyList<int> BoundArgumentIndices)
+{
+    public string MagicPredicateName => $"Magic_{PredicateName}_{Adornment.Pattern}";
+}
+
+public sealed record MagicSeedPlan(
+    string CallingPredicateName,
+    string TargetPredicateName,
+    Adornment Adornment,
+    IReadOnlyList<int> BoundArgumentIndices,
+    string? BlockLabel);
+
+public sealed record MagicModifiedRulePlan(
+    string PredicateName,
+    Adornment Adornment,
+    string MagicPredicateName);
+
+public sealed record MagicPropagationRulePlan(
+    string CallingPredicateName,
+    string TargetPredicateName,
+    Adornment Adornment,
+    IReadOnlyList<int> BoundArgumentIndices,
+    string? BlockLabel);
+
+public sealed record RecursivePlanMetadata(
+    Adornment EntryAdornment,
+    IReadOnlyList<RecursiveCallPlan> RecursiveCalls,
+    IReadOnlyList<MagicPredicatePlan> MagicPredicates,
+    IReadOnlyList<MagicSeedPlan> MagicSeeds,
+    IReadOnlyList<MagicModifiedRulePlan> ModifiedRules,
+    IReadOnlyList<MagicPropagationRulePlan> PropagationRules,
+    IReadOnlyList<RecursiveAccessPathPlan> AccessPaths);

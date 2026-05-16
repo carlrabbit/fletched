@@ -190,6 +190,22 @@ Recursive execution that continues recursive expansion without yielding a soluti
 
 The directed graph of predicate identities and positive or negative invocation edges used for recursion classification and recursive-negation diagnostics.
 
+## Adornment
+
+A deterministic bound/free binding pattern assigned to a predicate call at call entry.
+
+## Magic Predicate
+
+A generated predicate that stores or represents relevant bound tuples used to restrict recursive search.
+
+## Magic Source
+
+A query-scoped runtime source that stores deduplicated magic predicate tuples separately from answer tables.
+
+## Recursive Access Path
+
+The explicit plan choice that determines whether recursive work uses a full scan, indexed lookup, magic source lookup, or table lookup.
+
 # Authority
 
 This document is authoritative for:

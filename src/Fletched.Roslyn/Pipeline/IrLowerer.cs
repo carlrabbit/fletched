@@ -15,7 +15,9 @@ public sealed class IrLowerer
 
     public IrLowerer(DiagnosticReporter reporter) => _reporter = reporter;
 
-    public PlanProgram? Lower(PredicateModel model)
+    public PlanProgram? Lower(PredicateModel model) => Lower(model, callGraph: null);
+
+    public PlanProgram? Lower(PredicateModel model, PredicateCallGraph? callGraph)
     {
         var ctx = new LoweringContext();
 
@@ -33,7 +35,8 @@ public sealed class IrLowerer
         if (resolvedEntry is null) return null;
 
         var rest = allBlocks.Where(b => b.Label != resolvedEntry.Label).ToList();
-        return new PlanProgram(resolvedEntry, rest, ctx.SlotMap);
+        PlanProgram plan = new(resolvedEntry, rest, ctx.SlotMap);
+        return RecursivePlanningAnnotator.Annotate(model, plan, callGraph, _reporter);
     }
 
     private PlanBlock? LowerExpr(SemanticExpr expr, LoweringContext ctx, out string? startLabel)

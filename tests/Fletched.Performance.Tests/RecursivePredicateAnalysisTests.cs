@@ -359,6 +359,221 @@ public partial record struct Ancestor
         await Assert.That(generatedSource.Contains("foreach (var item in ExecuteTabledArity2(ctx, \"f|f\", observer))", StringComparison.Ordinal)).IsTrue();
     }
 
+    [Test]
+    public async Task AdornmentAnalyzer_RecursiveCall_UsesBoundFreePatternAfterLocalPropagation()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct ParentLink(string Parent, string Child);
+
+[Predicate]
+public partial record struct DirectParent
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<ParentLink>(link => link.Parent == parent && link.Child == child);
+}
+
+[Predicate]
+public partial record struct Ancestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        DirectParent(parent, child) ||
+        Logic.With<string>(middle =>
+            DirectParent(parent, middle) &&
+            Ancestor(middle, child));
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Ancestor");
+
+        AdornmentAnalysisResult result = AdornmentAnalyzer.Analyze(model, reporter: reporter);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(result.Calls.Last().Adornment.Pattern).IsEqualTo("bf");
+    }
+
+    [Test]
+    public async Task AdornmentAnalyzer_NegationBoundary_DoesNotExportBindings()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct Probe
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> left, TerminalVar<string> right) =>
+        left == right;
+}
+
+[Predicate]
+public partial record struct Caller
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> child) =>
+        Probe(child, child);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Caller");
+        CSharpCompilation compilation = CreateCompilation(source);
+        ITypeSymbol stringType = compilation.GetSpecialType(SpecialType.System_String);
+        ITypeSymbol boolType = compilation.GetSpecialType(SpecialType.System_Boolean);
+        INamedTypeSymbol probeSymbol = compilation.GetTypeByMetadataName("Probe")!;
+        VariableSymbol child = model.Parameters.Single();
+        var middle = new VariableSymbol("middle", stringType, VariableKind.Fresh);
+
+        var syntheticModel = model with
+        {
+            Body = new ConjExpr(
+            [
+                new NotExpr(
+                    new UnifyExpr(new VarExpr(child), new ConstExpr("alice", stringType)),
+                    boolType),
+                new CallExpr(
+                    probeSymbol,
+                    [new VarExpr(child), new VarExpr(middle)],
+                    boolType,
+                    2),
+            ],
+            boolType)
+        };
+
+        AdornmentAnalysisResult result = AdornmentAnalyzer.Analyze(syntheticModel, reporter: reporter);
+
+        await Assert.That(result.Calls.Single().Adornment.Pattern).IsEqualTo("ff");
+    }
+
+    [Test]
+    public async Task RecursivePlanningAnnotator_BoundRecursivePredicate_ProducesMagicArtifacts()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct ParentLink(string Parent, string Child);
+
+[Predicate]
+public partial record struct DirectParent
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<ParentLink>(link => link.Parent == parent && link.Child == child);
+}
+
+[Predicate]
+public partial record struct Ancestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        DirectParent(parent, child) ||
+        Logic.With<string>(middle =>
+            DirectParent(parent, middle) &&
+            Ancestor(middle, child));
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Ancestor");
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+        var lowerer = new IrLowerer(reporter);
+        PlanProgram? plan = lowerer.Lower(model, graph);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(plan).IsNotNull();
+        await Assert.That(plan!.Metadata).IsNotNull();
+        await Assert.That(plan.Metadata!.RecursiveCalls.Single().Adornment.Pattern).IsEqualTo("bf");
+        await Assert.That(plan.Metadata.MagicPredicates.Single().MagicPredicateName).IsEqualTo("Magic_Ancestor_bf");
+        await Assert.That(plan.Metadata.ModifiedRules.Single().MagicPredicateName).IsEqualTo("Magic_Ancestor_bf");
+        await Assert.That(plan.Metadata.PropagationRules.Single().Adornment.Pattern).IsEqualTo("bf");
+        await Assert.That(plan.Metadata.AccessPaths.Any(path => path.Kind == RecursiveAccessPathKind.MagicSourceLookup)).IsTrue();
+    }
+
+    [Test]
+    public async Task RecursivePlanningAnnotator_AllFreeRecursiveCall_ReportsFLM3002()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct Loop
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 0 || Loop(value);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Loop");
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+        var lowerer = new IrLowerer(reporter);
+        _ = lowerer.Lower(model, graph);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.MagicRewriteSkippedAllFree.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task RecursivePlanningAnnotator_RecursiveNegation_ReportsFLM3003()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Predicate]
+public partial record struct Loop
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 1 && Logic.Not(Loop(value));
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Loop");
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+        var lowerer = new IrLowerer(reporter);
+        _ = lowerer.Lower(model, graph);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.MagicRewriteRejectedNegation.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task PredicateEmitter_IndexedLookup_UsesGeneratedFactIndexAccessor()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct Product(string Sku);
+
+[Predicate]
+public partial record struct ProductBySku
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> sku) =>
+        Logic.With<Product>(product => product.Sku == sku);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "ProductBySku");
+        var lowerer = new IrLowerer(reporter);
+        PlanProgram? plan = lowerer.Lower(model);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(plan).IsNotNull();
+
+        string generatedSource = new PredicateEmitter(model, plan!, generateLegacyNames: true).Emit();
+
+        await Assert.That(generatedSource.Contains("GeneratedFactIndexAccessor", StringComparison.Ordinal)).IsTrue();
+    }
+
     private static (IReadOnlyList<PredicateModel> Models, DiagnosticReporter Reporter) AnalyzeAll(string source)
     {
         CSharpCompilation compilation = CreateCompilation(source);
