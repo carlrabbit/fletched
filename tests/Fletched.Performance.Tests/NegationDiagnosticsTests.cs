@@ -115,6 +115,29 @@ public partial record struct RecursiveNegationPredicate
     }
 
     [Test]
+    public async Task SemanticAnalyzer_TabledRecursiveNegation_ReportsFLT2002()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Tabled]
+[Predicate]
+public partial record struct RecursiveNegationPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> number) =>
+        number == 5 &&
+        Logic.Not(RecursiveNegationPredicate(number));
+}
+""";
+
+        DiagnosticReporter reporter = Analyze("RecursiveNegationPredicate", source);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.InvalidTabledNegationCycle.Id)).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedRecursiveNegation.Id)).IsFalse();
+    }
+
+    [Test]
     public async Task SemanticAnalyzer_NegationInvocationPattern_ReportsFLG0004()
     {
         const string source = """

@@ -79,6 +79,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             var reporter = new DiagnosticReporter();
             var validator = new SourceSymbolValidator(reporter);
             validator.ValidatePredicateType(predicateType);
+            validator.ValidateTabledPredicateOptions(predicateType);
             ReportDiagnostics(spc, reporter);
             if (reporter.HasErrors)
                 return;
@@ -93,6 +94,7 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
                 models);
             PredicateCallGraph callGraph = PredicateCallGraph.Create(compilationModels);
             PredicateRecursionValidator.ReportMutualNegativeCycles(callGraph, models, reporter);
+            PredicateRecursionValidator.ReportUnsupportedTabledMutualRecursion(callGraph, models, reporter);
 
             // Report diagnostics
             foreach (Diagnostic d in reporter.Diagnostics)

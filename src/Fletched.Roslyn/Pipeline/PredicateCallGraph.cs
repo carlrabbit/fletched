@@ -103,6 +103,17 @@ public sealed class PredicateCallGraph
         return _componentsByNodeId[node.Id].Count > 1;
     }
 
+    public bool HasMutuallyRecursiveTabledCycle(PredicateCallGraphNode node)
+    {
+        IReadOnlyList<PredicateCallGraphNode> component = _componentsByNodeId[node.Id];
+        if (component.Count <= 1)
+            return false;
+
+        int tabledCount = component.Count(componentNode =>
+            PredicateAttributeHelpers.IsTabledPredicate(componentNode.PredicateType));
+        return tabledCount > 1;
+    }
+
     public IReadOnlyList<PredicateCallGraphCycle> GetNegativeCycles()
     {
         var cycles = new List<PredicateCallGraphCycle>();
@@ -378,14 +389,45 @@ public static class PredicateRecursionValidator
                 .FirstOrDefault(edgeLocation => edgeLocation is not null);
 
             reporter.Error(
-                DiagnosticsCatalog.UnsupportedRecursiveNegation,
+                GetNegationCycleDiagnostic(cycle),
                 location,
                 $": {graph.FormatCycle(cycle)}");
+        }
+    }
+
+    public static void ReportUnsupportedTabledMutualRecursion(
+        PredicateCallGraph graph,
+        IEnumerable<PredicateModel> currentModels,
+        DiagnosticReporter reporter)
+    {
+        foreach (PredicateModel model in currentModels)
+        {
+            if (!PredicateAttributeHelpers.IsTabledPredicate(model.Symbol))
+                continue;
+
+            PredicateCallGraphNode? node = graph.TryGetNode(model.Symbol, model.Arity);
+            if (node is null || !graph.HasMutuallyRecursiveTabledCycle(node))
+                continue;
+
+            reporter.Error(
+                DiagnosticsCatalog.UnsupportedTabledMutualRecursion,
+                model.BodyMethod.Locations.FirstOrDefault());
         }
     }
 
     private static string PredicateCallGraphNodeId(PredicateModel model)
     {
         return $"{model.Symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{model.Arity}";
+    }
+
+    /// <summary>
+    /// Returns the recursive-negation diagnostic for a cycle.
+    /// Uses FLT2002 when any predicate in the cycle is tabled; otherwise uses FLG0003.
+    /// </summary>
+    private static DiagnosticDescriptor GetNegationCycleDiagnostic(PredicateCallGraphCycle cycle)
+    {
+        return cycle.Nodes.Any(node => PredicateAttributeHelpers.IsTabledPredicate(node.PredicateType))
+            ? DiagnosticsCatalog.InvalidTabledNegationCycle
+            : DiagnosticsCatalog.UnsupportedRecursiveNegation;
     }
 }

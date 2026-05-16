@@ -105,7 +105,11 @@ public sealed class IrLowerer
                     callInstructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
                 }
 
-                callInstructions.Add(new CallInstr(callExpr.PredicateType, argSlots, callExpr.Arity));
+                callInstructions.Add(new CallInstr(
+                    callExpr.PredicateType,
+                    argSlots,
+                    callExpr.Arity,
+                    IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(callExpr.PredicateType)));
 
                 string label = ctx.NextLabel("call");
                 startLabel = label;
@@ -195,7 +199,11 @@ public sealed class IrLowerer
                         instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
                     }
 
-                    instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
+                    instructions.Add(new CallInstr(
+                        call.PredicateType,
+                        argSlots,
+                        call.Arity,
+                        IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
                     break;
                 }
 
@@ -534,7 +542,11 @@ public sealed class IrLowerer
                     instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
                 }
 
-                instructions.Add(new CallInstr(call.PredicateType, argSlots, call.Arity));
+                instructions.Add(new CallInstr(
+                    call.PredicateType,
+                    argSlots,
+                    call.Arity,
+                    IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
                 break;
             }
             case ConjExpr conj:

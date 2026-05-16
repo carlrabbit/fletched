@@ -45,7 +45,11 @@ public record LoopBindInstr(int Slot, string IndexVar, ITypeSymbol FactType, Ind
 public record IndexIncrInstr(string IndexVar) : PlanInstruction;
 
 /// <summary>Call to another predicate — iterates its results and binds argument slots.</summary>
-public record CallInstr(INamedTypeSymbol PredicateType, IReadOnlyList<int> ArgumentSlots, int Arity) : PlanInstruction;
+public record CallInstr(
+    INamedTypeSymbol PredicateType,
+    IReadOnlyList<int> ArgumentSlots,
+    int Arity,
+    bool IsTabledCall = false) : PlanInstruction;
 
 /// <summary>Negation-as-failure instruction. Succeeds iff the subgoal produces no solutions.</summary>
 public record NotInstr(IReadOnlyList<PlanInstruction> SubGoalInstructions) : PlanInstruction;

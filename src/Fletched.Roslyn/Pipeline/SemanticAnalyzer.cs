@@ -383,8 +383,11 @@ public sealed class SemanticAnalyzer
                 call.Arity == _currentPredicateArity)
             {
                 string predicateName = $"{_currentPredicateType.ToDisplayString(SymbolDisplayFormat.MinimallyQualifiedFormat)}/{_currentPredicateArity}";
+                DiagnosticDescriptor descriptor = PredicateAttributeHelpers.IsTabledPredicate(_currentPredicateType)
+                    ? DiagnosticsCatalog.InvalidTabledNegationCycle
+                    : DiagnosticsCatalog.UnsupportedRecursiveNegation;
                 _reporter.Error(
-                    DiagnosticsCatalog.UnsupportedRecursiveNegation,
+                    descriptor,
                     location,
                     $": {predicateName} -not-> {predicateName}");
             }

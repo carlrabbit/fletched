@@ -513,7 +513,12 @@ public sealed class PredicateEmitterAsync
             ctx.AppendLine("try");
             ctx.AppendLine("{");
             using (ctx.Indent())
-                ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            {
+                if (call.IsTabledCall)
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, observer).GetEnumerator();");
+                else
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+            }
             ctx.AppendLine("}");
             ctx.AppendLine("catch");
             ctx.AppendLine("{");
@@ -613,7 +618,10 @@ public sealed class PredicateEmitterAsync
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
-                ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
+                if (call.IsTabledCall)
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, null))");
+                else
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
@@ -932,6 +940,23 @@ public sealed class PredicateEmitterAsync
     {
         var entry = _slots.FirstOrDefault(s => s.Slot == slot);
         return entry.Name ?? $"_slot{slot}";
+    }
+
+    private string EmitCanonicalCallExpression(CallInstr call)
+    {
+        if (call.ArgumentSlots.Count == 0)
+            return "\"\"";
+
+        var parts = new List<string>(call.ArgumentSlots.Count * 2 - 1);
+        for (int i = 0; i < call.ArgumentSlots.Count; i++)
+        {
+            string slotName = SlotName(call.ArgumentSlots[i]);
+            parts.Add($"(state.{slotName}_bound ? \"b:\" + global::Fletched.Core.Runtime.TableKeyFormatter.Format(state.{slotName}) : \"f\")");
+            if (i < call.ArgumentSlots.Count - 1)
+                parts.Add("\"|\"");
+        }
+
+        return $"global::System.String.Concat({string.Join(", ", parts)})";
     }
 
     private static string IndexMatchesVar(string indexVar) => $"{indexVar}_matches";

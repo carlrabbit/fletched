@@ -171,6 +171,10 @@ Runtime Recursion Safety Diagnostics
 | FLR1001 | RecursiveDepthExceeded | Runtime recursive depth exceeded configured maximum. |
 | FLR1002 | InvalidRecursionDepthConfiguration | Configured recursion depth is zero or negative. |
 | FLR1003 | RecursiveGuardInsideNegation | Guard violation occurred inside negation and is reported as operational failure. |
+| FLT2001 | UnsupportedSubsumptiveTabling | Subsumptive tabling requested but unsupported. |
+| FLT2002 | InvalidTabledNegationCycle | Tabled predicate participates in recursive negation cycle. |
+| FLT2003 | AmbiguousTableKey | Table key cannot be constructed deterministically. |
+| FLT2004 | UnsupportedAsyncTablePattern | Async tabled recursive pattern is unsupported. |
 
 ---
 

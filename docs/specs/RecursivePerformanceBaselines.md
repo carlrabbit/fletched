@@ -53,6 +53,19 @@ Measures failed recursive search against an unreachable target.
 
 Measures mutually recursive predicates without tabling.
 
+### RPB-005 — Tabled vs Untabled Recursion Comparison
+
+Measures equivalent recursive workloads with tabling disabled and enabled for supported predicates.
+
+Metrics:
+
+- total results (set equivalence)
+- elapsed time
+- allocations
+- predicate invocation count
+- recursive invocation count
+- answer-table insertions (when available)
+
 ## Baseline Rules
 
 ### RPB-010 — Baselines Are Comparative
@@ -80,6 +93,7 @@ Benchmarks correlate with runtime metrics where enabled:
 - benchmark scenarios produce expected result counts
 - recursive metrics are emitted when metrics instrumentation is enabled
 - recursive depth metric is populated
+- tabled and untabled recursive benchmark outputs are comparable by scenario identifier
 
 ## Must Be Updated Together
 

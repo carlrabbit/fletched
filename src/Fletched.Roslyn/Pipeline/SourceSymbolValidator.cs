@@ -47,6 +47,25 @@ public sealed class SourceSymbolValidator
         return false;
     }
 
+    public void ValidateTabledPredicateOptions(INamedTypeSymbol predicateType)
+    {
+        AttributeData? tabledAttribute = predicateType.GetAttributes()
+            .FirstOrDefault(static a => a.AttributeClass?.Name == "TabledAttribute");
+        if (tabledAttribute is null)
+            return;
+
+        if (tabledAttribute.ConstructorArguments.Length == 0)
+            return;
+
+        TypedConstant modeArg = tabledAttribute.ConstructorArguments[0];
+        if (modeArg.Value is int mode && mode == 1)
+        {
+            _reporter.Error(
+                DiagnosticsCatalog.UnsupportedSubsumptiveTabling,
+                predicateType.Locations.FirstOrDefault());
+        }
+    }
+
     public bool ValidateModuleType(INamedTypeSymbol moduleType)
     {
         ValidateContainingTypes(moduleType);

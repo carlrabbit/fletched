@@ -47,6 +47,26 @@ public partial record struct BenchAncestorStep
 }
 
 [Predicate]
+public partial record struct BenchTabledParent
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<BenchParentEdge>(edge => edge.Parent == parent && edge.Child == child);
+}
+
+[Tabled]
+[Predicate]
+public partial record struct BenchTabledAncestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        BenchTabledParent(parent, child) ||
+        Logic.With<string>(middle =>
+            BenchTabledParent(parent, middle) &&
+            BenchTabledAncestor(middle, child));
+}
+
+[Predicate]
 public partial record struct BenchTreeParent
 {
     [PredicateBody]
@@ -148,6 +168,14 @@ public class RecursivePredicateBenchmarks
     public int MutualRecursion_ResultCount() =>
         default(BenchEvenValues).Execute(_mutualContext).Count();
 
+    [Benchmark(Description = "RPB-005 Tabled recursion comparison")]
+    public int TabledVsUntabled_ResultDelta()
+    {
+        int untabledCount = default(BenchAncestor).Execute(_linearContext).Count();
+        int tabledCount = default(BenchTabledAncestor).Execute(_linearContext).Count();
+        return tabledCount - untabledCount;
+    }
+
     private void ValidateScenarioCounts()
     {
         int linearCount = default(BenchAncestor).Execute(_linearContext).Count();
@@ -164,6 +192,10 @@ public class RecursivePredicateBenchmarks
             .Count(result => result.parent == _linearRoot && result.child == "missing-node");
         Ensure(noResultCount == 0,
             $"No-result recursive scenario returned {noResultCount} results.");
+
+        int tabledCount = default(BenchTabledAncestor).Execute(_linearContext).Count();
+        Ensure(tabledCount == linearCount,
+            $"Tabled recursion result count mismatch: expected {linearCount}, actual {tabledCount}.");
 
         int mutualCount = default(BenchEvenValues).Execute(_mutualContext).Count();
         int expectedMutualCount = MutualRecursionMaxValue / 2 + 1;

@@ -6,6 +6,14 @@ Recursive predicates are predicates whose invocation call graph contains a path 
 
 Recursive predicates preserve source-order depth-first execution and existing copy-in/copy-out invocation semantics.
 
+## Tabled Recursion
+
+Recursive predicates may opt into tabled execution as defined by `Tabling.md`.
+
+Untabled recursion preserves baseline depth-first behavior.
+
+Tabled recursion may alter operational ordering but must preserve the result set for supported positive recursive predicates.
+
 ## Operational Safety
 
 Recursive predicates do not guarantee termination.

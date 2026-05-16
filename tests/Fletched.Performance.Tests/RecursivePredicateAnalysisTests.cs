@@ -144,6 +144,82 @@ public partial record struct B
     }
 
     [Test]
+    public async Task PredicateRecursionValidator_TabledMutualRecursiveNegation_ReportsFLT2002WithCyclePath()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Tabled]
+[Predicate]
+public partial record struct A
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 1 &&
+        Logic.Not(B(value));
+}
+
+[Predicate]
+public partial record struct B
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        A(value);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+
+        PredicateRecursionValidator.ReportMutualNegativeCycles(
+            graph,
+            models.Where(model => model.Name == "A"),
+            reporter);
+
+        Diagnostic? diagnostic = reporter.Diagnostics.SingleOrDefault(d => d.Id == DiagnosticsCatalog.InvalidTabledNegationCycle.Id);
+
+        await Assert.That(diagnostic).IsNotNull();
+        await Assert.That(diagnostic!.GetMessage().Contains("recursive negation cycle", StringComparison.OrdinalIgnoreCase)).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedRecursiveNegation.Id)).IsFalse();
+    }
+
+    [Test]
+    public async Task PredicateRecursionValidator_TabledMutualRecursion_ReportsFLT2005()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Tabled]
+[Predicate]
+public partial record struct EvenGeneration
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        value == 0 || OddGeneration(value);
+}
+
+[Tabled]
+[Predicate]
+public partial record struct OddGeneration
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        EvenGeneration(value);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateCallGraph graph = PredicateCallGraph.Create(models);
+
+        PredicateRecursionValidator.ReportUnsupportedTabledMutualRecursion(
+            graph,
+            models.Where(model => model.Name == "EvenGeneration" || model.Name == "OddGeneration"),
+            reporter);
+
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedTabledMutualRecursion.Id)).IsTrue();
+    }
+
+    [Test]
     public async Task PredicateEmitter_RecursivePredicate_UsesExistingExecuteArityInvocation()
     {
         const string source = """
@@ -190,6 +266,54 @@ public partial record struct Ancestor
         string generatedSource = new PredicateEmitter(model, plan!, generateLegacyNames: true).Emit();
 
         await Assert.That(generatedSource.Contains("ExecuteArity2(ctx, observer).GetEnumerator()", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task IrLowerer_TabledPredicateCall_IsMarkedAsTabledPlanningBoundary()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct ParentLink(string Parent, string Child);
+
+[Tabled]
+[Predicate]
+public partial record struct Ancestor
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<string>(middle =>
+            DirectParent(parent, middle) &&
+            Ancestor(middle, child));
+}
+
+[Predicate]
+public partial record struct DirectParent
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> parent, TerminalVar<string> child) =>
+        Logic.With<ParentLink>(link => link.Parent == parent && link.Child == child);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Ancestor");
+        var lowerer = new IrLowerer(reporter);
+        PlanProgram? plan = lowerer.Lower(model);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(plan).IsNotNull();
+
+        PlanInstruction[] instructions = new[] { plan!.Entry }
+            .Concat(plan.Blocks)
+            .SelectMany(block => block.Instructions)
+            .ToArray();
+
+        CallInstr[] calls = instructions.OfType<CallInstr>().ToArray();
+        await Assert.That(calls.Length).IsEqualTo(2);
+        await Assert.That(calls.Single(call => call.PredicateType.Name == "Ancestor").IsTabledCall).IsTrue();
+        await Assert.That(calls.Single(call => call.PredicateType.Name == "DirectParent").IsTabledCall).IsFalse();
     }
 
     private static (IReadOnlyList<PredicateModel> Models, DiagnosticReporter Reporter) AnalyzeAll(string source)
