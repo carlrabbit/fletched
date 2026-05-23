@@ -21,7 +21,7 @@ Define a controlled implementation phase with explicit scope and exit criteria.
 
 - `docs/TERMINOLOGY.md`
 - `docs/TBPS.md`
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - related specs
 - related decisions
 
@@ -36,7 +36,7 @@ Define a controlled implementation phase with explicit scope and exit criteria.
 7. Define risks.
 8. Define exit criteria.
 9. Add the milestone document under `docs/milestones/`.
-10. Update `docs/milestones/README.md`.
+10. Update `docs/MILESTONES.md`.
 11. Link related issues if they already exist.
 
 # Validation
@@ -57,11 +57,11 @@ This document is authoritative for:
 ## Related Documents
 
 - `docs/TBPS.md`
-- `docs/specs/README.md`
-- `docs/milestones/README.md`
+- `docs/SPECS.md`
+- `docs/MILESTONES.md`
 
 ## Must Be Updated Together
 
 When milestone creation rules change, review and update:
-- `docs/milestones/README.md`
+- `docs/MILESTONES.md`
 - `.github/ISSUE_TEMPLATE/create-milestone.yml`

@@ -18,10 +18,10 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Restore
-        run: dotnet restore Fletched.slnx
+        run: ./eng/restore.sh
 
       - name: Build
-        run: dotnet build Fletched.slnx -c Release --no-restore
+        run: ./eng/build.sh
 
       - name: Prepare test results directory
         run: mkdir -p TestResults

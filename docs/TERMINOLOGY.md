@@ -223,7 +223,7 @@ This document is not authoritative for:
 ## Related Documents
 
 - `README.md`
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/WORKFLOWS.md`
 - `docs/TBPS.md`
 

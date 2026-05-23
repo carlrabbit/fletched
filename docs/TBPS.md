@@ -72,12 +72,10 @@ This document is not authoritative for:
 ## Related Documents
 
 - `docs/TERMINOLOGY.md`
-- `docs/tbps/README.md`
 - `.github/ISSUE_TEMPLATE/`
 
 ## Must Be Updated Together
 
 When TBP scope rules or the TBP catalog change, review and update:
-- `docs/tbps/README.md`
 - affected documents under `docs/tbps/`
 - related issue templates under `.github/ISSUE_TEMPLATE/`

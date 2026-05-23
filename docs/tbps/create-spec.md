@@ -20,7 +20,7 @@ Create a specification that defines behavioral truth before implementation.
 # Required Reading
 
 - `docs/TERMINOLOGY.md`
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - related architecture documents
 - related decisions
 
@@ -33,7 +33,7 @@ Create a specification that defines behavioral truth before implementation.
 5. Define behavioral rules.
 6. Define failure semantics.
 7. Define validation expectations.
-8. Add the spec to `docs/specs/README.md`.
+8. Add the spec to `docs/SPECS.md`.
 9. Create or update related decisions if rationale is missing.
 
 # Validation
@@ -41,7 +41,7 @@ Create a specification that defines behavioral truth before implementation.
 - Spec defines observable behavior.
 - Spec includes invariants.
 - Spec avoids accidental implementation planning.
-- Spec is linked from `docs/specs/README.md`.
+- Spec is linked from `docs/SPECS.md`.
 
 # Authority
 
@@ -53,11 +53,11 @@ This document is authoritative for:
 
 ## Related Documents
 
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/TERMINOLOGY.md`
 
 ## Must Be Updated Together
 
 When spec authoring rules change, review and update:
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `.github/ISSUE_TEMPLATE/create-spec.yml`

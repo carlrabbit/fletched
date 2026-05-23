@@ -53,7 +53,7 @@ This document is authoritative for:
 
 - `docs/tbps/create-milestone.md`
 - `docs/tbps/start-milestone.md`
-- `docs/milestones/README.md`
+- `docs/MILESTONES.md`
 
 ## Must Be Updated Together
 

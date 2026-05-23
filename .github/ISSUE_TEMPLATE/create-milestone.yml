@@ -8,7 +8,7 @@ body:
   - type: markdown
     attributes:
       value: |
-        Review `docs/tbps/create-milestone.md`, `docs/milestones/README.md`, `docs/specs/README.md`, and `docs/TERMINOLOGY.md` before filing.
+        Review `docs/tbps/create-milestone.md`, `docs/MILESTONES.md`, `docs/SPECS.md`, and `docs/TERMINOLOGY.md` before filing.
   - type: input
     id: milestone-name
     attributes:

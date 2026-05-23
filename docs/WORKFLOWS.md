@@ -21,16 +21,14 @@ GitHub Actions YAML files are implementation artifacts.
 | [`nuget-pack-and-publish.md`](workflows/nuget-pack-and-publish.md) | Pack NuGet artifacts and publish tagged releases |
 | [`performance-testing.md`](workflows/performance-testing.md) | Run performance-focused tests and benchmarks |
 
-## Cross-document synchronization workflow
+## Engineering Command Contract Integration
 
-Changes to predicate invocation or negation semantics must update the authoritative documentation set together:
+CI workflows call canonical `eng/` scripts:
 
-- `docs/specs/PredicateInvocation.md`
-- `docs/specs/Backtracking.md`
-- `docs/specs/LoweringRules.md`
-- `docs/specs/Diagnostics.md`
-- `docs/specs/DSL.md`
-- `docs/TERMINOLOGY.md`
+- `./eng/check.sh` — canonical completion gate (restore + build + fast tests)
+- `./eng/benchmark.sh` — benchmark build (performance-testing workflow only)
+
+See `docs/ENGINEERING.md` for the full command contract.
 
 # Authority
 
@@ -48,13 +46,9 @@ This document is not authoritative for:
 
 ## Related Documents
 
-- `docs/workflows/README.md`
-- `.github/workflows/README.md`
 - `.github/workflows/`
 
 ## Must Be Updated Together
 
 When workflow intent scope or the workflow index changes, review and update:
-- `docs/workflows/README.md`
-- `.github/workflows/README.md`
 - corresponding files in `.github/workflows/`
