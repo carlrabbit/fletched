@@ -8,7 +8,7 @@ Accepted
 
 Engineering Guide V3 defaults formatting validation to full `dotnet format --verify-no-changes`.
 
-In this repository, full `dotnet format` currently fails workspace loading for generator-backed test projects due unresolved generated result types, while the canonical build and test pipeline succeeds. This makes full-format validation noisy and unreliable as a completion gate.
+In this repository, full `dotnet format` currently fails workspace loading for generator-backed test projects due to unresolved generated result types, while the canonical build and test pipeline succeeds. This makes full-format validation noisy and unreliable as a completion gate.
 
 ## Decision
 

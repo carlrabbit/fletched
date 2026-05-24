@@ -8,7 +8,7 @@ Accepted
 
 Engineering Guide V3 defaults `eng/benchmark.sh` to benchmark execution (`dotnet run`).
 
-Fletched separates benchmark build and benchmark execution so default engineering commands stay predictable and avoid accidentally running expensive benchmark jobs during routine local or CI validation.
+This repository separates benchmark build and benchmark execution so default engineering commands stay predictable and avoid accidentally running expensive benchmark jobs during routine local or CI validation.
 
 The performance workflow already performs benchmark execution explicitly after the build step.
 
