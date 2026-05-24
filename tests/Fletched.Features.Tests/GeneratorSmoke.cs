@@ -41,7 +41,7 @@ public class GeneratorSmokeTests
     public async Task Generator_IsReferenced()
     {
         // The generator is referenced as an analyzer — if it compiled, we're good.
-        await Assert.That(1 + 1).IsEqualTo(2);
+        await Assert.That(typeof(GeneratorSmokeTests).Assembly).IsNotNull();
     }
 
     [Test]

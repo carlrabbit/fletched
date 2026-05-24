@@ -175,20 +175,20 @@ internal static class PlanAnalysis
 
             case CompInstr comp when TryEvaluateValue(comp.Left, out IComparable? left)
                                      && TryEvaluateValue(comp.Right, out IComparable? right):
-            {
-                int comparison = Comparer<IComparable>.Default.Compare(left, right);
-                alwaysSucceeds = comp.Op switch
                 {
-                    CompOp.NotEqual => comparison != 0,
-                    CompOp.LessThan => comparison < 0,
-                    CompOp.GreaterThan => comparison > 0,
-                    CompOp.LessThanOrEqual => comparison <= 0,
-                    CompOp.GreaterThanOrEqual => comparison >= 0,
-                    _ => false,
-                };
-                alwaysFails = !alwaysSucceeds;
-                return true;
-            }
+                    int comparison = Comparer<IComparable>.Default.Compare(left, right);
+                    alwaysSucceeds = comp.Op switch
+                    {
+                        CompOp.NotEqual => comparison != 0,
+                        CompOp.LessThan => comparison < 0,
+                        CompOp.GreaterThan => comparison > 0,
+                        CompOp.LessThanOrEqual => comparison <= 0,
+                        CompOp.GreaterThanOrEqual => comparison >= 0,
+                        _ => false,
+                    };
+                    alwaysFails = !alwaysSucceeds;
+                    return true;
+                }
 
             default:
                 return false;

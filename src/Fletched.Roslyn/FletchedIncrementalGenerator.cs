@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
+using Fletched.Roslyn.Emitters;
+using Fletched.Roslyn.Pipeline;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp.Syntax;
-using Fletched.Roslyn.Pipeline;
-using Fletched.Roslyn.Emitters;
 
 namespace Fletched.Roslyn;
 

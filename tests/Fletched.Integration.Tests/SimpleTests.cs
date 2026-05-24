@@ -60,7 +60,7 @@ public class SimpleTests
     [Test]
     public async Task Placeholder_AlwaysPasses()
     {
-        await Assert.That(true).IsTrue();
+        await Assert.That(BuildContext().Users.Data.Length).IsEqualTo(3);
     }
 
     [Test]
@@ -178,7 +178,7 @@ public class SimpleTests_Execute
     {
         EngineContext ctx = BuildContext();
 
-        List<UserNamesResult> sync  = default(UserNames).Execute(ctx).ToList();
+        List<UserNamesResult> sync = default(UserNames).Execute(ctx).ToList();
         List<UserNamesResult> async_ = await default(UserNames).ExecuteAsync(ctx).ToListAsync();
 
         await Assert.That(sync.Count).IsEqualTo(async_.Count);

@@ -1,7 +1,6 @@
 # Copilot Instructions
 
 Primary repository documentation:
-- `copilot-instructions.md`
 - `docs/TERMINOLOGY.md`
 - `docs/SPECS.md`
 - `docs/ENGINEERING.md`

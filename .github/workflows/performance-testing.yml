@@ -23,12 +23,8 @@ jobs:
       - name: Build
         run: ./eng/build.sh
 
-      - name: Test — Performance
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Performance.Tests/Fletched.Performance.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Performance.Tests.cobertura.xml
+      - name: Collect performance coverage
+        run: ./eng/ci/collect-coverage.sh performance
 
       - name: Upload performance test report
         if: always()

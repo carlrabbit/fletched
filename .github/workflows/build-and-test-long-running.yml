@@ -23,31 +23,14 @@ jobs:
       - name: Build
         run: ./eng/build.sh
 
+      - name: Verify formatting
+        run: ./eng/format.sh --verify-no-changes
+
       - name: Prepare test results directory
         run: mkdir -p TestResults
 
-      - name: Test — Core
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Core.Tests.cobertura.xml
-
-      - name: Test — Features
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Features.Tests.cobertura.xml
-
-      - name: Test — Integration (Long Running Enabled)
-        env:
-          FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS: "1"
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Integration.Tests.cobertura.xml
+      - name: Collect coverage (Long Running Enabled)
+        run: ./eng/ci/collect-coverage.sh long-running
 
       - name: Generate coverage report
         if: always()

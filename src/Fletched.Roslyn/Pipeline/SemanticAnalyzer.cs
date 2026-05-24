@@ -216,54 +216,54 @@ public sealed class SemanticAnalyzer
         switch (bin.Kind())
         {
             case SyntaxKind.EqualsExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, null);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, null);
-                if (left is null || right is null) return null;
-                return new UnifyExpr(left, right);
-            }
+                {
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, null);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, null);
+                    if (left is null || right is null) return null;
+                    return new UnifyExpr(left, right);
+                }
 
             case SyntaxKind.LogicalAndExpression:
-            {
-                // Flatten conjunctions
-                SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
-                if (left is null || right is null) return null;
-                var parts = new List<SemanticExpr>();
-                FlattenConj(left, parts);
-                FlattenConj(right, parts);
-                ValidateNegationGrounding(parts, bin.GetLocation());
-                return new ConjExpr(parts, boolType);
-            }
+                {
+                    // Flatten conjunctions
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
+                    if (left is null || right is null) return null;
+                    var parts = new List<SemanticExpr>();
+                    FlattenConj(left, parts);
+                    FlattenConj(right, parts);
+                    ValidateNegationGrounding(parts, bin.GetLocation());
+                    return new ConjExpr(parts, boolType);
+                }
 
             case SyntaxKind.LogicalOrExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
-                if (left is null || right is null) return null;
-                return new DisjExpr(left, right, boolType);
-            }
+                {
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
+                    if (left is null || right is null) return null;
+                    return new DisjExpr(left, right, boolType);
+                }
 
             // Handle & and | operators (used when DSL uses && and || through true/false overloads)
             case SyntaxKind.BitwiseAndExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
-                if (left is null || right is null) return null;
-                var parts = new List<SemanticExpr>();
-                FlattenConj(left, parts);
-                FlattenConj(right, parts);
-                ValidateNegationGrounding(parts, bin.GetLocation());
-                return new ConjExpr(parts, boolType);
-            }
+                {
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
+                    if (left is null || right is null) return null;
+                    var parts = new List<SemanticExpr>();
+                    FlattenConj(left, parts);
+                    FlattenConj(right, parts);
+                    ValidateNegationGrounding(parts, bin.GetLocation());
+                    return new ConjExpr(parts, boolType);
+                }
 
             case SyntaxKind.BitwiseOrExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
-                if (left is null || right is null) return null;
-                return new DisjExpr(left, right, boolType);
-            }
+                {
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, boolType);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, boolType);
+                    if (left is null || right is null) return null;
+                    return new DisjExpr(left, right, boolType);
+                }
 
             // ── Comparison operators ───────────────────────────────────────────
             case SyntaxKind.NotEqualsExpression:
@@ -271,31 +271,31 @@ public sealed class SemanticAnalyzer
             case SyntaxKind.GreaterThanExpression:
             case SyntaxKind.LessThanOrEqualExpression:
             case SyntaxKind.GreaterThanOrEqualExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, null);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, null);
-                if (left is null || right is null) return null;
-                CompOp op = bin.Kind() switch
                 {
-                    SyntaxKind.NotEqualsExpression => CompOp.NotEqual,
-                    SyntaxKind.LessThanExpression => CompOp.LessThan,
-                    SyntaxKind.GreaterThanExpression => CompOp.GreaterThan,
-                    SyntaxKind.LessThanOrEqualExpression => CompOp.LessThanOrEqual,
-                    _ => CompOp.GreaterThanOrEqual,
-                };
-                return new CompExpr(op, left, right, boolType);
-            }
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, null);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, null);
+                    if (left is null || right is null) return null;
+                    CompOp op = bin.Kind() switch
+                    {
+                        SyntaxKind.NotEqualsExpression => CompOp.NotEqual,
+                        SyntaxKind.LessThanExpression => CompOp.LessThan,
+                        SyntaxKind.GreaterThanExpression => CompOp.GreaterThan,
+                        SyntaxKind.LessThanOrEqualExpression => CompOp.LessThanOrEqual,
+                        _ => CompOp.GreaterThanOrEqual,
+                    };
+                    return new CompExpr(op, left, right, boolType);
+                }
 
             // ── Arithmetic operators ───────────────────────────────────────────
             case SyntaxKind.AddExpression:
             case SyntaxKind.SubtractExpression:
-            {
-                SemanticExpr? left = AnalyzeExpr(bin.Left, null);
-                SemanticExpr? right = AnalyzeExpr(bin.Right, null);
-                if (left is null || right is null) return null;
-                ArithOp op = bin.Kind() == SyntaxKind.AddExpression ? ArithOp.Add : ArithOp.Subtract;
-                return new ArithExpr(op, left, right);
-            }
+                {
+                    SemanticExpr? left = AnalyzeExpr(bin.Left, null);
+                    SemanticExpr? right = AnalyzeExpr(bin.Right, null);
+                    if (left is null || right is null) return null;
+                    ArithOp op = bin.Kind() == SyntaxKind.AddExpression ? ArithOp.Add : ArithOp.Subtract;
+                    return new ArithExpr(op, left, right);
+                }
 
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
@@ -324,52 +324,52 @@ public sealed class SemanticAnalyzer
             switch (part)
             {
                 case UnifyExpr unify:
-                {
-                    bool leftGround = IsGround(unify.Left, grounded);
-                    bool rightGround = IsGround(unify.Right, grounded);
+                    {
+                        bool leftGround = IsGround(unify.Left, grounded);
+                        bool rightGround = IsGround(unify.Right, grounded);
 
-                    if (leftGround)
-                        AddVars(unify.Right, grounded);
-                    if (rightGround)
-                        AddVars(unify.Left, grounded);
-                    break;
-                }
+                        if (leftGround)
+                            AddVars(unify.Right, grounded);
+                        if (rightGround)
+                            AddVars(unify.Left, grounded);
+                        break;
+                    }
 
                 case CallExpr call:
-                {
-                    foreach (SemanticExpr arg in call.Arguments)
-                        AddVars(arg, grounded);
-                    break;
-                }
+                    {
+                        foreach (SemanticExpr arg in call.Arguments)
+                            AddVars(arg, grounded);
+                        break;
+                    }
 
                 case NotExpr not:
-                {
-                    var notVariables = new HashSet<VariableSymbol>(CollectVariables(not.Goal));
-                    var ungroundedInNot = new HashSet<VariableSymbol>();
-                    foreach (VariableSymbol variable in notVariables)
                     {
-                        if (!grounded.Contains(variable))
+                        var notVariables = new HashSet<VariableSymbol>(CollectVariables(not.Goal));
+                        var ungroundedInNot = new HashSet<VariableSymbol>();
+                        foreach (VariableSymbol variable in notVariables)
                         {
-                            _reporter.Error(DiagnosticsCatalog.UngroundedNegation, location, variable.Name);
-                            ungroundedInNot.Add(variable);
+                            if (!grounded.Contains(variable))
+                            {
+                                _reporter.Error(DiagnosticsCatalog.UngroundedNegation, location, variable.Name);
+                                ungroundedInNot.Add(variable);
+                            }
                         }
-                    }
 
-                    var variablesUsedAfterNot = new HashSet<VariableSymbol>();
-                    for (int j = i + 1; j < parts.Count; j++)
-                    {
-                        AddVars(parts[j], variablesUsedAfterNot);
-                    }
+                        var variablesUsedAfterNot = new HashSet<VariableSymbol>();
+                        for (int j = i + 1; j < parts.Count; j++)
+                        {
+                            AddVars(parts[j], variablesUsedAfterNot);
+                        }
 
-                    foreach (VariableSymbol variable in ungroundedInNot)
-                    {
-                        if (variablesUsedAfterNot.Contains(variable))
-                            _reporter.Error(DiagnosticsCatalog.NegationVariableEscape, location, variable.Name);
-                    }
+                        foreach (VariableSymbol variable in ungroundedInNot)
+                        {
+                            if (variablesUsedAfterNot.Contains(variable))
+                                _reporter.Error(DiagnosticsCatalog.NegationVariableEscape, location, variable.Name);
+                        }
 
-                    ValidateNegationGoal(not.Goal, grounded, location);
-                    break;
-                }
+                        ValidateNegationGoal(not.Goal, grounded, location);
+                        break;
+                    }
             }
         }
     }

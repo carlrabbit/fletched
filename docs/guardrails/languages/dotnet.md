@@ -47,6 +47,18 @@ This document defines .NET-specific language and toolchain guardrails for the Fl
 Run `./eng/format.sh` before pushing if code formatting was modified.
 Do not submit formatting-only changes unless the task specifically requires it.
 
+## Analyzer and Style Enforcement
+
+- Root `.editorconfig` is authoritative for C# style.
+- Analyzer severities must be configured in `.editorconfig`.
+- Build must enable analyzer execution through `Directory.Build.props`.
+- Code style must be enforced in build.
+- Production and test projects treat compiler warnings as errors; analyzer and style diagnostics run in build at configured severity without being promoted to errors repository-wide.
+- NuGet package versions must be centrally managed through `Directory.Packages.props`.
+- `CS1591` is suppressed centrally until repository-wide public API XML documentation is standardized.
+- `src/Fletched.Roslyn` suppresses `CS1570`, `CS8604`, and `RS2008` as documented transitional exceptions while analyzer release tracking and nullable cleanup remain out of scope for this repository-standards milestone.
+- Test and benchmark projects suppress generated-code warnings `CS0436`, `CS0649`, `CS8602` and recursive-planning diagnostics `FLM3002`/`FLM3004` as documented transitional exceptions for source-generated validation assets.
+
 # Authority
 
 This document is authoritative for:
@@ -56,3 +68,19 @@ This document is authoritative for:
 This document is not authoritative for:
 - generic implementation guardrails (see `docs/guardrails/implementation.md`)
 - engineering commands (see `docs/engineering/dotnet.md`)
+
+# Document Contract
+
+## Related Documents
+
+- `docs/GUARDRAILS.md`
+- `docs/engineering/dotnet.md`
+- `.editorconfig`
+- `Directory.Build.props`
+- `Directory.Packages.props`
+
+## Must Be Updated Together
+
+When .NET guardrails change, review and update:
+- `docs/engineering/dotnet.md`
+- root build/style configuration files

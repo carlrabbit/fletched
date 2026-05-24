@@ -49,62 +49,62 @@ public static class AdornmentAnalyzer
         switch (expr)
         {
             case ConjExpr conjunction:
-            {
-                Dictionary<VariableSymbol, bool> current = Clone(state);
-                foreach (SemanticExpr part in conjunction.Parts)
-                    current = AnalyzeExpr(part, current, calls, isInsideNegation);
-
-                return current;
-            }
-
-            case DisjExpr disjunction:
-            {
-                Dictionary<VariableSymbol, bool> leftState = AnalyzeExpr(disjunction.Left, Clone(state), calls, isInsideNegation);
-                Dictionary<VariableSymbol, bool> rightState = AnalyzeExpr(disjunction.Right, Clone(state), calls, isInsideNegation);
-                return IntersectStates(leftState, rightState);
-            }
-
-            case WithExpr withExpr:
-            {
-                Dictionary<VariableSymbol, bool> scoped = Clone(state);
-                foreach (VariableSymbol variable in withExpr.Variables)
-                    scoped[variable] = false;
-
-                Dictionary<VariableSymbol, bool> scopedResult = AnalyzeExpr(withExpr.Body, scoped, calls, isInsideNegation);
-                var merged = Clone(state);
-                foreach (KeyValuePair<VariableSymbol, bool> binding in scopedResult)
                 {
-                    if (state.ContainsKey(binding.Key))
-                        merged[binding.Key] = binding.Value;
+                    Dictionary<VariableSymbol, bool> current = Clone(state);
+                    foreach (SemanticExpr part in conjunction.Parts)
+                        current = AnalyzeExpr(part, current, calls, isInsideNegation);
+
+                    return current;
                 }
 
-                return merged;
-            }
+            case DisjExpr disjunction:
+                {
+                    Dictionary<VariableSymbol, bool> leftState = AnalyzeExpr(disjunction.Left, Clone(state), calls, isInsideNegation);
+                    Dictionary<VariableSymbol, bool> rightState = AnalyzeExpr(disjunction.Right, Clone(state), calls, isInsideNegation);
+                    return IntersectStates(leftState, rightState);
+                }
+
+            case WithExpr withExpr:
+                {
+                    Dictionary<VariableSymbol, bool> scoped = Clone(state);
+                    foreach (VariableSymbol variable in withExpr.Variables)
+                        scoped[variable] = false;
+
+                    Dictionary<VariableSymbol, bool> scopedResult = AnalyzeExpr(withExpr.Body, scoped, calls, isInsideNegation);
+                    var merged = Clone(state);
+                    foreach (KeyValuePair<VariableSymbol, bool> binding in scopedResult)
+                    {
+                        if (state.ContainsKey(binding.Key))
+                            merged[binding.Key] = binding.Value;
+                    }
+
+                    return merged;
+                }
 
             case UnifyExpr unify:
-            {
-                var updated = Clone(state);
-                PropagateBindings(unify.Left, unify.Right, updated);
-                PropagateBindings(unify.Right, unify.Left, updated);
-                return updated;
-            }
+                {
+                    var updated = Clone(state);
+                    PropagateBindings(unify.Left, unify.Right, updated);
+                    PropagateBindings(unify.Right, unify.Left, updated);
+                    return updated;
+                }
 
             case NotExpr notExpr:
-            {
-                _ = AnalyzeExpr(notExpr.Goal, Clone(state), calls, isInsideNegation: true);
-                return state;
-            }
+                {
+                    _ = AnalyzeExpr(notExpr.Goal, Clone(state), calls, isInsideNegation: true);
+                    return state;
+                }
 
             case CallExpr call:
-            {
-                Adornment adornment = Adornment.FromBoundArguments(call.Arguments.Select(argument => IsGround(argument, state)));
-                calls.Add(new AdornedCallPlan(call, adornment, isInsideNegation));
-                var updated = Clone(state);
-                foreach (SemanticExpr argument in call.Arguments)
-                    BindIntroducedVariables(argument, updated);
+                {
+                    Adornment adornment = Adornment.FromBoundArguments(call.Arguments.Select(argument => IsGround(argument, state)));
+                    calls.Add(new AdornedCallPlan(call, adornment, isInsideNegation));
+                    var updated = Clone(state);
+                    foreach (SemanticExpr argument in call.Arguments)
+                        BindIntroducedVariables(argument, updated);
 
-                return updated;
-            }
+                    return updated;
+                }
 
             default:
                 return state;

@@ -55,86 +55,86 @@ public sealed class IrLowerer
                 return LowerDisj(disjExpr, ctx, out startLabel, continuationLabel: null);
 
             case UnifyExpr unifyExpr:
-            {
-                PlanValue left = LowerValue(unifyExpr.Left, ctx);
-                PlanValue right = LowerValue(unifyExpr.Right, ctx);
-                string label = ctx.NextLabel("main");
-                startLabel = label;
-                var block = new PlanBlock(label,
-                    new[] { new UnifyInstr(left, right) },
-                    new SucceedTerm());
-                ctx.AddBlock(block);
-                return block;
-            }
-
-            case ConstraintExpr constraintExpr:
-            {
-                var args = constraintExpr.Arguments.Select(a => LowerValue(a, ctx)).ToList();
-                string label = ctx.NextLabel("main");
-                startLabel = label;
-                var block = new PlanBlock(label,
-                    new[] { new ConstraintInstr(constraintExpr.Method, args) },
-                    new SucceedTerm());
-                ctx.AddBlock(block);
-                return block;
-            }
-
-            case CompExpr compExpr:
-            {
-                string label = ctx.NextLabel("main");
-                startLabel = label;
-                var block = new PlanBlock(label,
-                    new PlanInstruction[] { new CompInstr(compExpr.Op, LowerValue(compExpr.Left, ctx), LowerValue(compExpr.Right, ctx)) },
-                    new SucceedTerm());
-                ctx.AddBlock(block);
-                return block;
-            }
-
-            case CallExpr callExpr:
-            {
-                // Map argument expressions to slots and copy non-slot values into anonymous slots.
-                var argSlots = new List<int>(callExpr.Arguments.Count);
-                var callInstructions = new List<PlanInstruction>();
-                foreach (SemanticExpr arg in callExpr.Arguments)
                 {
-                    if (arg is VarExpr varExpr)
-                    {
-                        argSlots.Add(ctx.GetSlot(varExpr.Variable));
-                        continue;
-                    }
-
-                    int tmpSlot = ctx.AllocateAnonymousSlot();
-                    argSlots.Add(tmpSlot);
-                    callInstructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                    PlanValue left = LowerValue(unifyExpr.Left, ctx);
+                    PlanValue right = LowerValue(unifyExpr.Right, ctx);
+                    string label = ctx.NextLabel("main");
+                    startLabel = label;
+                    var block = new PlanBlock(label,
+                        new[] { new UnifyInstr(left, right) },
+                        new SucceedTerm());
+                    ctx.AddBlock(block);
+                    return block;
                 }
 
-                callInstructions.Add(new CallInstr(
-                    callExpr.PredicateType,
-                    argSlots,
-                    callExpr.Arity,
-                    IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(callExpr.PredicateType)));
+            case ConstraintExpr constraintExpr:
+                {
+                    var args = constraintExpr.Arguments.Select(a => LowerValue(a, ctx)).ToList();
+                    string label = ctx.NextLabel("main");
+                    startLabel = label;
+                    var block = new PlanBlock(label,
+                        new[] { new ConstraintInstr(constraintExpr.Method, args) },
+                        new SucceedTerm());
+                    ctx.AddBlock(block);
+                    return block;
+                }
 
-                string label = ctx.NextLabel("call");
-                startLabel = label;
-                var block = new PlanBlock(label,
-                    callInstructions,
-                    new SucceedTerm());
-                ctx.AddBlock(block);
-                return block;
-            }
+            case CompExpr compExpr:
+                {
+                    string label = ctx.NextLabel("main");
+                    startLabel = label;
+                    var block = new PlanBlock(label,
+                        new PlanInstruction[] { new CompInstr(compExpr.Op, LowerValue(compExpr.Left, ctx), LowerValue(compExpr.Right, ctx)) },
+                        new SucceedTerm());
+                    ctx.AddBlock(block);
+                    return block;
+                }
+
+            case CallExpr callExpr:
+                {
+                    // Map argument expressions to slots and copy non-slot values into anonymous slots.
+                    var argSlots = new List<int>(callExpr.Arguments.Count);
+                    var callInstructions = new List<PlanInstruction>();
+                    foreach (SemanticExpr arg in callExpr.Arguments)
+                    {
+                        if (arg is VarExpr varExpr)
+                        {
+                            argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                            continue;
+                        }
+
+                        int tmpSlot = ctx.AllocateAnonymousSlot();
+                        argSlots.Add(tmpSlot);
+                        callInstructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                    }
+
+                    callInstructions.Add(new CallInstr(
+                        callExpr.PredicateType,
+                        argSlots,
+                        callExpr.Arity,
+                        IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(callExpr.PredicateType)));
+
+                    string label = ctx.NextLabel("call");
+                    startLabel = label;
+                    var block = new PlanBlock(label,
+                        callInstructions,
+                        new SucceedTerm());
+                    ctx.AddBlock(block);
+                    return block;
+                }
 
             case NotExpr notExpr:
-            {
-                var subGoalInstructions = new List<PlanInstruction>();
-                AppendInstructions(notExpr.Goal, ctx, subGoalInstructions);
-                string label = ctx.NextLabel("not");
-                startLabel = label;
-                var block = new PlanBlock(label,
-                    new[] { new NotInstr(subGoalInstructions) },
-                    new SucceedTerm());
-                ctx.AddBlock(block);
-                return block;
-            }
+                {
+                    var subGoalInstructions = new List<PlanInstruction>();
+                    AppendInstructions(notExpr.Goal, ctx, subGoalInstructions);
+                    string label = ctx.NextLabel("not");
+                    startLabel = label;
+                    var block = new PlanBlock(label,
+                        new[] { new NotInstr(subGoalInstructions) },
+                        new SucceedTerm());
+                    ctx.AddBlock(block);
+                    return block;
+                }
 
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
@@ -187,79 +187,79 @@ public sealed class IrLowerer
                     break;
 
                 case CallExpr call:
-                {
-                    var argSlots = new List<int>(call.Arguments.Count);
-                    foreach (SemanticExpr arg in call.Arguments)
                     {
-                        if (arg is VarExpr varExpr)
+                        var argSlots = new List<int>(call.Arguments.Count);
+                        foreach (SemanticExpr arg in call.Arguments)
                         {
-                            argSlots.Add(ctx.GetSlot(varExpr.Variable));
-                            continue;
+                            if (arg is VarExpr varExpr)
+                            {
+                                argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                                continue;
+                            }
+
+                            int tmpSlot = ctx.AllocateAnonymousSlot();
+                            argSlots.Add(tmpSlot);
+                            instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
                         }
 
-                        int tmpSlot = ctx.AllocateAnonymousSlot();
-                        argSlots.Add(tmpSlot);
-                        instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                        instructions.Add(new CallInstr(
+                            call.PredicateType,
+                            argSlots,
+                            call.Arity,
+                            IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
+                        break;
                     }
-
-                    instructions.Add(new CallInstr(
-                        call.PredicateType,
-                        argSlots,
-                        call.Arity,
-                        IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
-                    break;
-                }
 
                 case WithExpr w:
-                {
-                    if (instructions.Count > 0)
                     {
-                        // PeekNextLabel("init") matches the first label that LowerWith allocates.
-                        ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
-                            new GotoTerm(ctx.PeekNextLabel("init"))));
-                        instructions.Clear();
+                        if (instructions.Count > 0)
+                        {
+                            // PeekNextLabel("init") matches the first label that LowerWith allocates.
+                            ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
+                                new GotoTerm(ctx.PeekNextLabel("init"))));
+                            instructions.Clear();
+                        }
+                        LowerWith(w, ctx, out string? wStart);
+                        if (wStart is not null) startLabel ??= wStart;
+                        break;
                     }
-                    LowerWith(w, ctx, out string? wStart);
-                    if (wStart is not null) startLabel ??= wStart;
-                    break;
-                }
 
                 case DisjExpr d:
-                {
-                    // Pre-allocate the disjunction entry label BEFORE lowering the remaining
-                    // parts, so the GotoTerm from the current block is stable.
-                    string disjEntry = ctx.NextLabel("disj");
-
-                    if (instructions.Count > 0)
                     {
-                        ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
-                            new GotoTerm(disjEntry)));
-                        instructions.Clear();
+                        // Pre-allocate the disjunction entry label BEFORE lowering the remaining
+                        // parts, so the GotoTerm from the current block is stable.
+                        string disjEntry = ctx.NextLabel("disj");
+
+                        if (instructions.Count > 0)
+                        {
+                            ctx.AddBlock(new PlanBlock(blockLabel, instructions.ToList(),
+                                new GotoTerm(disjEntry)));
+                            instructions.Clear();
+                        }
+                        else
+                        {
+                            // No prior instructions: disjunction itself is the entry point.
+                            startLabel = disjEntry;
+                        }
+
+                        // Lower the remaining parts to obtain the continuation label.
+                        string? contLabel = null;
+                        if (i + 1 < parts.Count)
+                            LowerConjParts(parts, i + 1, ctx, out contLabel);
+
+                        // Emit the disjunction blocks with the continuation.
+                        LowerDisj(d, ctx, out _, contLabel, disjEntry);
+
+                        return ctx.FindBlock(startLabel!);
                     }
-                    else
-                    {
-                        // No prior instructions: disjunction itself is the entry point.
-                        startLabel = disjEntry;
-                    }
-
-                    // Lower the remaining parts to obtain the continuation label.
-                    string? contLabel = null;
-                    if (i + 1 < parts.Count)
-                        LowerConjParts(parts, i + 1, ctx, out contLabel);
-
-                    // Emit the disjunction blocks with the continuation.
-                    LowerDisj(d, ctx, out _, contLabel, disjEntry);
-
-                    return ctx.FindBlock(startLabel!);
-                }
 
                 case NotExpr not:
-                {
-                    var subGoalInstructions = new List<PlanInstruction>();
-                    AppendInstructions(not.Goal, ctx, subGoalInstructions);
-                    instructions.Add(new NotInstr(subGoalInstructions));
-                    break;
-                }
+                    {
+                        var subGoalInstructions = new List<PlanInstruction>();
+                        AppendInstructions(not.Goal, ctx, subGoalInstructions);
+                        instructions.Add(new NotInstr(subGoalInstructions));
+                        break;
+                    }
 
                 default:
                     _reporter.Error(DiagnosticsCatalog.UnsupportedExpression, null, part.GetType().Name);
@@ -530,39 +530,39 @@ public sealed class IrLowerer
                     LowerValue(comp.Left, ctx), LowerValue(comp.Right, ctx)));
                 break;
             case CallExpr call:
-            {
-                var argSlots = new List<int>(call.Arguments.Count);
-                foreach (SemanticExpr arg in call.Arguments)
                 {
-                    if (arg is VarExpr varExpr)
+                    var argSlots = new List<int>(call.Arguments.Count);
+                    foreach (SemanticExpr arg in call.Arguments)
                     {
-                        argSlots.Add(ctx.GetSlot(varExpr.Variable));
-                        continue;
+                        if (arg is VarExpr varExpr)
+                        {
+                            argSlots.Add(ctx.GetSlot(varExpr.Variable));
+                            continue;
+                        }
+
+                        int tmpSlot = ctx.AllocateAnonymousSlot();
+                        argSlots.Add(tmpSlot);
+                        instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
                     }
 
-                    int tmpSlot = ctx.AllocateAnonymousSlot();
-                    argSlots.Add(tmpSlot);
-                    instructions.Add(new AssignInstr(tmpSlot, LowerValue(arg, ctx)));
+                    instructions.Add(new CallInstr(
+                        call.PredicateType,
+                        argSlots,
+                        call.Arity,
+                        IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
+                    break;
                 }
-
-                instructions.Add(new CallInstr(
-                    call.PredicateType,
-                    argSlots,
-                    call.Arity,
-                    IsTabledCall: PredicateAttributeHelpers.IsTabledPredicate(call.PredicateType)));
-                break;
-            }
             case ConjExpr conj:
                 foreach (SemanticExpr part in conj.Parts)
                     AppendInstructions(part, ctx, instructions);
                 break;
             case NotExpr not:
-            {
-                var subGoalInstructions = new List<PlanInstruction>();
-                AppendInstructions(not.Goal, ctx, subGoalInstructions);
-                instructions.Add(new NotInstr(subGoalInstructions));
-                break;
-            }
+                {
+                    var subGoalInstructions = new List<PlanInstruction>();
+                    AppendInstructions(not.Goal, ctx, subGoalInstructions);
+                    instructions.Add(new NotInstr(subGoalInstructions));
+                    break;
+                }
             // WithExpr and DisjExpr inside a body are complex — handled by full LowerExpr
             default:
                 break;

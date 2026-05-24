@@ -2,8 +2,8 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-using Microsoft.CodeAnalysis;
 using Fletched.Roslyn.Pipeline;
+using Microsoft.CodeAnalysis;
 
 namespace Fletched.Roslyn.Emitters;
 
@@ -31,8 +31,8 @@ public sealed class PredicateEmitterAsync
     private int _labelIdCounter;
 
     // Reserved PC values for the switch-loop state machine
-    private const int PcFail    = -1;
-    private const int PcResume  = -2;
+    private const int PcFail = -1;
+    private const int PcResume = -2;
     private const int PcSuccess = -3;
 
     private sealed record CallEmitInfo(
@@ -385,29 +385,29 @@ public sealed class PredicateEmitterAsync
         switch (init.IndexedLookup.Key)
         {
             case SlotValue slot:
-            {
-                string slotName = SlotName(slot.Slot);
-                ctx.AppendLine($"{init.IndexVar} = 0;");
-                ctx.AppendLine($"if (state.{slotName}_bound)");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
                 {
-                    ctx.AppendMetricIncrement("IndexHits");
-                    ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                    ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
+                    string slotName = SlotName(slot.Slot);
+                    ctx.AppendLine($"{init.IndexVar} = 0;");
+                    ctx.AppendLine($"if (state.{slotName}_bound)");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendMetricIncrement("IndexHits");
+                        ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                        ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar})) {{ _pc = {PcFail}; break; }}");
+                    }
+                    ctx.AppendLine("}");
+                    ctx.AppendLine("else");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine($"{matchesVar} = null;");
+                        ctx.AppendMetricIncrement("FactScans");
+                        ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+                    }
+                    ctx.AppendLine("}");
+                    return;
                 }
-                ctx.AppendLine("}");
-                ctx.AppendLine("else");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
-                {
-                    ctx.AppendLine($"{matchesVar} = null;");
-                    ctx.AppendMetricIncrement("FactScans");
-                    ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
-                }
-                ctx.AppendLine("}");
-                return;
-            }
 
             default:
                 ctx.AppendLine($"{init.IndexVar} = 0;");
@@ -434,26 +434,26 @@ public sealed class PredicateEmitterAsync
         switch (bind.IndexedLookup.Key)
         {
             case SlotValue keySlot:
-            {
-                string keySlotName = SlotName(keySlot.Slot);
-                ctx.AppendLine($"if (state.{keySlotName}_bound)");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
                 {
-                    ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
-                    ctx.AppendLine($"state.{slotName}_bound = true;");
+                    string keySlotName = SlotName(keySlot.Slot);
+                    ctx.AppendLine($"if (state.{keySlotName}_bound)");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
+                        ctx.AppendLine($"state.{slotName}_bound = true;");
+                    }
+                    ctx.AppendLine("}");
+                    ctx.AppendLine("else");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                    {
+                        ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
+                        ctx.AppendLine($"state.{slotName}_bound = true;");
+                    }
+                    ctx.AppendLine("}");
+                    return;
                 }
-                ctx.AppendLine("}");
-                ctx.AppendLine("else");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
-                {
-                    ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
-                    ctx.AppendLine($"state.{slotName}_bound = true;");
-                }
-                ctx.AppendLine("}");
-                return;
-            }
 
             default:
                 ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
@@ -478,22 +478,22 @@ public sealed class PredicateEmitterAsync
         switch (loopCheck.IndexedLookup.Key)
         {
             case SlotValue slot:
-            {
-                string slotName = SlotName(slot.Slot);
-                ctx.AppendLine($"if (state.{slotName}_bound)");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
-                    ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
-                ctx.AppendLine("}");
-                ctx.AppendLine("else");
-                ctx.AppendLine("{");
-                using (ctx.Indent())
-                    ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
-                ctx.AppendLine("}");
-                ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
-                ctx.AppendLine("break;");
-                return;
-            }
+                {
+                    string slotName = SlotName(slot.Slot);
+                    ctx.AppendLine($"if (state.{slotName}_bound)");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                        ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
+                    ctx.AppendLine("}");
+                    ctx.AppendLine("else");
+                    ctx.AppendLine("{");
+                    using (ctx.Indent())
+                        ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
+                    ctx.AppendLine("}");
+                    ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+                    ctx.AppendLine("break;");
+                    return;
+                }
 
             default:
                 ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
@@ -902,15 +902,15 @@ public sealed class PredicateEmitterAsync
                 break;
 
             case ChoiceTerm choice:
-            {
-                int altId = _labelIds.TryGetValue(choice.AlternativeLabel, out int id) ? id : -1;
-                ctx.AppendMetricIncrement("ChoicePointCount");
-                ctx.AppendLine("observer?.OnChoicePoint();");
-                ctx.AppendLine($"cps.Push(new global::Fletched.Core.Runtime.ChoicePoint {{ LabelId = {altId}, TrailTop = state.Trail.Top }});");
-                ctx.AppendLine($"_pc = {_labelIds[choice.NextLabel]};");
-                ctx.AppendLine("break;");
-                break;
-            }
+                {
+                    int altId = _labelIds.TryGetValue(choice.AlternativeLabel, out int id) ? id : -1;
+                    ctx.AppendMetricIncrement("ChoicePointCount");
+                    ctx.AppendLine("observer?.OnChoicePoint();");
+                    ctx.AppendLine($"cps.Push(new global::Fletched.Core.Runtime.ChoicePoint {{ LabelId = {altId}, TrailTop = state.Trail.Top }});");
+                    ctx.AppendLine($"_pc = {_labelIds[choice.NextLabel]};");
+                    ctx.AppendLine("break;");
+                    break;
+                }
 
             case SucceedTerm:
                 ctx.AppendLine($"_pc = {PcSuccess};");

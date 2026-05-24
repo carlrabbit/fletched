@@ -12,7 +12,7 @@ The repository contains:
 - `src/Fletched.Roslyn` — source generator and planning pipeline
 - `tests/` — core, integration, feature, performance, and sample tests
 - `samples/` — runnable example applications
-- `specs/` — detailed design notes for selected runtime and generator topics
+- `specs/` — supplementary design notes; authoritative specifications live under `docs/specs/`
 - `docs/` — authoritative engineering documentation
 
 ## Authoritative documentation
@@ -22,7 +22,7 @@ Read these documents first:
 | Document | Purpose |
 | --- | --- |
 | [`AGENTS.md`](AGENTS.md) | Repository routing rules and synchronization requirements |
-| [`copilot-instructions.md`](copilot-instructions.md) | Concise Copilot-facing repository instructions kept in sync with GitHub configuration |
+| [`.github/copilot-instructions.md`](.github/copilot-instructions.md) | Authoritative GitHub Copilot routing instructions |
 | [`docs/TERMINOLOGY.md`](docs/TERMINOLOGY.md) | Canonical project vocabulary |
 | [`docs/SPECS.md`](docs/SPECS.md) | Specification index and authoring rules |
 | [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md) | Workflow documentation index |
@@ -51,9 +51,9 @@ Read these documents first:
 
 | Document | Purpose |
 | --- | --- |
-| [`Samples.md`](Samples.md) | Sample overview and execution commands |
-| [`Codespace.md`](Codespace.md) | Codespaces and dev container guidance |
-| [`Nuget.md`](Nuget.md) | Short link document for NuGet packaging and release docs |
+| [`docs/engineering/samples.md`](docs/engineering/samples.md) | Sample overview and execution commands |
+| [`docs/engineering/codespaces.md`](docs/engineering/codespaces.md) | Codespaces and dev container guidance |
+| [`docs/engineering/packaging.md`](docs/engineering/packaging.md) | Packaging and release document routing |
 | [`specs/`](specs/) | Detailed design notes that support architecture and implementation work |
 
 ## Synchronization summary

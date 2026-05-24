@@ -8,9 +8,9 @@
     <TestingPlatformDotnetTestSupport>true</TestingPlatformDotnetTestSupport>
   </PropertyGroup>
   <ItemGroup>
-    <PackageReference Include="TUnit" Version="1.43.11" />
+    <PackageReference Include="TUnit" />
     <!-- Roslyn APIs used in the pipeline compilation helper. -->
-    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" Version="4.8.0" />
+    <PackageReference Include="Microsoft.CodeAnalysis.CSharp" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Fletched.Core/Fletched.Core.csproj" />

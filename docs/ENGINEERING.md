@@ -17,7 +17,10 @@ Engineering documents define:
 | [`engineering/command-contract.md`](engineering/command-contract.md) | Canonical `eng/` script contracts and usage rules |
 | [`engineering/dotnet.md`](engineering/dotnet.md) | .NET toolchain setup and project conventions |
 | [`engineering/building-blocks.md`](engineering/building-blocks.md) | Core toolchain building blocks |
+| [`engineering/codespaces.md`](engineering/codespaces.md) | Codespaces and dev-container guidance |
 | [`engineering/optional-modules.md`](engineering/optional-modules.md) | Optional capabilities and activation conditions |
+| [`engineering/packaging.md`](engineering/packaging.md) | Packaging and release document routing |
+| [`engineering/samples.md`](engineering/samples.md) | Sample overview and execution guidance |
 
 ## Engineering Command Summary
 
@@ -27,8 +30,8 @@ Engineering documents define:
 | `./eng/build.sh` | Release build |
 | `./eng/test.sh` | Fast test execution (no benchmarks, no long-running tests) |
 | `./eng/format.sh` | Apply code formatting |
-| `./eng/check.sh` | Canonical completion gate (restore + build + test) |
-| `./eng/benchmark.sh` | Build benchmarks (optional) |
+| `./eng/check.sh` | Canonical completion gate (restore + build + fast tests + format verification) |
+| `./eng/benchmark.sh` | Build benchmarks (optional; does not execute BenchmarkDotNet runs) |
 
 `./eng/check.sh` is the canonical completion gate for CI and agents.
 
