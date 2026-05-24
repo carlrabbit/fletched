@@ -36,6 +36,7 @@ Specs are not architecture overviews.
 | [`specs/CodeGeneration.md`](specs/CodeGeneration.md) | Code generation specification |
 | [`specs/Diagnostics.md`](specs/Diagnostics.md) | Diagnostics behavior specification |
 | [`specs/DSL.md`](specs/DSL.md) | DSL behavior specification |
+| [`specs/ExplainablePlanningAndDiagnostics.md`](specs/ExplainablePlanningAndDiagnostics.md) | Internal explainable planning and diagnostics contract |
 | [`specs/EngineContext.md`](specs/EngineContext.md) | Engine context specification |
 | [`specs/ExecutionPlan.md`](specs/ExecutionPlan.md) | Execution plan specification |
 | [`specs/FactSourcesAndIndexes.md`](specs/FactSourcesAndIndexes.md) | Fact source and index selection specification |
