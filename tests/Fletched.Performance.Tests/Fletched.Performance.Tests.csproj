@@ -14,6 +14,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../src/Fletched.Core/Fletched.Core.csproj" />
+    <ProjectReference Include="../../benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj" />
     <!-- Regular reference: exposes pipeline types (SemanticAnalyzer, IrLowerer, etc.) -->
     <ProjectReference Include="../../src/Fletched.Roslyn/Fletched.Roslyn.csproj" />
     <!-- Analyzer reference: runs the source generator so [Fact]/[Predicate] types get code-generated. -->

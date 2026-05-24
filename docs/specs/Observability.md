@@ -15,6 +15,15 @@ Runtime metrics include predicate and recursion counters/histograms in `EngineMe
 - `recursive_invocations`
 - `recursive_depth`
 
+Query-scoped runtime metrics are available through:
+
+- `QueryExecutionOptions.Metrics`
+- `QueryMetrics`
+- `QueryMetricsSnapshot`
+- `QueryMetricsDerived`
+
+These counters are mutable per query execution, are not global, and are not thread-safe.
+
 ## Observer Callbacks
 
 `IExecutionObserver` includes recursion-aware callbacks:

@@ -342,3 +342,14 @@ EngineMetrics.BacktrackCount =
 observer?.OnUnify(slotId);
 
 observer?.OnBacktrack();
+
+---
+
+6. Milestone 12 query-scoped runtime metrics
+
+- Runtime counters are now query-scoped via `Fletched.Core.Runtime.QueryMetrics`.
+- Generated sync and async execution methods accept optional `QueryExecutionOptions` and increment `QueryMetrics` only when `options?.Metrics` is provided.
+- `QueryMetricsSnapshot` captures deterministic counter values for comparisons and baseline storage.
+- `QueryMetricsDerived` computes derived ratios and returns `null` for division-by-zero cases.
+- Tabled execution increments query-scoped table counters (`TableProbes`, `TableHits`, `TableMisses`, `TableInserts`).
+- `PlanExplanation` supports optional `RuntimeMetricsExplanation` so renderers can include runtime counters when provided.
