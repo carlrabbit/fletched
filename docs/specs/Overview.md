@@ -1,477 +1,148 @@
-﻿1. README.md
+# Overview
 
+## 1. Purpose
 
-Purpose
-Defines the project scope, goals, and high-level architecture.
+Defines the system scope, design principles, and high-level architecture of Fletched.
 
-
-Key contents
-
-
-Project goals and non-goals
-
-
-High-level architecture overview (DSL → IR → Plan → Codegen → Execution)
-
-
-Core concepts (Fact, Predicate, LogicExpr)
-
-
-Design principles (compiled, typed, .NET interop)
-
-
-Example end-to-end usage
-
-
-
-
-
+Fletched is a compiled, statically typed logic-programming library for .NET. Developers author
+predicates as ordinary C# types using a fluent DSL. A Roslyn source generator translates those
+types into efficient, fully-typed C# state machines before compilation completes. No
+interpretation occurs at runtime.
 
 ---
 
+## 2. Design Principles
 
-2. DSL.md
-
-
-Purpose
-Specifies the embedded C# DSL surface and its semantics.
-
-
-Key contents
-
-
-[Fact], [Predicate], [PredicateBody]
-
-
-TerminalVar<T>, With<T...>
-
-
-Operator semantics (== = unification, &&, ||)
-
-
-Allowed expressions and constraints
-
-
-DSL restrictions and invariants
-
-
-
-
-
+- **Compiled** — predicates are source-generated into C# before assembly emission. There is no
+  runtime interpreter or expression evaluator.
+- **Statically typed** — fact and predicate types are plain .NET record structs. All unification,
+  iteration, and projection is type-checked at compile time.
+- **.NET interop** — generated predicates expose standard `IEnumerable<T>` and
+  `IAsyncEnumerable<T>` interfaces. Callers need no knowledge of the logic engine internals.
+- **Backtracking** — the execution model supports full Prolog-style backtracking through
+  choice points, trails, and resume labels encoded directly in the generated state machine.
+- **Observability** — the engine exposes metrics and observer hooks for predicate invocations,
+  fact scans, choice points, and recursive guards.
 
 ---
 
+## 3. Architecture
 
-3. SemanticModel.md
+The pipeline has five stages.
 
+### 3.1 DSL Layer
 
-Purpose
-Defines how Roslyn syntax is interpreted into a semantic model.
+Developers define:
+- `[Fact]` record structs — ground fact tuples stored in an `IFactSource<T>`.
+- `[Predicate]` record structs with a `[PredicateBody]` method — logical rules expressed as
+  C# expressions using `LogicExpr<bool>`, `Logic.With<T>`, unification (`==`), conjunction
+  (`&&`), disjunction (`||`), negation (`Logic.Not`), and predicate calls.
+- `TerminalVar<T>` variables — projected into the query result.
+- `With<T>` variables — scoped fact iteration variables.
 
+### 3.2 Semantic Analysis
 
-Key contents
+The Roslyn `SemanticAnalyzer` traverses the syntax tree of each `[PredicateBody]` method and
+produces a `PredicateModel` — a typed semantic expression tree (`SemanticExpr` hierarchy).
 
+`VariableSymbol` nodes track variable kind (`Terminal`, `Source`, `Fresh`) and type.
+`CallExpr` nodes represent calls to other predicates.
 
-Symbol resolution (types, members, variables)
+### 3.3 Lowering
 
+`IrLowerer` transforms a `PredicateModel` into a `PlanProgram` — a flat, block-based execution
+plan in the Fletched Plan IR.
 
-Mapping DSL constructs → semantic nodes
+The plan IR consists of:
+- `PlanBlock` — a labelled sequence of `PlanInstruction` values with a `PlanTerminator`.
+- Instructions — `UnifyInstr`, `ConstraintInstr`, `AssignInstr`, `CompInstr`,
+  `LoopBindInstr`/`IndexInitInstr`/`IndexIncrInstr` (fact loops), `CallInstr` (predicate call),
+  `NotInstr` (negation-as-failure).
+- Terminators — `SucceedTerm`, `FailTerm`, `GotoTerm`, `ChoiceTerm`, `LoopCheckTerm`.
 
+After lowering, `RecursivePlanningAnnotator` computes `RecursivePlanMetadata`:
+adornment patterns, magic-set rewriting artifacts (for eligible recursive predicates), and
+access-path metadata.
 
-Handling of lambdas and variable scopes
+### 3.4 Optimization
 
+`OptimizationPipeline` applies a sequence of `IPlanOptimization` passes to the `PlanProgram`:
 
-Member access resolution (MemberInfo)
+**Currently implemented passes** (run in order):
+1. `NormalizeSequence` — merge linear single-predecessor blocks.
+2. `RemoveRedundantUnify` — constant-fold and eliminate trivially redundant unifications.
+3. `DependencyAnalysis` — compute per-instruction read/write sets (used by subsequent passes).
+4. `ReorderConjunction` — reorder independent instructions (constraints first, loops last).
+5. `IndexSelection` — promote loop key-filter checks as early as dependency ordering allows.
+6. `ConstraintHoisting` — hoist constraint instructions before their producer loops when safe.
+7. `DeadCodeElimination` — remove instructions after provable failure and unreachable blocks.
+8. `LoopSpecialization` — detect loop-invariant bodies (analysis only; no transformation yet).
+9. `TempHoisting` — deduplicate repeated field reads with temporary assignment slots.
+10. `PredicateCallInlining` — inline eligible non-recursive, non-tabled, deterministic callee
+    plans at their call sites (see `docs/specs/Optimization.md` for eligibility rules).
 
+### 3.5 Code Generation
 
-Validation rules and diagnostics
+`PredicateEmitter` (sync) and `PredicateEmitterAsync` (async) translate a `PlanProgram` into a
+C# source file. Each predicate becomes:
+- A `SlotId` enum — named integer identifiers for each slot.
+- A `State` struct — holds slot values and `_bound` flags.
+- A `Result` record — the projected output type.
+- An `Execute` / `ExecuteAsync` method — a switch-loop state machine implementing backtracking,
+  loop iteration, and predicate-call dispatch.
 
+### 3.6 Runtime Execution
 
-
-
-
+The generated state machines operate over:
+- `IFactSource<T>` — provides fact sequences (full scan or indexed lookup).
+- `EngineContext` — carries the recursion guard, query-scoped table store, and observer.
+- `RecursionGuard` — enforces max-depth limits for recursive invocations.
+- `QueryTableStore` — provides memoization tables for `[Tabled]` predicates.
+- `IExecutionObserver` — optional hook for metrics and tracing.
 
 ---
 
+## 4. Key Concepts
 
-4. IR.md
-
-
-Purpose
-Defines the typed intermediate representation of logical expressions.
-
-
-Key contents
-
-
-ExprNode hierarchy (Unify, Conj, Disj, Field, Const, Var, Constraint)
-
-
-Type propagation rules
-
-
-Representation of variables before slot assignment
-
-
-Expression normalization (flattening conjunctions)
-
-
-IR invariants
-
-
-
-
-
+| Concept | Description |
+| --- | --- |
+| Fact | A ground tuple stored in an `IFactSource<T>`. Declared with `[Fact]`. |
+| Predicate | A logical rule that queries facts and other predicates. Declared with `[Predicate]`. |
+| PredicateBody | The `[PredicateBody]` method defining the predicate's logic as a DSL expression. |
+| LogicExpr&lt;T&gt; | The DSL expression type. Unification, conjunction, disjunction, and calls all produce `LogicExpr<bool>`. |
+| TerminalVar&lt;T&gt; | A query output variable. Its value is included in the result projection. |
+| Unification | Binding a slot to a value or another slot. Written as `==` in the DSL. |
+| Choice point | A backtracking point. Created by disjunction or fact loops; resumed on failure. |
+| Slot | An integer index into the predicate's `State` struct. Assigned during lowering. |
+| Tabling | Memoization of recursive predicate results using `[Tabled]`. |
+| Adornment | The bound/free pattern of a predicate call, used by magic-set rewriting. |
 
 ---
 
+## 5. Related Documents
 
-5. ExecutionPlan.md
-
-
-Purpose
-Defines the lowered execution plan used for code generation.
-
-
-Key contents
-
-
-PlanBlock, PlanInstruction, PlanTerminator
-
-
-Control flow model (labels, gotos, choice points)
-
-
-PlanValue (Slot, Const, Field)
-
-
-Instruction types (Unify, Constraint, Assign)
-
-
-Loop and call representation
-
-
-
-
-
+- `docs/SPECS.md` — spec index
+- `docs/ARCHITECTURE.md` — architectural decision record index
+- `docs/specs/DSL.md` — DSL surface and semantics
+- `docs/specs/IR.md` — Plan IR specification
+- `docs/specs/ExecutionPlan.md` — execution plan structure
+- `docs/specs/LoweringRules.md` — lowering rules
+- `docs/specs/Optimization.md` — optimization pass specifications
+- `docs/specs/CodeGeneration.md` — code generation specification
+- `docs/specs/Backtracking.md` — backtracking semantics
+- `docs/specs/RecursivePredicates.md` — recursive predicate behavior
+- `docs/specs/Tabling.md` — tabled predicate semantics
 
 ---
 
-
-6. LoweringRules.md
-
-
-Purpose
-Specifies deterministic transformations from IR → Execution Plan.
-
-
-Key contents
-
-
-Conjunction → sequence of instructions
-
-
-Disjunction → blocks + choice points
-
-
-Fact access → loop blocks
-
-
-Predicate call → call blocks / frames
-
-
-Variable → slot mapping
-
-
-Index selection rules
-
-
-
-
-
-
----
-
-
-7. CodeGeneration.md
-
-
-Purpose
-Defines how execution plans are translated into C# source code.
-
-
-Key contents
-
-
-Emitter structure and responsibilities
-
-
-Mapping PlanBlocks → labels and statements
-
-
-Inline unification generation
-
-
-Control flow emission (goto, labels)
-
-
-Generated method structure
-
-
-Naming and symbol generation rules
-
-
-
-
-
-
----
-
-
-8. StateModel.md
-
-
-Purpose
-Defines the runtime state representation for predicate execution.
-
-
-Key contents
-
-
-Generated typed state struct layout
-
-
-Variable fields and _bound flags
-
-
-Slot identity mapping
-
-
-Lifetime and initialization rules
-
-
-Memory layout considerations
-
-
-
-
-
-
----
-
-
-9. Unification.md
-
-
-Purpose
-Defines the semantics and implementation of unification.
-
-
-Key contents
-
-
-Slot–value unification
-
-
-Slot–slot unification
-
-
-Type-specialized equality
-
-
-Binding rules and failure conditions
-
-
-Optional aliasing model (union-find)
-
-
-
-
-
-
----
-
-
-10. Backtracking.md
-
-
-Purpose
-Defines backtracking mechanics and choice point handling.
-
-
-Key contents
-
-
-Choice point structure
-
-
-Trail structure and unwind semantics
-
-
-Fail/Resume control flow
-
-
-Integration with generated labels
-
-
-Interaction with loops and calls
-
-
-
-
-
-
----
-
-
-11. FactStorage.md
-
-
-Purpose
-Defines how facts are stored and accessed at runtime.
-
-
-Key contents
-
-
-Fact table structures
-
-
-Full scan vs indexed access
-
-
-Index structures (e.g., dictionaries)
-
-
-Data layout and access patterns
-
-
-Integration with execution plan loops
-
-
-
-
-
-
----
-
-
-12. PredicateInvocation.md
-
-
-Purpose
-Defines how predicates are invoked and composed.
-
-
-Key contents
-
-
-Call semantics
-
-
-Argument passing (slot/value mapping)
-
-
-Frame/state machine structure
-
-
-Multi-result iteration (MoveNext)
-
-
-Integration with backtracking
-
-
-
-
-
-
----
-
-
-13. ResultProjection.md
-
-
-Purpose
-Defines how query results are materialized and returned.
-
-
-Key contents
-
-
-Mapping TerminalVar<T> to output
-
-
-Generated result types
-
-
-Projection rules
-
-
-Yield semantics (IAsyncEnumerable<T> via ExecuteAsync, IEnumerable<T> via Execute)
-
-
-Future extensibility for explicit projection
-
-
-
-
-
-
----
-
-
-14. Optimization.md
-
-
-Purpose
-Defines compile-time and runtime optimizations.
-
-
-Key contents
-
-
-Index selection
-
-
-Goal ordering (basic planning)
-
-
-Redundant operation elimination
-
-
-Inlining vs call decisions
-
-
-Field access and temporary hoisting
-
-
-
-
-
-
----
-
-
-15. Diagnostics.md
-
-
-Purpose
-Defines error handling, validation, and developer feedback.
-
-
-Key contents
-
-
-Compile-time diagnostics (invalid DSL usage)
-
-
-Type errors and unsupported constructs
-
-
-Source generator error reporting
-
-
-Debug/trace hooks (optional)
-
-
-Plan/IR inspection outputs
+## 6. Authority
+
+This document is authoritative for:
+- system scope and design principles
+- high-level architecture and pipeline stage descriptions
+- core concept definitions at the overview level
+
+This document is not authoritative for:
+- detailed behavioral contracts (see individual specs in `docs/specs/`)
+- milestone sequencing (see `docs/MILESTONES.md`)
+- architectural decisions (see `docs/ARCHITECTURE.md`)

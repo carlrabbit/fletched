@@ -96,15 +96,20 @@ Dead Code Elimination
 
 - Remove instructions after unconditional "Fail".
 - Remove unreachable blocks.
-- Remove unused slot bindings (no subsequent reads).
+
+Note: Unused slot-binding removal is not currently implemented. Only provable instruction-level
+failure and block-level reachability are handled.
 
 ---
 
 Loop Specialization
 
-- Detect loop-invariant bodies conservatively.
+- The pass detects loop-invariant bodies as an analysis step.
+- No structural loop transformation or loop removal is performed.
 - The current lowering keeps the original loop structure because the existing plan IR
   does not carry enough cardinality information to remove the loop safely.
+
+Note: This is an analysis-only pass with no current code-transformation effect.
 
 ---
 
@@ -117,16 +122,29 @@ Field(Slot(user), Name) → hoisted to temp
 
 ---
 
-Predicate Call Inlining (Optional)
+4. Roadmap Optimizations
 
-- Inline "PlanCall" if:
+Predicate Call Inlining (Milestone 09 scope)
+
+- Inline "PlanCall" when all of the following are satisfied:
   - Target predicate is non-recursive.
-  - Argument count is small.
-  - No additional choice points introduced.
+  - Target predicate has a single execution-plan block (no disjunctions).
+  - Target predicate body contains only deterministic instructions (no loops, no nested calls,
+    no negation-as-failure instructions).
+  - Call argument count is within the configured threshold (default: 8).
+  - Target predicate is not tabled.
+- Conservative fallback: any call that does not satisfy all eligibility criteria is left as a
+  "CallInstr" and executed via the normal predicate-invocation state machine.
+- Calls inside "NotInstr" subgoal lists are never traversed for inlining.
+- Recursive and mutually recursive calls are never inlined.
+- Tabled calls are never inlined.
+- Slot remapping: callee parameter slots are mapped to caller argument slots; additional callee
+  slots are mapped to fresh caller slots.
+- Inlining preserves logical result sets and caller result projection.
 
 ---
 
-4. Execution / Behavior
+5. Execution / Behavior
 
 Pipeline Order
 
@@ -139,6 +157,7 @@ Pipeline Order
 7. DeadCodeElimination
 8. LoopSpecialization
 9. TempHoisting
+10. PredicateCallInlining
 
 ---
 
@@ -167,7 +186,7 @@ Reordering Algorithm
 
 ---
 
-5. Examples
+6. Examples
 
 Example 1: Redundant Unification
 
@@ -272,6 +291,18 @@ After
 Sequence:
   Constraint(name.StartsWith("A"))
   Loop(User indexed by name)
+
+---
+
+Example 8: Predicate Call Inlining
+
+Before
+
+CallInstr(SimpleName/1, argSlots=[2])   // callee: Unify(Slot(0), Const("admin"))
+
+After (inlined)
+
+Unify(Slot(2), Const("admin"))          // slot 0 of callee remapped to argSlots[0]=2
 
 ---
 

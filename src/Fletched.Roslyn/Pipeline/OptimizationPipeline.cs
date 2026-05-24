@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using Microsoft.CodeAnalysis;
 
 namespace Fletched.Roslyn.Pipeline;
 
@@ -811,6 +812,7 @@ public sealed class OptimizationPipeline
         new DeadCodeElimination(),
         new LoopSpecialization(),
         new TempHoisting(),
+        new PredicateCallInlining(),
     ];
 
     public PlanProgram Run(PlanProgram program)
@@ -820,4 +822,225 @@ public sealed class OptimizationPipeline
 
         return program;
     }
+}
+
+// ─── PredicateCallInlining ────────────────────────────────────────────────────
+
+/// <summary>
+/// Inlines eligible non-recursive, non-tabled, single-block callee plans at their call sites.
+/// Any call that does not satisfy all eligibility criteria is left as a <see cref="CallInstr"/>
+/// and falls back to normal predicate-invocation state-machine execution.
+/// </summary>
+/// <remarks>
+/// Eligibility criteria (all must be satisfied):
+/// <list type="bullet">
+///   <item><description>Call is not tabled (<see cref="CallInstr.IsTabledCall"/> is false).</description></item>
+///   <item><description>Callee plan is registered in the provided lookup dictionary.</description></item>
+///   <item><description>Callee has no recursive calls in its <see cref="RecursivePlanMetadata"/>.</description></item>
+///   <item><description>Argument count does not exceed <see cref="DefaultMaxArgumentCount"/>.</description></item>
+///   <item><description>Callee plan has a single block (no disjunctions or additional branches).</description></item>
+///   <item><description>Callee entry block ends with <see cref="SucceedTerm"/> (deterministic).</description></item>
+///   <item><description>Callee entry block contains no loop, call, or negation instructions.</description></item>
+/// </list>
+/// <para>
+/// Calls inside <see cref="NotInstr"/> sub-goal instruction lists are never traversed for inlining.
+/// </para>
+/// </remarks>
+public sealed class PredicateCallInlining : IPlanOptimization
+{
+    /// <summary>Default maximum argument count above which inlining is skipped.</summary>
+    public const int DefaultMaxArgumentCount = 8;
+
+    private readonly IReadOnlyDictionary<string, PlanProgram> _calleePrograms;
+    private readonly int _maxArgumentCount;
+
+    /// <summary>Initializes an instance with no registered callee plans (all calls fall back).</summary>
+    public PredicateCallInlining()
+        : this(new Dictionary<string, PlanProgram>(StringComparer.Ordinal)) { }
+
+    /// <summary>
+    /// Initializes an instance with a set of known callee plans.
+    /// The dictionary key must be the fully qualified type name and arity in the form
+    /// <c>global::Namespace.TypeName/arity</c>, matching the output of
+    /// <see cref="GetCalleeKey"/>.
+    /// </summary>
+    public PredicateCallInlining(
+        IReadOnlyDictionary<string, PlanProgram> calleePrograms,
+        int maxArgumentCount = DefaultMaxArgumentCount)
+    {
+        _calleePrograms = calleePrograms;
+        _maxArgumentCount = maxArgumentCount;
+    }
+
+    /// <summary>
+    /// Returns the lookup key for a <see cref="CallInstr"/> that matches the keys
+    /// expected by the callee-programs dictionary.
+    /// </summary>
+    public static string GetCalleeKey(INamedTypeSymbol predicateType, int arity) =>
+        $"{predicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{arity}";
+
+    public PlanProgram Apply(PlanProgram program)
+    {
+        int nextFreshSlot = PlanAnalysis.NextAnonymousSlot(program);
+        return PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, ref nextFreshSlot));
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ref int nextFreshSlot)
+    {
+        bool changed = false;
+        var instructions = new List<PlanInstruction>(block.Instructions.Count);
+
+        foreach (PlanInstruction instruction in block.Instructions)
+        {
+            if (instruction is CallInstr call
+                && TryBuildInlinedInstructions(call, ref nextFreshSlot, out IReadOnlyList<PlanInstruction>? inlined))
+            {
+                instructions.AddRange(inlined!);
+                changed = true;
+            }
+            else
+            {
+                // NotInstr sub-goal instructions are not traversed for inlining (conservative).
+                instructions.Add(instruction);
+            }
+        }
+
+        return changed ? block with { Instructions = instructions } : block;
+    }
+
+    private bool TryBuildInlinedInstructions(
+        CallInstr call,
+        ref int nextFreshSlot,
+        out IReadOnlyList<PlanInstruction>? inlined)
+    {
+        inlined = null;
+
+        // Never inline tabled calls.
+        if (call.IsTabledCall)
+            return false;
+
+        // Callee plan must be registered.
+        string key = GetCalleeKey(call.PredicateType, call.Arity);
+        if (!_calleePrograms.TryGetValue(key, out PlanProgram? callee))
+            return false;
+
+        // Never inline recursive or mutually recursive callees.
+        if (callee.Metadata?.RecursiveCalls.Count > 0)
+            return false;
+
+        // Argument count must be within the threshold.
+        if (call.ArgumentSlots.Count > _maxArgumentCount)
+            return false;
+
+        // Callee must have a single block (entry only; no additional blocks).
+        if (callee.Blocks.Count > 0)
+            return false;
+
+        // Callee entry block must end deterministically.
+        if (callee.Entry.Terminator is not SucceedTerm)
+            return false;
+
+        // Callee must not contain loop, call, or negation instructions.
+        if (callee.Entry.Instructions.Any(IsNonInlinableInstruction))
+            return false;
+
+        // Build the slot remapping.
+        // Callee parameter slots (0..arity-1) → caller argument slots.
+        // Additional callee slots → fresh anonymous caller slots.
+        var slotMap = new Dictionary<int, int>();
+        for (int i = 0; i < call.Arity && i < call.ArgumentSlots.Count; i++)
+            slotMap[i] = call.ArgumentSlots[i];
+
+        foreach (PlanInstruction instr in callee.Entry.Instructions)
+        {
+            foreach (int slot in CollectWriteSlots(instr))
+            {
+                if (!slotMap.ContainsKey(slot))
+                    slotMap[slot] = nextFreshSlot++;
+            }
+        }
+
+        inlined = callee.Entry.Instructions
+            .Select(instr => RemapInstruction(instr, slotMap))
+            .ToList();
+
+        return true;
+    }
+
+    private static bool IsNonInlinableInstruction(PlanInstruction instruction) =>
+        instruction is LoopBindInstr
+            or IndexInitInstr
+            or IndexIncrInstr
+            or CallInstr
+            or NotInstr;
+
+    private static IEnumerable<int> CollectWriteSlots(PlanInstruction instruction)
+    {
+        return instruction switch
+        {
+            UnifyInstr unify => CollectDirectSlotIds(unify.Left).Concat(CollectDirectSlotIds(unify.Right)),
+            AssignInstr assign => [assign.Slot],
+            _ => []
+        };
+    }
+
+    private static IEnumerable<int> CollectDirectSlotIds(PlanValue value)
+    {
+        if (value is SlotValue slot)
+            yield return slot.Slot;
+    }
+
+    private static PlanInstruction RemapInstruction(
+        PlanInstruction instruction,
+        IReadOnlyDictionary<int, int> slotMap)
+    {
+        return instruction switch
+        {
+            UnifyInstr unify => unify with
+            {
+                Left = RemapValue(unify.Left, slotMap),
+                Right = RemapValue(unify.Right, slotMap)
+            },
+            ConstraintInstr constraint => constraint with
+            {
+                Arguments = constraint.Arguments
+                    .Select(arg => RemapValue(arg, slotMap))
+                    .ToList()
+            },
+            AssignInstr assign => assign with
+            {
+                Slot = RemapSlot(assign.Slot, slotMap),
+                Value = RemapValue(assign.Value, slotMap)
+            },
+            CompInstr comp => comp with
+            {
+                Left = RemapValue(comp.Left, slotMap),
+                Right = RemapValue(comp.Right, slotMap)
+            },
+            _ => instruction
+        };
+    }
+
+    private static PlanValue RemapValue(PlanValue value, IReadOnlyDictionary<int, int> slotMap)
+    {
+        return value switch
+        {
+            SlotValue slot => slot with { Slot = RemapSlot(slot.Slot, slotMap) },
+            FieldValue field => field with { Target = RemapValue(field.Target, slotMap) },
+            ArithValue arith => arith with
+            {
+                Left = RemapValue(arith.Left, slotMap),
+                Right = RemapValue(arith.Right, slotMap)
+            },
+            ListConsValue cons => cons with
+            {
+                Head = RemapValue(cons.Head, slotMap),
+                Tail = RemapValue(cons.Tail, slotMap)
+            },
+            _ => value
+        };
+    }
+
+    private static int RemapSlot(int slot, IReadOnlyDictionary<int, int> slotMap) =>
+        slotMap.TryGetValue(slot, out int mapped) ? mapped : slot;
 }
