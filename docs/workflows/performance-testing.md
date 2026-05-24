@@ -8,6 +8,7 @@ Run performance-focused validation and benchmarks independently from the standar
 - Build the repository in `Release` before performance tests.
 - Use `./eng/ci/collect-coverage.sh performance` for the performance-test coverage run.
 - Use `./eng/benchmark.sh` as the benchmark build step; execute the benchmark project separately.
+- Benchmark build-only command semantics follow `docs/decisions/0002-benchmark-command-build-only.md`.
 - Keep benchmark execution isolated from correctness-focused test workflow intent.
 - Preserve artifact upload for performance reports and benchmark results.
 
@@ -67,6 +68,7 @@ This document is not authoritative for:
 
 - `docs/WORKFLOWS.md`
 - `docs/engineering/command-contract.md`
+- `docs/decisions/0002-benchmark-command-build-only.md`
 - `eng/benchmark.sh`
 - `eng/ci/collect-coverage.sh`
 

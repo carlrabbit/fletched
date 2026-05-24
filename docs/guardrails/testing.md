@@ -18,6 +18,7 @@ These guardrails prevent agents and contributors from running expensive operatio
 
 1. **`eng/test.sh` runs fast tests only.** It must not run benchmarks or long-running tests.
 2. **Long-running tests require explicit activation.** Set `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=1`.
+   - `eng/test.sh` sets `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=0` unless explicitly provided by the caller.
 3. **Benchmarks have a dedicated script.** Use `eng/benchmark.sh` to build them.
 4. **Agents must not run benchmarks** unless explicitly instructed to do so.
 5. **Agents must not enable long-running tests** unless the task specifically requires them.

@@ -13,6 +13,7 @@ This document defines implementation constraints for source code and documentati
 5. **Do not commit secrets.** Credentials, tokens, and API keys must never appear in source.
 6. **Do not add new dependencies without advisory review.** Check the GitHub advisory database.
 7. **Use existing libraries whenever possible.** Only add new libraries if absolutely necessary.
+8. **Formatting command scope is whitespace-only.** Analyzer/style enforcement remains governed by build configuration and `.editorconfig`.
 
 ## Documentation Change Rules
 

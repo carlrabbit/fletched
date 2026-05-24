@@ -8,6 +8,26 @@ This document routes packaging and release work to the authoritative workflow an
 
 - [`docs/workflows/nuget-pack-and-publish.md`](../workflows/nuget-pack-and-publish.md)
 - [`docs/tbps/release-preparation.md`](../tbps/release-preparation.md)
+- [`docs/engineering/command-contract.md`](command-contract.md)
+
+## Canonical Packaging Commands
+
+```sh
+./eng/package.sh <version>
+```
+
+- Requires one SemVer-compatible version argument.
+- Packs `src/Fletched.Core/Fletched.Core.csproj` and `src/Fletched.Roslyn/Fletched.Roslyn.csproj`.
+- Uses `Release` configuration with `--no-build`.
+- Writes package artifacts to `artifacts/nuget`.
+
+```sh
+./eng/publish.sh
+```
+
+- Requires `NUGET_API_KEY`.
+- Publishes `artifacts/nuget/*.nupkg` to nuget.org.
+- Uses `--skip-duplicate`.
 
 ## Implementation Artifact
 

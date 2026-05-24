@@ -27,7 +27,8 @@ CI workflows call canonical `eng/` scripts:
 
 - `./eng/check.sh` — canonical completion gate (restore + build + fast tests + format verification)
 - `./eng/ci/collect-coverage.sh` — CI-only helper for coverage-producing reruns
-- `./eng/benchmark.sh` — benchmark build (performance-testing workflow only; benchmark execution remains explicit)
+- `./eng/benchmark.sh` — benchmark build (performance-testing workflow only; benchmark execution remains explicit per `docs/decisions/0002-benchmark-command-build-only.md`)
+- `./eng/package.sh` and `./eng/publish.sh` — packaging/publishing entry points for the NuGet workflow
 
 See `docs/ENGINEERING.md` for the full command contract.
 

@@ -45,6 +45,7 @@ This document defines .NET-specific language and toolchain guardrails for the Fl
 ## Formatting
 
 Run `./eng/format.sh` before pushing if code formatting was modified.
+`./eng/format.sh` uses `dotnet format whitespace`.
 Do not submit formatting-only changes unless the task specifically requires it.
 
 ## Analyzer and Style Enforcement

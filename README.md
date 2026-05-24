@@ -12,7 +12,6 @@ The repository contains:
 - `src/Fletched.Roslyn` — source generator and planning pipeline
 - `tests/` — core, integration, feature, performance, and sample tests
 - `samples/` — runnable example applications
-- `specs/` — supplementary design notes; authoritative specifications live under `docs/specs/`
 - `docs/` — authoritative engineering documentation
 
 ## Authoritative documentation
@@ -54,7 +53,9 @@ Read these documents first:
 | [`docs/engineering/samples.md`](docs/engineering/samples.md) | Sample overview and execution commands |
 | [`docs/engineering/codespaces.md`](docs/engineering/codespaces.md) | Codespaces and dev container guidance |
 | [`docs/engineering/packaging.md`](docs/engineering/packaging.md) | Packaging and release document routing |
-| [`specs/`](specs/) | Detailed design notes that support architecture and implementation work |
+| `docs/specs/` | Authoritative behavioral specifications indexed by `docs/SPECS.md` |
+
+The historical top-level `specs/` folder has been retired; do not treat it as an authoritative source.
 
 ## Synchronization summary
 

@@ -29,9 +29,11 @@ Engineering documents define:
 | `./eng/restore.sh` | Restore dependencies |
 | `./eng/build.sh` | Release build |
 | `./eng/test.sh` | Fast test execution (no benchmarks, no long-running tests) |
-| `./eng/format.sh` | Apply code formatting |
+| `./eng/format.sh` | Apply or verify whitespace formatting (`dotnet format whitespace`) |
 | `./eng/check.sh` | Canonical completion gate (restore + build + fast tests + format verification) |
-| `./eng/benchmark.sh` | Build benchmarks (optional; does not execute BenchmarkDotNet runs) |
+| `./eng/benchmark.sh` | Build benchmarks only (optional; see decision `0002`) |
+| `./eng/package.sh` | Pack maintained NuGet projects to `artifacts/nuget` |
+| `./eng/publish.sh` | Publish packaged artifacts in `artifacts/nuget` to nuget.org |
 
 `./eng/check.sh` is the canonical completion gate for CI and agents.
 
