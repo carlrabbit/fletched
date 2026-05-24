@@ -95,12 +95,127 @@ public class OptimizationPipelineTests
         await Assert.That(unify.Left).IsEqualTo(new SlotValue(assign.Slot, "string"));
     }
 
+    [Test]
+    public async Task DeadBindingElimination_RemovesUnusedAssignment_PreservesUsedOne()
+    {
+        PlanProgram program = CreateProgram(
+            new PlanBlock(
+                "entry",
+                [
+                    new AssignInstr(0, new ConstValue(1, "int")),
+                    new AssignInstr(1, new ConstValue(2, "int")),
+                    new UnifyInstr(new SlotValue(1, "int"), new ConstValue(2, "int"))
+                ],
+                new SucceedTerm()));
+
+        PlanProgram optimized = new DeadBindingElimination().Apply(program);
+
+        await Assert.That(optimized.Entry.Instructions.Count).IsEqualTo(2);
+        await Assert.That(optimized.Entry.Instructions[0]).IsEqualTo(new AssignInstr(1, new ConstValue(2, "int")));
+        await Assert.That(optimized.Entry.Instructions[1]).IsEqualTo(new UnifyInstr(new SlotValue(1, "int"), new ConstValue(2, "int")));
+    }
+
+    [Test]
+    public async Task LoopSpecialization_WithTraceEnabled_ReportsCandidates()
+    {
+        ITypeSymbol stringType = GetSpecialType(SpecialType.System_String);
+        PlanProgram program = CreateProgram(
+            new PlanBlock("entry", [], new LoopCheckTerm("body", "Fail", "users", stringType)),
+            new PlanBlock("body", [new LoopBindInstr(0, "users", stringType)], new SucceedTerm()));
+
+        PlanOptimizationResult result = new LoopSpecialization().Optimize(
+            program,
+            new PlanOptimizationContext
+            {
+                Options = new OptimizationOptions { EmitOptimizationTrace = true }
+            });
+
+        await Assert.That(result.Changes.Length).IsGreaterThanOrEqualTo(2);
+        await Assert.That(result.Changes.All(change => change.Kind == PlanChangeKind.SpecializedLoop)).IsTrue();
+    }
+
+    [Test]
+    public async Task OptimizationPipeline_RunWithTrace_EmitsTraceWhenEnabled()
+    {
+        PlanProgram program = CreateProgram(
+            new PlanBlock(
+                "entry",
+                [new UnifyInstr(new ConstValue(1, "int"), new ConstValue(1, "int"))],
+                new SucceedTerm()));
+
+        var pipeline = new OptimizationPipeline();
+        (PlanProgram optimized, PlanOptimizationTrace trace) = pipeline.RunWithTrace(
+            program,
+            new PlanOptimizationContext
+            {
+                Options = new OptimizationOptions { EmitOptimizationTrace = true }
+            });
+
+        string[] expectedOrder =
+        [
+            "NormalizeSequence",
+            "RemoveRedundantUnify",
+            "DependencyAnalysis",
+            "PredicateCallInlining",
+            "NormalizeSequence",
+            "DependencyAnalysis",
+            "ReorderConjunction",
+            "IndexSelection",
+            "ConstraintHoisting",
+            "DeadBindingElimination",
+            "DeadCodeElimination",
+            "LoopSpecialization",
+            "TempHoisting",
+            "NormalizeSequence"
+        ];
+
+        await Assert.That(trace.Passes.Length).IsEqualTo(expectedOrder.Length);
+        await Assert.That(trace.Passes[0].PassName).IsEqualTo(expectedOrder[0]);
+        await Assert.That(trace.Passes.All(pass => !string.IsNullOrWhiteSpace(pass.InputHash))).IsTrue();
+        await Assert.That(optimized.Entry.Terminator).IsTypeOf<SucceedTerm>();
+    }
+
+    [Test]
+    public async Task OptimizationPipeline_RunWithTrace_UsesMilestone10PassOrder()
+    {
+        PlanProgram program = CreateProgram(
+            new PlanBlock("entry", [], new SucceedTerm()));
+
+        var pipeline = new OptimizationPipeline();
+        (_, PlanOptimizationTrace trace) = pipeline.RunWithTrace(
+            program,
+            new PlanOptimizationContext
+            {
+                Options = new OptimizationOptions { EmitOptimizationTrace = true }
+            });
+
+        string[] actualOrder = trace.Passes.Select(pass => pass.PassName).ToArray();
+        string[] expectedOrder =
+        [
+            "NormalizeSequence",
+            "RemoveRedundantUnify",
+            "DependencyAnalysis",
+            "PredicateCallInlining",
+            "NormalizeSequence",
+            "DependencyAnalysis",
+            "ReorderConjunction",
+            "IndexSelection",
+            "ConstraintHoisting",
+            "DeadBindingElimination",
+            "DeadCodeElimination",
+            "LoopSpecialization",
+            "TempHoisting",
+            "NormalizeSequence"
+        ];
+
+        await Assert.That(actualOrder.SequenceEqual(expectedOrder)).IsTrue();
+    }
+
     // ── PredicateCallInlining tests ──────────────────────────────────────────
 
     [Test]
     public async Task PredicateCallInlining_EligibleSingleBlockCallee_ReplacesCallWithRemappedInstructions()
     {
-        // Callee plan: Unify(Slot(0), Const("admin")), SucceedTerm  (one parameter, slot 0)
         INamedTypeSymbol calleeSymbol = GetPredicateSymbol("""
             using Fletched.Core;
             [Predicate]
@@ -117,7 +232,6 @@ public class OptimizationPipelineTests
                 [new UnifyInstr(new SlotValue(0, "string"), new ConstValue("admin", "string"))],
                 new SucceedTerm()));
 
-        // Caller plan: CallInstr with argSlots=[5]  (slot 5 in caller maps to callee param slot 0)
         PlanProgram callerPlan = CreateProgram(
             new PlanBlock(
                 "entry",
@@ -130,12 +244,10 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // CallInstr replaced with callee's remapped UnifyInstr
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<UnifyInstr>();
 
         var unify = (UnifyInstr)result.Entry.Instructions[0];
-        // Callee slot 0 → caller argSlots[0] = 5
         await Assert.That(unify.Left).IsEqualTo(new SlotValue(5, "string"));
         await Assert.That(unify.Right).IsEqualTo(new ConstValue("admin", "string"));
     }
@@ -143,7 +255,6 @@ public class OptimizationPipelineTests
     [Test]
     public async Task PredicateCallInlining_EligibleCallee_RemapsAdditionalSlotsToFreshSlots()
     {
-        // Callee plan: slot 0 = parameter, slot 1 = additional (assigned from Const)
         INamedTypeSymbol calleeSymbol = GetPredicateSymbol("""
             using Fletched.Core;
             [Predicate]
@@ -163,7 +274,6 @@ public class OptimizationPipelineTests
                 ],
                 new SucceedTerm()));
 
-        // Caller uses slot 3 as the argument; slots 0..2 are already taken
         PlanProgram callerPlan = new PlanProgram(
             new PlanBlock(
                 "entry",
@@ -172,7 +282,6 @@ public class OptimizationPipelineTests
             [],
             new Dictionary<VariableSymbol, int>());
 
-        // Manually set the slot map so NextAnonymousSlot returns 4 (one past the max in use)
         callerPlan = callerPlan with
         {
             SlotMap = new Dictionary<VariableSymbol, int>
@@ -191,11 +300,9 @@ public class OptimizationPipelineTests
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<AssignInstr>();
         await Assert.That(result.Entry.Instructions[1]).IsTypeOf<UnifyInstr>();
 
-        // The assign must write to a fresh slot (≥ 4)
         var assign = (AssignInstr)result.Entry.Instructions[0];
         await Assert.That(assign.Slot).IsGreaterThanOrEqualTo(4);
 
-        // The unify must reference slot 3 (caller arg) and the fresh assign slot
         var unify = (UnifyInstr)result.Entry.Instructions[1];
         await Assert.That(unify.Left).IsEqualTo(new SlotValue(3, "string"));
         await Assert.That(unify.Right).IsEqualTo(new SlotValue(assign.Slot, "string"));
@@ -217,7 +324,6 @@ public class OptimizationPipelineTests
         PlanProgram calleePlan = CreateProgram(
             new PlanBlock("callee_entry", [], new SucceedTerm()));
 
-        // Mark the call as tabled
         var tabledCall = new CallInstr(calleeSymbol, [0], 1, IsTabledCall: true);
         PlanProgram callerPlan = CreateProgram(
             new PlanBlock("entry", [tabledCall], new SucceedTerm()));
@@ -228,7 +334,6 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // CallInstr must remain (tabled calls are never inlined)
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<CallInstr>();
     }
@@ -246,7 +351,6 @@ public class OptimizationPipelineTests
             }
             """, "RecursiveCallee");
 
-        // Callee plan with recursive metadata (simulates a recursive predicate)
         var recursiveCall = new RecursiveCallPlan(
             "RecursiveCallee", "RecursiveCallee",
             Adornment.FromBoundArguments([false]),
@@ -277,7 +381,6 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // Recursive callee must not be inlined
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<CallInstr>();
     }
@@ -295,7 +398,6 @@ public class OptimizationPipelineTests
             }
             """, "MultiBlockCallee");
 
-        // Callee plan with multiple blocks (simulates disjunction)
         PlanProgram calleePlan = new PlanProgram(
             new PlanBlock("callee_entry", [], new GotoTerm("callee_alt")),
             [new PlanBlock("callee_alt", [], new SucceedTerm())],
@@ -311,7 +413,6 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // Multi-block callee must not be inlined
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<CallInstr>();
     }
@@ -331,7 +432,6 @@ public class OptimizationPipelineTests
 
         ITypeSymbol stringType = GetSpecialType(SpecialType.System_String);
 
-        // Callee contains a loop instruction (non-deterministic — multiple results)
         PlanProgram calleePlan = CreateProgram(
             new PlanBlock(
                 "callee_entry",
@@ -348,7 +448,6 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // Loop-containing callee must not be inlined
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<CallInstr>();
     }
@@ -370,7 +469,6 @@ public class OptimizationPipelineTests
         PlanProgram callerPlan = CreateProgram(
             new PlanBlock("entry", [call], new SucceedTerm()));
 
-        // Default constructor: no callee plans registered — all fall back
         var pass = new PredicateCallInlining();
 
         PlanProgram result = pass.Apply(callerPlan);
@@ -398,7 +496,6 @@ public class OptimizationPipelineTests
                 [new UnifyInstr(new SlotValue(0, "string"), new ConstValue("x", "string"))],
                 new SucceedTerm()));
 
-        // CallInstr inside a NotInstr subgoal
         var callInNotInstr = new CallInstr(calleeSymbol, [0], 1, IsTabledCall: false);
         var notInstr = new NotInstr([callInNotInstr]);
         PlanProgram callerPlan = CreateProgram(
@@ -410,7 +507,6 @@ public class OptimizationPipelineTests
 
         PlanProgram result = pass.Apply(callerPlan);
 
-        // NotInstr must be present and its sub-goal must contain the original CallInstr unchanged
         await Assert.That(result.Entry.Instructions.Count).IsEqualTo(1);
         await Assert.That(result.Entry.Instructions[0]).IsTypeOf<NotInstr>();
         var resultNot = (NotInstr)result.Entry.Instructions[0];

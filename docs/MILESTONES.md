@@ -20,6 +20,7 @@ They do not define permanent behavioral truth.
 | [`milestones/Milestone07_TablingMemoizationRecursivePlanning.md`](milestones/Milestone07_TablingMemoizationRecursivePlanning.md) | Tabled recursion, memoization, recursive planning, and async recursive semantics |
 | [`milestones/Milestone08_MagicSetRewritingFactStorage.md`](milestones/Milestone08_MagicSetRewritingFactStorage.md) | Magic-set rewriting and fact-storage refinements |
 | [`milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md`](milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md) | Documentation synchronization and predicate-call inlining |
+| [`milestones/Milestone10_OptimizationMaturity.md`](milestones/Milestone10_OptimizationMaturity.md) | Optimization pipeline maturity: pass contract, trace model, DeadBindingElimination, LoopSpecialization narrowing |
 
 # Authority
 

@@ -1,309 +1,167 @@
-Optimization.md
+# Optimization
 
-1. Overview
+## Purpose
 
-Defines compile-time transformations applied to the Execution Plan to improve runtime performance.
-Optimizations operate on "ExecutionPlan" and preserve semantic equivalence.
+Defines compile-time transformations applied to the Plan to improve generated execution performance while preserving logical equivalence.
 
----
+## Contracts
 
-2. Core Concepts / Data Structures
+### Pass contract
 
-Optimization Pipeline
-
-interface IPlanOptimization
+```csharp
+public interface IPlanOptimization
 {
-    PlanProgram Apply(PlanProgram program);
+    string Name { get; }
+
+    PlanOptimizationResult Optimize(
+        PlanProgram program,
+        PlanOptimizationContext context);
 }
+```
 
-sealed class OptimizationPipeline
-{
-    IReadOnlyList<IPlanOptimization> Passes;
+### Compatibility contract
 
-    PlanProgram Run(PlanProgram program);
-}
+Existing call sites may continue to use `Apply(PlanProgram)` via `PlanOptimizationExtensions`, which invokes `Optimize` with default `OptimizationOptions`.
 
----
+### Trace contract
 
-Analysis Data
+```csharp
+public sealed record PlanOptimizationChange(
+    string Pass,
+    PlanChangeKind Kind,
+    string Target,
+    string Reason);
 
-record AccessSet(
-    IReadOnlyCollection<int> Reads,
-    IReadOnlyCollection<int> Writes
-);
+public sealed record PlanOptimizationPassTrace(
+    string PassName,
+    string InputHash,
+    string OutputHash,
+    ImmutableArray<PlanOptimizationChange> Changes);
 
----
+public sealed record PlanOptimizationTrace(
+    ImmutableArray<PlanOptimizationPassTrace> Passes);
+```
 
-3. Rules and Invariants
+When `OptimizationOptions.EmitOptimizationTrace` is enabled, the pipeline records deterministic per-pass input/output hashes and per-pass change sets.
 
-General
+## Invariants
 
-- All transformations must preserve logical equivalence.
-- No optimization introduces additional bindings.
-- No optimization removes required backtracking points.
-- Slot identities remain stable.
-- Control flow graph remains valid (all labels resolvable).
+- All transformations preserve logical equivalence.
+- No optimization introduces additional observable bindings.
+- No optimization removes required backtracking behavior.
+- Slot identities remain stable except for fresh temporary slots introduced by hoisting or inlining.
+- Control-flow labels remain resolvable after every pass.
+- Predicate-call inlining is conservative and must preserve caller result projection and invocation-boundary semantics.
 
----
+## Pass behavior
 
-Conjunction Reordering
+### NormalizeSequence
 
-- Applicable only within "PlanSequence".
-- Reordering is allowed if:
-  - No data dependency violation occurs.
-  - No variable is used before it may be bound.
+- Merges straight-line `GotoTerm` chains when the target has a single inbound edge.
+- Does not currently emit per-change entries.
 
-Dependency Rule:
-If Step B reads Slot S, and Step A may bind S,
-then A must precede B.
+### RemoveRedundantUnify
 
----
+- Removes `Unify(X, X)`.
+- Rewrites constant mismatches such as `Unify(Const(1), Const(2))` to `FailTerm`.
+- Emits `SimplifiedUnification` changes.
 
-Index Selection
+### DependencyAnalysis
 
-- The current Roslyn plan IR does not encode a separate indexed loop source.
-- The optimization pass instead promotes loop key-filter checks such as:
-  - "Field(Slot(loopVar), Member) == Slot(keySlot)"
-  - "Field(Slot(loopVar), Member) == Const(value)"
-- These checks are moved as early as dependency ordering allows so the loop fails fast.
+- Computes instruction read/write sets for downstream passes.
+- Does not change the Plan.
 
----
+### PredicateCallInlining
 
-Constraint Hoisting
+- Runs before reordering so downstream passes can optimize newly inlined instructions.
+- Inlines only non-tabled, non-recursive, single-block callees with deterministic `SucceedTerm` exits.
+- Rejects callees that exceed configured size/growth thresholds or contain unsupported loop, call, or negation instructions.
+- Emits `InlinedPredicateCall` for successful inline rewrites.
+- Emits `SkippedCandidate` for rejected call sites.
 
-- "PlanConstraint" may be moved earlier in a sequence if:
-  - All its argument slots are bound at the new position.
-  - It does not depend on loop-local bindings.
+### ReorderConjunction
 
----
+- Performs dependency-safe instruction reordering within a block.
+- Prefers constraints/comparisons first, then unifications, assignments, and loop instructions last.
+- Emits `ReorderedConjunction` changes.
 
-Redundant Unification Elimination
+### IndexSelection
 
-- Remove "PlanUnify(X, X)".
+- Promotes loop key-filter checks as early as dependencies allow.
+- Emits `SelectedIndex` changes when a block is reordered to favor loop key filters.
 
-- Replace:
+### ConstraintHoisting
 
-Unify(Const(a), Const(b))
+- Moves `ConstraintInstr` and `CompInstr` earlier when all dependencies remain satisfied.
+- Emits `HoistedConstraint` changes.
 
-with:
+### DeadBindingElimination
 
-- "Fail" if "a != b"
-- no-op if "a == b"
+- Removes pure `AssignInstr` bindings whose written slot is never read by any other instruction in the same block.
+- Does not remove loop binds, call effects, or projection-relevant writes.
+- Emits `RemovedDeadBinding` changes.
 
----
+### DeadCodeElimination
 
-Dead Code Elimination
+- Rewrites provably failing instructions to `FailTerm`.
+- Removes trailing instructions after an unconditional fail point.
+- Removes unreachable blocks from the control-flow graph.
+- Emits `RemovedInstruction` and `RemovedUnreachableBlock` changes.
 
-- Remove instructions after unconditional "Fail".
-- Remove unreachable blocks.
+### LoopSpecialization
 
-Note: Unused slot-binding removal is not currently implemented. Only provable instruction-level
-failure and block-level reachability are handled.
+- Preserves the current loop structure.
+- Records loop-specialization candidates for loop checks and loop binds when optimization tracing is enabled.
+- Emits `SpecializedLoop` changes for analysis-visible loop candidates.
+- No structural loop rewrite is currently required by the Plan contract.
 
----
+### TempHoisting
 
-Loop Specialization
+- Reuses repeated `FieldValue` reads inside read-only instruction segments by hoisting them into fresh temporary slots.
+- Does not currently emit per-change entries.
 
-- The pass detects loop-invariant bodies as an analysis step.
-- No structural loop transformation or loop removal is performed.
-- The current lowering keeps the original loop structure because the existing plan IR
-  does not carry enough cardinality information to remove the loop safely.
-
-Note: This is an analysis-only pass with no current code-transformation effect.
-
----
-
-Temporary Value Hoisting
-
-- Reuse identical "FieldValue" expressions within read-only instruction segments.
-- Hoisted values are stored in temporary slots via "AssignInstr".
-
-Field(Slot(user), Name) → hoisted to temp
-
----
-
-4. Roadmap Optimizations
-
-Predicate Call Inlining (Milestone 09 scope)
-
-- Inline "PlanCall" when all of the following are satisfied:
-  - Target predicate is non-recursive.
-  - Target predicate has a single execution-plan block (no disjunctions).
-  - Target predicate body contains only deterministic instructions (no loops, no nested calls,
-    no negation-as-failure instructions).
-  - Call argument count is within the configured threshold (default: 8).
-  - Target predicate is not tabled.
-- Conservative fallback: any call that does not satisfy all eligibility criteria is left as a
-  "CallInstr" and executed via the normal predicate-invocation state machine.
-- Calls inside "NotInstr" subgoal lists are never traversed for inlining.
-- Recursive and mutually recursive calls are never inlined.
-- Tabled calls are never inlined.
-- Slot remapping: callee parameter slots are mapped to caller argument slots; additional callee
-  slots are mapped to fresh caller slots.
-- Inlining preserves logical result sets and caller result projection.
-
----
-
-5. Execution / Behavior
-
-Pipeline Order
+## Pipeline order
 
 1. NormalizeSequence
 2. RemoveRedundantUnify
 3. DependencyAnalysis
-4. ReorderConjunction
-5. IndexSelection
-6. ConstraintHoisting
-7. DeadCodeElimination
-8. LoopSpecialization
-9. TempHoisting
-10. PredicateCallInlining
+4. PredicateCallInlining
+5. NormalizeSequence
+6. DependencyAnalysis
+7. ReorderConjunction
+8. IndexSelection
+9. ConstraintHoisting
+10. DeadBindingElimination
+11. DeadCodeElimination
+12. LoopSpecialization
+13. TempHoisting
+14. NormalizeSequence
 
----
+## Options
 
-Dependency Analysis
+```csharp
+public sealed record OptimizationOptions
+{
+    public bool EnablePredicateCallInlining { get; init; } = true;
+    public bool EnableDeadBindingElimination { get; init; } = true;
+    public bool EnableLoopSpecialization { get; init; } = true;
 
-- Compute per-instruction:
-  - Read slots
-  - Write slots
+    public int MaxInlineInstructionCount { get; init; } = 32;
+    public int MaxInlineDepth { get; init; } = 2;
+    public int MaxGeneratedInstructionGrowthPercent { get; init; } = 150;
 
-record AccessSet(
-    IReadOnlySet<int> Reads,
-    IReadOnlySet<int> Writes
-);
+    public bool EmitOptimizationTrace { get; init; } = false;
+}
+```
 
----
+## Deterministic hashing
 
-Reordering Algorithm
+- `OptimizationPipeline.RunWithTrace` computes a deterministic Plan hash per pass when tracing is enabled.
+- The hash is derived from a normalized rendering of block labels, instructions, values, and terminators.
+- Hashes are intended for trace correlation, regression detection, and pass-order verification.
 
-- Topological sort of "PlanSequence" steps
-- Respect dependency constraints
-- Prefer:
-  - constraints first
-  - loop key-filter checks
-  - bound-variable unifications
-  - loops last
+## Related documents
 
----
-
-6. Examples
-
-Example 1: Redundant Unification
-
-Before
-
-Unify(Slot(0), Slot(0))
-
-After
-
-(no-op)
-
----
-
-Example 2: Constant Unification
-
-Before
-
-Unify(Const("A"), Const("B"))
-
-After
-
-Fail
-
----
-
-Example 3: Early Loop Key Filter
-
-Before
-
-Loop(
-  Slot = user,
-  Source = FullScan(User),
-  Body:
-    Unify(Field(user, Login), Slot(name))
-)
-
-After
-
-Loop(
-  Slot = user,
-  Body:
-    Unify(Field(user, Login), name)   // moved before unrelated work
-)
-
----
-
-Example 4: Constraint Hoisting
-
-Before
-
-Sequence:
-  Loop(user)
-  Constraint(user.Name.StartsWith("A"))
-
-After
-
-Sequence:
-  Constraint(name.StartsWith("A"))
-  Loop(user)
-
----
-
-Example 5: Temporary Hoisting
-
-Before
-
-Unify(Field(user, Name), Slot(name))
-Constraint(Field(user, Name).StartsWith("A"))
-
-After
-
-temp = Field(user, Name)
-Unify(temp, Slot(name))
-Constraint(temp.StartsWith("A"))
-
----
-
-Example 6: Dead Code
-
-Before
-
-Unify(Const(1), Const(2))
-Unify(Slot(x), Const(3))
-
-After
-
-Fail
-
----
-
-Example 7: Reordering
-
-Before
-
-Sequence:
-  Loop(User)
-  Unify(user.Name, name)
-  Constraint(name.StartsWith("A"))
-
-After
-
-Sequence:
-  Constraint(name.StartsWith("A"))
-  Loop(User indexed by name)
-
----
-
-Example 8: Predicate Call Inlining
-
-Before
-
-CallInstr(SimpleName/1, argSlots=[2])   // callee: Unify(Slot(0), Const("admin"))
-
-After (inlined)
-
-Unify(Slot(2), Const("admin"))          // slot 0 of callee remapped to argSlots[0]=2
-
----
-
-End of Document
+- `docs/specs/ExecutionPlan.md`
+- `docs/specs/FactSourcesAndIndexes.md`
+- `docs/specs/PredicateInvocation.md`
