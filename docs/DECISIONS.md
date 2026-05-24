@@ -12,6 +12,8 @@ They are not authoritative for current architecture structure or behavioral spec
 | Decision | Purpose |
 | --- | --- |
 | [`decisions/0001-compiled-typed-relational-engine.md`](decisions/0001-compiled-typed-relational-engine.md) | Compiled, typed relational engine as the core approach |
+| [`decisions/0002-benchmark-command-build-only.md`](decisions/0002-benchmark-command-build-only.md) | Keep `eng/benchmark.sh` build-only and run benchmark execution separately |
+| [`decisions/0003-format-command-whitespace-only.md`](decisions/0003-format-command-whitespace-only.md) | Keep `eng/format.sh` whitespace-only due generator workspace constraints in full `dotnet format` |
 
 # Authority
 

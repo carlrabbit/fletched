@@ -6,8 +6,10 @@ Build, pack, and optionally publish Fletched NuGet packages from a documented ve
 
 - Resolve package version from either `workflow_dispatch` input or a `v*` tag.
 - Restore and build before packing.
-- Pack `Fletched.Core` and `Fletched.Roslyn` from repository source.
+- Use `./eng/package.sh <version>` for package creation.
+- Pack `Fletched.Core` and `Fletched.Roslyn` from repository source into `artifacts/nuget`.
 - Publish only on tag-triggered runs and only when `NUGET_API_KEY` is available.
+- Use `./eng/publish.sh` for nuget.org publication.
 
 # Non-Goals
 
@@ -49,5 +51,22 @@ Build, pack, and optionally publish Fletched NuGet packages from a documented ve
 # Synchronization Rules
 
 - Update this document before changing `.github/workflows/nuget-pack-and-publish.yml`.
-- Keep documented package scope synchronized with package metadata and workflow steps.
+- Keep documented package scope synchronized with `eng/package.sh`, `eng/publish.sh`, package metadata, and workflow steps.
 - Keep release preparation guidance synchronized with `docs/tbps/release-preparation.md`.
+
+# Document Contract
+
+## Related Documents
+
+- `docs/WORKFLOWS.md`
+- `docs/engineering/command-contract.md`
+- `docs/engineering/packaging.md`
+- `eng/package.sh`
+- `eng/publish.sh`
+
+## Must Be Updated Together
+
+When this workflow changes, review and update:
+- `.github/workflows/nuget-pack-and-publish.yml`
+- `eng/package.sh`
+- `eng/publish.sh`

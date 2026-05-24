@@ -15,7 +15,9 @@ CI workflows and agents must use these scripts instead of duplicating command lo
 | `./eng/test.sh` | Fast test execution | No benchmarks, no long-running tests |
 | `./eng/format.sh` | Apply or verify repository formatting | Uses `dotnet format whitespace`; pass `--verify-no-changes` for validation |
 | `./eng/check.sh` | Canonical completion gate | Calls restore + build + fast tests + formatting verification |
-| `./eng/benchmark.sh` | Build benchmarks | Optional; documented repository deviation from benchmark-execution default |
+| `./eng/benchmark.sh` | Build benchmarks | Optional; repository decision `0002` keeps this build-only |
+| `./eng/package.sh <version>` | Pack maintained NuGet projects | Requires one SemVer-compatible version; writes to `artifacts/nuget` |
+| `./eng/publish.sh` | Publish packaged artifacts | Requires `NUGET_API_KEY`; pushes `artifacts/nuget/*.nupkg` with `--skip-duplicate` |
 
 ## Canonical Completion Gate
 
@@ -29,8 +31,10 @@ Agents and CI workflows must call `./eng/check.sh` before declaring work complet
 - Long-running tests must not run inside `eng/test.sh` by default.
 - Long-running integration tests require `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=1`.
 - Top-level `eng/*.sh` scripts use POSIX `sh`.
-- `eng/benchmark.sh` is intentionally build-only; workflows or operators run the benchmark executable separately when benchmark execution is required.
-- Optional commands (`eng/benchmark.sh`) exist only when the corresponding capability exists.
+- Formatting validation is intentionally whitespace-only (see `docs/decisions/0003-format-command-whitespace-only.md`).
+- `eng/test.sh` exports `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=0` unless explicitly set, making default long-running exclusion visible at the script boundary.
+- `eng/benchmark.sh` is intentionally build-only; workflows or operators run the benchmark executable separately when benchmark execution is required (see `docs/decisions/0002-benchmark-command-build-only.md`).
+- Optional commands (`eng/benchmark.sh`, `eng/package.sh`, `eng/publish.sh`) exist only when the corresponding capability exists.
 
 ## CI-only Helpers
 

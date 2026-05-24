@@ -14,7 +14,7 @@ Their durable conclusions must be promoted into authoritative documents before t
 | [`research/project-setup-guide-v4.md`](research/project-setup-guide-v4.md) | Project Setup Guide V4 — repository governance model and V4 upgrade requirements |
 | [`research/engineering-guide-v3.md`](research/engineering-guide-v3.md) | Engineering Guide V3 — command contract, test classification, and guardrail requirements |
 | [`research/documentation-structure-adoption.md`](research/documentation-structure-adoption.md) | Documentation structure adoption rationale |
-| [`research/Project Setup V3.md`](research/Project%20Setup%20V3.md) | Project Setup Guide V3 (superseded by V4) |
+| [`research/project-setup-guide-v3.md`](research/project-setup-guide-v3.md) | Project Setup Guide V3 (superseded by V4) |
 | [`research/project-setup-guide-v2.md`](research/project-setup-guide-v2.md) | Project Setup Guide V2 (superseded by V3 and V4) |
 
 ## Non-Authoritativeness Rule

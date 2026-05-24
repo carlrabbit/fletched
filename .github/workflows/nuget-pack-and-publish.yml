@@ -44,23 +44,8 @@ jobs:
       - name: Build
         run: ./eng/build.sh
 
-      - name: Pack Fletched.Core
-        run: >
-          dotnet pack src/Fletched.Core/Fletched.Core.csproj
-          -c Release
-          --no-build
-          -o artifacts/nuget
-          -p:ContinuousIntegrationBuild=true
-          -p:Version=${{ steps.version.outputs.value }}
-
-      - name: Pack Fletched.Roslyn
-        run: >
-          dotnet pack src/Fletched.Roslyn/Fletched.Roslyn.csproj
-          -c Release
-          --no-build
-          -o artifacts/nuget
-          -p:ContinuousIntegrationBuild=true
-          -p:Version=${{ steps.version.outputs.value }}
+      - name: Pack NuGet packages
+        run: ./eng/package.sh ${{ steps.version.outputs.value }}
 
       - name: Upload NuGet packages
         uses: actions/upload-artifact@v4
@@ -79,6 +64,9 @@ jobs:
     env:
       NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
     steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
       - name: Download NuGet packages
         uses: actions/download-artifact@v4
         with:
@@ -86,5 +74,4 @@ jobs:
           path: artifacts/nuget
 
       - name: Publish NuGet packages
-        if: env.NUGET_API_KEY != ''
-        run: dotnet nuget push "artifacts/nuget/*.nupkg" --api-key "${NUGET_API_KEY}" --source "https://api.nuget.org/v3/index.json" --skip-duplicate
+        run: ./eng/publish.sh

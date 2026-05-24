@@ -31,6 +31,8 @@ samples/
   WorkAssignment/        — runnable example application
 ```
 
+Fletched intentionally uses role-named test projects directly under `tests/` instead of the Engineering Guide V3 default `tests/unit/` and `tests/integration/` split. The current layout reflects runtime, generator, integration, performance, and sample validation boundaries. Do not reorganize test folders unless a dedicated migration milestone changes the repository layout.
+
 ## Solution Entry Point
 
 ```text

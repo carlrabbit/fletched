@@ -6,6 +6,8 @@
 set -eu
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=${FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS:-0}
+export FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS
 
 dotnet run --no-build -c Release \
   --project "${REPO_ROOT}/tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj"
