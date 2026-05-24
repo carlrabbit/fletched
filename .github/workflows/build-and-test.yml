@@ -17,35 +17,14 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Restore
-        run: ./eng/restore.sh
-
-      - name: Build
-        run: ./eng/build.sh
+      - name: Validate
+        run: ./eng/check.sh
 
       - name: Prepare test results directory
         run: mkdir -p TestResults
 
-      - name: Test — Core
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Core.Tests/Fletched.Core.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Core.Tests.cobertura.xml
-
-      - name: Test — Features
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Features.Tests/Fletched.Features.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Features.Tests.cobertura.xml
-
-      - name: Test — Integration
-        run: >
-          dotnet run --no-build -c Release
-          --project tests/Fletched.Integration.Tests/Fletched.Integration.Tests.csproj
-          -- --coverage --coverage-output-format cobertura
-          --coverage-output ./Fletched.Integration.Tests.cobertura.xml
+      - name: Collect coverage
+        run: ./eng/ci/collect-coverage.sh standard
 
       - name: Generate coverage report
         if: always()

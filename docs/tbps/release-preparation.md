@@ -10,7 +10,7 @@ Prepare package and release changes without drifting from the repository's docum
 # Required Reading
 
 - `docs/workflows/nuget-pack-and-publish.md`
-- `Nuget.md`
+- `docs/engineering/packaging.md`
 - `.github/workflows/nuget-pack-and-publish.yml`
 
 # Execution Steps

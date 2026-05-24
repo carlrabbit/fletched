@@ -3,9 +3,9 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using BenchmarkDotNet.Attributes;
+using Fletched.Roslyn.Pipeline;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Fletched.Roslyn.Pipeline;
 
 namespace Fletched.Benchmarks;
 

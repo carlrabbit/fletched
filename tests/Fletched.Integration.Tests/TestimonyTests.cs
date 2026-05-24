@@ -44,14 +44,14 @@ public partial record struct InconsistentPair
         TerminalVar<Witness> who2,
         TerminalVar<Witness> about) =>
         Logic.With<Testimony, Testimony>((t1, t2) =>
-            t1.Who   == who1  &&
-            t2.Who   == who2  &&
+            t1.Who == who1 &&
+            t2.Who == who2 &&
             t1.About == about &&
             t2.About == about &&
             (
-                (t1.Kind == ClaimKind.Friend   && t2.Kind == ClaimKind.Enemy)    ||
-                (t1.Kind == ClaimKind.Friend   && t2.Kind == ClaimKind.Stranger) ||
-                (t1.Kind == ClaimKind.Enemy    && t2.Kind == ClaimKind.Stranger) ||
+                (t1.Kind == ClaimKind.Friend && t2.Kind == ClaimKind.Enemy) ||
+                (t1.Kind == ClaimKind.Friend && t2.Kind == ClaimKind.Stranger) ||
+                (t1.Kind == ClaimKind.Enemy && t2.Kind == ClaimKind.Stranger) ||
                 (t1.Kind == ClaimKind.OutOfTown && t2.Kind == ClaimKind.InTown)
             )
         );
@@ -111,8 +111,8 @@ public class TestimonyTests
         EngineContext ctx = BuildContext();
         // A says B is a Friend; B says B is a Stranger → Friend ↔ Stranger about B
         bool found = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
-            .Any(r => r.who1  == Witness.A &&
-                      r.who2  == Witness.B &&
+            .Any(r => r.who1 == Witness.A &&
+                      r.who2 == Witness.B &&
                       r.about == Witness.B);
 
         await Assert.That(found).IsTrue();
@@ -126,8 +126,8 @@ public class TestimonyTests
         EngineContext ctx = BuildContext();
         // B says B is OutOfTown; C says B is InTown → OutOfTown ↔ InTown about B
         bool found = (await default(InconsistentPair).ExecuteAsync(ctx).ToListAsync(ct))
-            .Any(r => r.who1  == Witness.B &&
-                      r.who2  == Witness.C &&
+            .Any(r => r.who1 == Witness.B &&
+                      r.who2 == Witness.C &&
                       r.about == Witness.B);
 
         await Assert.That(found).IsTrue();

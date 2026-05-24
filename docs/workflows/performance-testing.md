@@ -6,6 +6,8 @@ Run performance-focused validation and benchmarks independently from the standar
 
 - Use the same `.NET 10` SDK family as other GitHub workflows.
 - Build the repository in `Release` before performance tests.
+- Use `./eng/ci/collect-coverage.sh performance` for the performance-test coverage run.
+- Use `./eng/benchmark.sh` as the benchmark build step; execute the benchmark project separately.
 - Keep benchmark execution isolated from correctness-focused test workflow intent.
 - Preserve artifact upload for performance reports and benchmark results.
 
@@ -46,5 +48,31 @@ Run performance-focused validation and benchmarks independently from the standar
 # Synchronization Rules
 
 - Update this document before changing `.github/workflows/performance-testing.yml`.
-- Keep the documented test and benchmark projects synchronized with the workflow YAML.
+- Keep the documented command usage synchronized with the workflow YAML and `eng/ci/collect-coverage.sh`.
 - Update related TBPs when performance validation becomes part of a repeated engineering process.
+
+# Authority
+
+This document is authoritative for:
+- performance workflow intent
+- benchmark build-versus-execution semantics in CI
+
+This document is not authoritative for:
+- GitHub Actions YAML syntax
+- benchmark implementation details inside the benchmark project
+
+# Document Contract
+
+## Related Documents
+
+- `docs/WORKFLOWS.md`
+- `docs/engineering/command-contract.md`
+- `eng/benchmark.sh`
+- `eng/ci/collect-coverage.sh`
+
+## Must Be Updated Together
+
+When this workflow changes, review and update:
+- `.github/workflows/performance-testing.yml`
+- `eng/benchmark.sh`
+- `eng/ci/collect-coverage.sh`

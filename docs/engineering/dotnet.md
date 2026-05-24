@@ -8,7 +8,7 @@ This document defines .NET toolchain setup and project conventions for the Fletc
 
 | Requirement | Details |
 | --- | --- |
-| SDK version | Locked via `global.json` |
+| SDK version | `global.json` pins `10.0.100` with `rollForward: latestFeature` |
 | Target framework | .NET 10 |
 | Language | C# 14 |
 | Test framework | TUnit (Microsoft.Testing.Platform) |
@@ -68,7 +68,7 @@ dotnet run --no-build -c Release --project tests/Fletched.Core.Tests/Fletched.Co
 ```sh
 ./eng/format.sh
 # or directly:
-dotnet format Fletched.slnx
+dotnet format whitespace Fletched.slnx
 ```
 
 ### Benchmark (build only)
@@ -78,6 +78,17 @@ dotnet format Fletched.slnx
 # or directly:
 dotnet build benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj -c Release
 ```
+
+## Shared Repository Configuration
+
+The repository standardizes .NET policy through root configuration files:
+
+| File | Purpose |
+| --- | --- |
+| `.editorconfig` | Authoritative C# style and analyzer severity configuration |
+| `Directory.Build.props` | Shared build, analyzer, deterministic-build, and central-package-management policy |
+| `Directory.Packages.props` | Central NuGet package version management |
+| `global.json` | .NET SDK pin and Microsoft.Testing.Platform runner configuration |
 
 ## Conventions
 
@@ -97,3 +108,21 @@ This document is authoritative for:
 This document is not authoritative for:
 - canonical command contracts (see `docs/engineering/command-contract.md`)
 - optional module activation rules (see `docs/engineering/optional-modules.md`)
+
+# Document Contract
+
+## Related Documents
+
+- `docs/ENGINEERING.md`
+- `docs/guardrails/languages/dotnet.md`
+- `.editorconfig`
+- `Directory.Build.props`
+- `Directory.Packages.props`
+- `global.json`
+
+## Must Be Updated Together
+
+When .NET toolchain setup changes, review and update:
+- `docs/engineering/command-contract.md`
+- `docs/guardrails/languages/dotnet.md`
+- root toolchain/configuration files

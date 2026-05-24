@@ -1,9 +1,9 @@
 using System.Linq;
 using System.Reflection;
 using Fletched.Core;
+using Fletched.Roslyn.Pipeline;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.CSharp;
-using Fletched.Roslyn.Pipeline;
 using TUnit;
 
 namespace Fletched.Performance.Tests;

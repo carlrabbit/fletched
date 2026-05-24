@@ -25,8 +25,9 @@ GitHub Actions YAML files are implementation artifacts.
 
 CI workflows call canonical `eng/` scripts:
 
-- `./eng/check.sh` — canonical completion gate (restore + build + fast tests)
-- `./eng/benchmark.sh` — benchmark build (performance-testing workflow only)
+- `./eng/check.sh` — canonical completion gate (restore + build + fast tests + format verification)
+- `./eng/ci/collect-coverage.sh` — CI-only helper for coverage-producing reruns
+- `./eng/benchmark.sh` — benchmark build (performance-testing workflow only; benchmark execution remains explicit)
 
 See `docs/ENGINEERING.md` for the full command contract.
 

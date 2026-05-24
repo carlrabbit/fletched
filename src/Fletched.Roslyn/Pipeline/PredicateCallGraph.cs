@@ -210,14 +210,14 @@ public sealed class PredicateCallGraph
         switch (expr)
         {
             case CallExpr call:
-            {
-                PredicateCallGraphNode toNode = GetOrAddNode(nodesById, call.PredicateType, call.Arity);
-                edges.Add(new PredicateCallGraphEdge(fromNode, toNode, isNegativeContext, location));
+                {
+                    PredicateCallGraphNode toNode = GetOrAddNode(nodesById, call.PredicateType, call.Arity);
+                    edges.Add(new PredicateCallGraphEdge(fromNode, toNode, isNegativeContext, location));
 
-                foreach (SemanticExpr argument in call.Arguments)
-                    CollectEdges(argument, fromNode, isNegativeContext, location, nodesById, edges);
-                break;
-            }
+                    foreach (SemanticExpr argument in call.Arguments)
+                        CollectEdges(argument, fromNode, isNegativeContext, location, nodesById, edges);
+                    break;
+                }
 
             case FieldExpr field:
                 CollectEdges(field.Target, fromNode, isNegativeContext, location, nodesById, edges);

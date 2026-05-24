@@ -1,7 +1,7 @@
 using System.Diagnostics.Metrics;
 using Fletched.Core.Performance;
-using WorkAssignment;
 using TUnit;
+using WorkAssignment;
 
 namespace WorkAssignment.Tests;
 

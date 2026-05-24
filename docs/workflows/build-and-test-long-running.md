@@ -6,8 +6,9 @@ Validate repository restore, release build, and automated test execution includi
 
 - Use `Fletched.slnx` as the build entry point.
 - Build in `Release` configuration.
-- Run existing test projects without rebuilding after the release build step.
-- Enable long-running integration tests by setting `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` for the integration test execution step.
+- Verify formatting with `./eng/format.sh --verify-no-changes`.
+- Use `./eng/ci/collect-coverage.sh long-running` for coverage-producing test execution.
+- Enable long-running integration tests by setting `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` during the long-running integration coverage rerun.
 - Keep workflow implementation focused on execution and artifact handling.
 
 # Non-Goals
@@ -42,11 +43,37 @@ Validate repository restore, release build, and automated test execution includi
 
 - Restore failure
 - Release build failure
+- Formatting verification failure
 - Any core, feature, or integration test failure (including long-running integration tests when enabled)
 - Coverage artifact generation failure caused by missing prerequisite outputs
 
 # Synchronization Rules
 
 - Update this document before changing `.github/workflows/build-and-test-long-running.yml`.
-- Keep the documented test project set synchronized with the workflow YAML.
+- Keep the documented command usage synchronized with the workflow YAML and `eng/ci/collect-coverage.sh`.
 - Update `docs/TBPS.md` and relevant TBPs when the workflow introduces a new recurring execution pattern.
+
+# Authority
+
+This document is authoritative for:
+- long-running build-and-test workflow intent
+- long-running integration-test enablement convention
+
+This document is not authoritative for:
+- GitHub Actions YAML syntax
+- detailed coverage artifact layout
+
+# Document Contract
+
+## Related Documents
+
+- `docs/WORKFLOWS.md`
+- `docs/engineering/command-contract.md`
+- `eng/format.sh`
+- `eng/ci/collect-coverage.sh`
+
+## Must Be Updated Together
+
+When this workflow changes, review and update:
+- `.github/workflows/build-and-test-long-running.yml`
+- `eng/ci/collect-coverage.sh`

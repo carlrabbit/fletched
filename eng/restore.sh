@@ -1,6 +1,6 @@
-#!/usr/bin/env bash
-set -euo pipefail
+#!/usr/bin/env sh
+set -eu
 
-REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
 
 dotnet restore "${REPO_ROOT}/Fletched.slnx"
