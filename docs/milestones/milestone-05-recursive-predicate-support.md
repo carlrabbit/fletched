@@ -41,7 +41,7 @@ Completed validation:
   - `docs/specs/LoweringRules.md`
   - `docs/specs/Diagnostics.md`
   - `docs/specs/DSL.md`
-  - `docs/milestones/README.md`
+  - `docs/MILESTONES.md`
 - Call-graph analysis and recursive-negation validation in the generator pipeline
 - Tests for recursive call graph analysis, recursive-negation diagnostics, and recursive call emission behavior
 

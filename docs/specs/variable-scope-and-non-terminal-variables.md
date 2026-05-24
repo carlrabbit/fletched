@@ -226,7 +226,7 @@ This document is not authoritative for:
 
 ## Related Documents
 
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/TERMINOLOGY.md`
 - `docs/specs/DSL.md`
 - `docs/specs/SemanticModel.md`
@@ -236,7 +236,7 @@ This document is not authoritative for:
 ## Must Be Updated Together
 
 When variable scope or non-terminal variable behavior changes, review and update:
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/TERMINOLOGY.md`
 - `docs/specs/DSL.md`
 - `docs/specs/SemanticModel.md`

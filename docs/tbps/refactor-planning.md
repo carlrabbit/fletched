@@ -51,8 +51,8 @@ This document is authoritative for:
 ## Related Documents
 
 - `docs/TBPS.md`
-- `docs/architecture/README.md`
-- `docs/decisions/README.md`
+- `docs/ARCHITECTURE.md`
+- `docs/DECISIONS.md`
 
 ## Must Be Updated Together
 

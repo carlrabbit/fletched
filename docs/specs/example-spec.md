@@ -50,7 +50,7 @@ Failures must be explicit and testable.
 
 # Related Architecture
 
-- `docs/architecture/README.md`
+- `docs/ARCHITECTURE.md`
 
 # Related Decisions
 
@@ -66,12 +66,12 @@ This document is authoritative for:
 
 ## Related Documents
 
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/tbps/create-spec.md`
 
 ## Must Be Updated Together
 
 When spec structure changes, review and update:
-- `docs/specs/README.md`
+- `docs/SPECS.md`
 - `docs/tbps/create-spec.md`
 - `.github/ISSUE_TEMPLATE/create-spec.yml`

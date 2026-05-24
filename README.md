@@ -24,9 +24,11 @@ Read these documents first:
 | [`AGENTS.md`](AGENTS.md) | Repository routing rules and synchronization requirements |
 | [`copilot-instructions.md`](copilot-instructions.md) | Concise Copilot-facing repository instructions kept in sync with GitHub configuration |
 | [`docs/TERMINOLOGY.md`](docs/TERMINOLOGY.md) | Canonical project vocabulary |
-| [`docs/specs/README.md`](docs/specs/README.md) | Specification index and authoring rules |
+| [`docs/SPECS.md`](docs/SPECS.md) | Specification index and authoring rules |
 | [`docs/WORKFLOWS.md`](docs/WORKFLOWS.md) | Workflow documentation index |
 | [`docs/TBPS.md`](docs/TBPS.md) | Task best practice index |
+| [`docs/ENGINEERING.md`](docs/ENGINEERING.md) | Engineering command contracts and toolchain setup |
+| [`docs/GUARDRAILS.md`](docs/GUARDRAILS.md) | Project-wide constraints and guardrail policy |
 | [`docs/architecture/system-overview.md`](docs/architecture/system-overview.md) | Current architecture overview |
 | [`docs/agent-context/project-context.md`](docs/agent-context/project-context.md) | High-signal repository context |
 
@@ -36,6 +38,8 @@ Read these documents first:
 | --- | --- |
 | `docs/architecture/` | Current architecture, subsystem boundaries, and constraints |
 | `docs/decisions/` | Architectural decisions and rationale |
+| `docs/engineering/` | Engineering command contracts and toolchain documents |
+| `docs/guardrails/` | Project-wide constraint policy documents |
 | `docs/milestones/` | Delivery planning and staged scope |
 | `docs/research/` | Exploratory findings and concise conclusions |
 | `docs/specs/` | Authoritative behavioral specifications |
@@ -56,7 +60,8 @@ Read these documents first:
 
 - Workflow intent belongs in `docs/workflows/` before `.github/workflows/` changes.
 - New terminology belongs in `docs/TERMINOLOGY.md`.
-- New or revised specifications belong in `docs/specs/` and must stay indexed in `docs/specs/README.md`.
+- New or revised specifications belong in `docs/specs/` and must stay indexed in `docs/SPECS.md`.
 - Repeated operational patterns belong in `docs/tbps/`.
 - Architectural changes belong in `docs/architecture/` and `docs/decisions/`.
 - Concrete recurring issue intake belongs in `.github/ISSUE_TEMPLATE/`.
+- Engineering commands are defined in `docs/ENGINEERING.md`; use `./eng/check.sh` as the canonical completion gate.

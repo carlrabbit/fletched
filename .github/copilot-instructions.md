@@ -3,7 +3,9 @@
 Primary repository documentation:
 - `copilot-instructions.md`
 - `docs/TERMINOLOGY.md`
-- `docs/specs/README.md`
+- `docs/SPECS.md`
+- `docs/ENGINEERING.md`
+- `docs/GUARDRAILS.md`
 - `docs/architecture/`
 - `docs/decisions/`
 - `docs/workflows/`
@@ -15,6 +17,8 @@ Repository conventions:
 - Prefer minimal, targeted changes over broad rewrites
 - Keep `README.md` as a navigation document, not an architectural specification
 - Keep detailed design material in `specs/` and authoritative operational guidance in `docs/`
+- Use `./eng/check.sh` as the canonical completion gate before declaring work complete
+- Do not run benchmarks or long-running tests by default
 
 Implementation conventions:
 - Target C# 14 and .NET 10 where appropriate
@@ -28,4 +32,4 @@ Workflow synchronization rules:
 - GitHub workflow files in `.github/workflows/` must remain synchronized
 - New recurring processes belong in `docs/tbps/`
 - New terminology belongs in `docs/TERMINOLOGY.md`
-- New or revised behavioral specifications belong in `docs/specs/` and stay indexed in `docs/specs/README.md`
+- New or revised behavioral specifications belong in `docs/specs/` and stay indexed in `docs/SPECS.md`
