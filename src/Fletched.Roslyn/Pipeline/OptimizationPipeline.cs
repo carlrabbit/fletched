@@ -1,6 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
+using System.Security.Cryptography;
+using System.Text;
 using Microsoft.CodeAnalysis;
 
 namespace Fletched.Roslyn.Pipeline;
@@ -8,7 +11,22 @@ namespace Fletched.Roslyn.Pipeline;
 /// <summary>Marker interface for optimization passes over a <see cref="PlanProgram"/>.</summary>
 public interface IPlanOptimization
 {
-    PlanProgram Apply(PlanProgram program);
+    string Name { get; }
+
+    PlanOptimizationResult Optimize(
+        PlanProgram program,
+        PlanOptimizationContext context);
+}
+
+public static class PlanOptimizationExtensions
+{
+    private static readonly PlanOptimizationContext DefaultContext = new()
+    {
+        Options = new OptimizationOptions()
+    };
+
+    public static PlanProgram Apply(this IPlanOptimization pass, PlanProgram program) =>
+        pass.Optimize(program, DefaultContext).Program;
 }
 
 internal readonly record struct AccessSet(
@@ -20,7 +38,7 @@ internal static class PlanAnalysis
     public const string FailLabel = "Fail";
 
     public static IReadOnlyList<PlanBlock> AllBlocks(PlanProgram program) =>
-        new[] { program.Entry }.Concat(program.Blocks).ToList();
+        [program.Entry, .. program.Blocks];
 
     public static PlanProgram RewriteBlocks(PlanProgram program, Func<PlanBlock, PlanBlock> transform)
     {
@@ -142,9 +160,7 @@ internal static class PlanAnalysis
             remaining.Remove(next);
 
             foreach (int successor in outgoing[next])
-            {
                 indegree[successor]--;
-            }
         }
 
         return ordered;
@@ -219,6 +235,9 @@ internal static class PlanAnalysis
             _ => Array.Empty<string>()
         };
     }
+
+    public static PlanBlock? FindBlock(PlanProgram program, string label) =>
+        AllBlocks(program).FirstOrDefault(candidate => candidate.Label == label);
 
     private static int MaxReferencedSlot(PlanInstruction instruction)
     {
@@ -331,7 +350,9 @@ internal static class PlanAnalysis
 /// <summary>Ensures flat instruction sequences — no nested block references.</summary>
 public sealed class NormalizeSequence : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program)
+    public string Name => nameof(NormalizeSequence);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
         List<PlanBlock> allBlocks = PlanAnalysis.AllBlocks(program).ToList();
 
@@ -373,28 +394,45 @@ public sealed class NormalizeSequence : IPlanOptimization
             result.Add(current);
         }
 
-        return result.Count == 0
+        PlanProgram optimized = result.Count == 0
             ? program
             : new PlanProgram(result[0], result.Skip(1).ToList(), program.SlotMap, program.Metadata);
+        return new PlanOptimizationResult(optimized, ImmutableArray<PlanOptimizationChange>.Empty);
     }
 }
 
 public sealed class RemoveRedundantUnify : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program) =>
-        PlanAnalysis.RewriteBlocks(program, TransformBlock);
+    public string Name => nameof(RemoveRedundantUnify);
 
-    private static PlanBlock TransformBlock(PlanBlock block)
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
+    {
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, changes));
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         var instructions = new List<PlanInstruction>(block.Instructions.Count);
         PlanTerminator terminator = block.Terminator;
 
-        foreach (PlanInstruction instruction in block.Instructions)
+        for (int index = 0; index < block.Instructions.Count; index++)
         {
+            PlanInstruction instruction = block.Instructions[index];
             if (!PlanAnalysis.TryEvaluateInstruction(instruction, out bool alwaysSucceeds, out bool alwaysFails))
             {
                 instructions.Add(instruction);
                 continue;
+            }
+
+            if (instruction is UnifyInstr)
+            {
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.SimplifiedUnification,
+                    $"{block.Label}:{index}",
+                    alwaysFails ? "provable-constant-mismatch" : "redundant-unify"));
             }
 
             if (alwaysSucceeds)
@@ -414,30 +452,44 @@ public sealed class RemoveRedundantUnify : IPlanOptimization
 /// <summary>Computes AccessSet (reads/writes) per instruction for dependency analysis.</summary>
 public sealed class DependencyAnalysis : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program)
+    public string Name => nameof(DependencyAnalysis);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
         foreach (PlanBlock block in PlanAnalysis.AllBlocks(program))
             _ = PlanAnalysis.AnalyzeBlock(block);
 
-        return program;
+        return new PlanOptimizationResult(program, ImmutableArray<PlanOptimizationChange>.Empty);
     }
 }
 
 /// <summary>Reorders conjunction instructions: constraints first, then bound unifications, loops last.</summary>
 public sealed class ReorderConjunction : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program) =>
-        PlanAnalysis.RewriteBlocks(program, TransformBlock);
+    public string Name => nameof(ReorderConjunction);
 
-    private static PlanBlock TransformBlock(PlanBlock block)
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
+    {
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, changes));
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         if (block.Instructions.Any(IsBarrierInstruction))
             return block;
 
         IReadOnlyList<PlanInstruction> reordered = PlanAnalysis.ReorderInstructions(block.Instructions, GetPriority);
-        return ReferenceEquals(reordered, block.Instructions)
-            ? block
-            : block with { Instructions = reordered };
+        if (reordered.SequenceEqual(block.Instructions))
+            return block;
+
+        changes.Add(new PlanOptimizationChange(
+            Name,
+            PlanChangeKind.ReorderedConjunction,
+            block.Label,
+            "dependency-safe-priority-reordering"));
+        return block with { Instructions = reordered.ToList() };
     }
 
     private static int GetPriority(PlanInstruction instruction)
@@ -459,18 +511,30 @@ public sealed class ReorderConjunction : IPlanOptimization
 /// <summary>Promotes loop key-filter checks as early as dependency ordering allows.</summary>
 public sealed class IndexSelection : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program) =>
-        PlanAnalysis.RewriteBlocks(program, TransformBlock);
+    public string Name => nameof(IndexSelection);
 
-    private static PlanBlock TransformBlock(PlanBlock block)
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
+    {
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, changes));
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         if (block.Instructions.Any(instruction => instruction is CallInstr or NotInstr))
             return block;
 
         IReadOnlyList<PlanInstruction> reordered = PlanAnalysis.ReorderInstructions(block.Instructions, GetPriority);
-        return ReferenceEquals(reordered, block.Instructions)
-            ? block
-            : block with { Instructions = reordered };
+        if (reordered.SequenceEqual(block.Instructions))
+            return block;
+
+        changes.Add(new PlanOptimizationChange(
+            Name,
+            PlanChangeKind.SelectedIndex,
+            block.Label,
+            "promoted-loop-key-filter"));
+        return block with { Instructions = reordered.ToList() };
     }
 
     private static int GetPriority(PlanInstruction instruction)
@@ -499,15 +563,22 @@ public sealed class IndexSelection : IPlanOptimization
 /// <summary>Moves constraint instructions earlier when all argument slots are bound.</summary>
 public sealed class ConstraintHoisting : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program) =>
-        PlanAnalysis.RewriteBlocks(program, TransformBlock);
+    public string Name => nameof(ConstraintHoisting);
 
-    private static PlanBlock TransformBlock(PlanBlock block)
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
+    {
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, changes));
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         if (block.Instructions.Count < 2)
             return block;
 
         List<PlanInstruction> reordered = block.Instructions.ToList();
+        bool changed = false;
         for (int index = 1; index < reordered.Count; index++)
         {
             PlanInstruction current = reordered[index];
@@ -534,40 +605,132 @@ public sealed class ConstraintHoisting : IPlanOptimization
 
             reordered.RemoveAt(index);
             reordered.Insert(targetIndex, current);
+            changes.Add(new PlanOptimizationChange(
+                Name,
+                PlanChangeKind.HoistedConstraint,
+                $"{block.Label}:{targetIndex}",
+                "arguments-bound-earlier"));
+            changed = true;
         }
 
-        return block with { Instructions = reordered };
+        return changed ? block with { Instructions = reordered } : block;
+    }
+}
+
+/// <summary>Removes pure assignment instructions whose written slot is never subsequently read.</summary>
+public sealed class DeadBindingElimination : IPlanOptimization
+{
+    public string Name => nameof(DeadBindingElimination);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
+    {
+        if (!context.Options.EnableDeadBindingElimination)
+            return new PlanOptimizationResult(program, ImmutableArray<PlanOptimizationChange>.Empty);
+
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram result = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, changes));
+        return new PlanOptimizationResult(result, changes.ToImmutable());
+    }
+
+    private PlanBlock TransformBlock(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
+    {
+        if (block.Instructions.Count < 2)
+            return block;
+
+        List<PlanInstruction> instructions = block.Instructions.ToList();
+        HashSet<int>[] readsAfter = new HashSet<int>[instructions.Count + 1];
+        readsAfter[instructions.Count] = [];
+
+        for (int index = instructions.Count - 1; index >= 0; index--)
+        {
+            readsAfter[index] = new HashSet<int>(readsAfter[index + 1]);
+            AccessSet access = PlanAnalysis.AnalyzeInstruction(instructions[index]);
+            foreach (int slot in access.Reads)
+                readsAfter[index].Add(slot);
+        }
+
+        var result = new List<PlanInstruction>(instructions.Count);
+        bool changed = false;
+
+        for (int i = 0; i < instructions.Count; i++)
+        {
+            PlanInstruction instr = instructions[i];
+            if (instr is AssignInstr assign && !readsAfter[i + 1].Contains(assign.Slot))
+            {
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.RemovedDeadBinding,
+                    $"slot_{assign.Slot}",
+                    "pure-assignment-never-read"));
+                changed = true;
+                continue;
+            }
+
+            result.Add(instr);
+        }
+
+        return changed ? block with { Instructions = result } : block;
     }
 }
 
 /// <summary>Removes unreachable blocks and dead instructions after a provable failure.</summary>
 public sealed class DeadCodeElimination : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program)
+    public string Name => nameof(DeadCodeElimination);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
-        PlanProgram simplified = PlanAnalysis.RewriteBlocks(program, TrimDeadInstructions);
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram simplified = PlanAnalysis.RewriteBlocks(program, block => TrimDeadInstructions(block, changes));
 
         var reachable = new HashSet<string>(StringComparer.Ordinal);
         CollectReachable(simplified.Entry.Label, simplified, reachable);
 
-        List<PlanBlock> live = PlanAnalysis.AllBlocks(simplified)
+        List<PlanBlock> allBlocks = PlanAnalysis.AllBlocks(simplified).ToList();
+        foreach (PlanBlock block in allBlocks.Where(block => !reachable.Contains(block.Label)))
+        {
+            changes.Add(new PlanOptimizationChange(
+                Name,
+                PlanChangeKind.RemovedUnreachableBlock,
+                block.Label,
+                "unreachable-from-entry"));
+        }
+
+        List<PlanBlock> live = allBlocks
             .Where(block => reachable.Contains(block.Label))
             .ToList();
 
-        return live.Count == 0
+        PlanProgram optimized = live.Count == 0
             ? simplified
             : new PlanProgram(live[0], live.Skip(1).ToList(), simplified.SlotMap, simplified.Metadata);
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
     }
 
-    private static PlanBlock TrimDeadInstructions(PlanBlock block)
+    private PlanBlock TrimDeadInstructions(PlanBlock block, ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         var instructions = new List<PlanInstruction>(block.Instructions.Count);
         PlanTerminator terminator = block.Terminator;
 
-        foreach (PlanInstruction instruction in block.Instructions)
+        for (int index = 0; index < block.Instructions.Count; index++)
         {
+            PlanInstruction instruction = block.Instructions[index];
             if (PlanAnalysis.TryEvaluateInstruction(instruction, out _, out bool alwaysFails) && alwaysFails)
             {
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.RemovedInstruction,
+                    $"{block.Label}:{index}",
+                    "provable-failure-rewritten-to-fail"));
+
+                for (int trailing = index + 1; trailing < block.Instructions.Count; trailing++)
+                {
+                    changes.Add(new PlanOptimizationChange(
+                        Name,
+                        PlanChangeKind.RemovedInstruction,
+                        $"{block.Label}:{trailing}",
+                        "after-unconditional-fail"));
+                }
+
                 terminator = new FailTerm();
                 break;
             }
@@ -583,7 +746,7 @@ public sealed class DeadCodeElimination : IPlanOptimization
         if (!visited.Add(label))
             return;
 
-        PlanBlock? block = PlanAnalysis.AllBlocks(program).FirstOrDefault(candidate => candidate.Label == label);
+        PlanBlock? block = PlanAnalysis.FindBlock(program, label);
         if (block is null)
             return;
 
@@ -600,27 +763,52 @@ public sealed class DeadCodeElimination : IPlanOptimization
 /// <summary>Detects loop-invariant bodies so future lowering can specialize them safely.</summary>
 public sealed class LoopSpecialization : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program)
+    public string Name => nameof(LoopSpecialization);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
+        if (!context.Options.EnableLoopSpecialization)
+            return new PlanOptimizationResult(program, ImmutableArray<PlanOptimizationChange>.Empty);
+
+        if (!context.Options.EmitOptimizationTrace)
+            return new PlanOptimizationResult(program, ImmutableArray<PlanOptimizationChange>.Empty);
+
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
         foreach (PlanBlock block in PlanAnalysis.AllBlocks(program))
         {
-            _ = block.Instructions
-                .OfType<LoopBindInstr>()
-                .Select(bind => bind.Slot)
-                .ToList();
+            if (block.Terminator is LoopCheckTerm loop)
+            {
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.SpecializedLoop,
+                    block.Label,
+                    $"loop-check:{loop.IndexVar}:analysis-only"));
+            }
+
+            foreach (LoopBindInstr bind in block.Instructions.OfType<LoopBindInstr>())
+            {
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.SpecializedLoop,
+                    $"{block.Label}:slot_{bind.Slot}",
+                    $"loop-bind:{bind.IndexVar}:analysis-only"));
+            }
         }
 
-        return program;
+        return new PlanOptimizationResult(program, changes.ToImmutable());
     }
 }
 
 /// <summary>Deduplicates repeated field reads in read-only instruction segments using temporaries.</summary>
 public sealed class TempHoisting : IPlanOptimization
 {
-    public PlanProgram Apply(PlanProgram program)
+    public string Name => nameof(TempHoisting);
+
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
         int nextSlot = PlanAnalysis.NextAnonymousSlot(program);
-        return PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, ref nextSlot));
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, ref nextSlot));
+        return new PlanOptimizationResult(optimized, ImmutableArray<PlanOptimizationChange>.Empty);
     }
 
     private static PlanBlock TransformBlock(PlanBlock block, ref int nextSlot)
@@ -806,21 +994,184 @@ public sealed class OptimizationPipeline
         new NormalizeSequence(),
         new RemoveRedundantUnify(),
         new DependencyAnalysis(),
+        new PredicateCallInlining(),
+        new NormalizeSequence(),
+        new DependencyAnalysis(),
         new ReorderConjunction(),
         new IndexSelection(),
         new ConstraintHoisting(),
+        new DeadBindingElimination(),
         new DeadCodeElimination(),
         new LoopSpecialization(),
         new TempHoisting(),
-        new PredicateCallInlining(),
+        new NormalizeSequence(),
     ];
 
-    public PlanProgram Run(PlanProgram program)
+    public PlanProgram Run(PlanProgram program, PlanOptimizationContext? context = null)
     {
-        foreach (IPlanOptimization pass in _passes)
-            program = pass.Apply(program);
+        (PlanProgram result, _) = RunWithTrace(program, context);
+        return result;
+    }
 
-        return program;
+    public (PlanProgram Program, PlanOptimizationTrace Trace) RunWithTrace(
+        PlanProgram program,
+        PlanOptimizationContext? context = null)
+    {
+        PlanOptimizationContext effectiveContext = context ?? new PlanOptimizationContext
+        {
+            Options = new OptimizationOptions()
+        };
+
+        var passTraces = ImmutableArray.CreateBuilder<PlanOptimizationPassTrace>();
+
+        foreach (IPlanOptimization pass in _passes)
+        {
+            string inputHash = effectiveContext.Options.EmitOptimizationTrace ? ComputePlanHash(program) : string.Empty;
+            PlanOptimizationResult result = pass.Optimize(program, effectiveContext);
+            program = result.Program;
+            string outputHash = effectiveContext.Options.EmitOptimizationTrace ? ComputePlanHash(program) : string.Empty;
+
+            if (effectiveContext.Options.EmitOptimizationTrace)
+            {
+                passTraces.Add(new PlanOptimizationPassTrace(
+                    pass.Name,
+                    inputHash,
+                    outputHash,
+                    result.Changes));
+            }
+        }
+
+        return (program, new PlanOptimizationTrace(passTraces.ToImmutable()));
+    }
+
+    /// <summary>Computes a deterministic hash of the normalized plan representation.</summary>
+    internal static string ComputePlanHash(PlanProgram program)
+    {
+        var sb = new StringBuilder();
+        RenderProgram(program, sb);
+        byte[] bytes = Encoding.UTF8.GetBytes(sb.ToString());
+        using SHA256 sha256 = SHA256.Create();
+        byte[] hash = sha256.ComputeHash(bytes);
+        return BitConverter.ToString(hash).Replace("-", string.Empty)
+            .Substring(0, 16)
+            .ToLowerInvariant();
+    }
+
+    private static void RenderProgram(PlanProgram program, StringBuilder sb)
+    {
+        foreach (PlanBlock block in PlanAnalysis.AllBlocks(program))
+        {
+            sb.Append(block.Label).Append(':');
+            foreach (PlanInstruction instr in block.Instructions)
+                RenderInstruction(instr, sb);
+            RenderTerminator(block.Terminator, sb);
+        }
+    }
+
+    private static void RenderInstruction(PlanInstruction instr, StringBuilder sb)
+    {
+        sb.Append(instr.GetType().Name).Append('(');
+        switch (instr)
+        {
+            case UnifyInstr u:
+                RenderValue(u.Left, sb);
+                sb.Append(',');
+                RenderValue(u.Right, sb);
+                break;
+            case AssignInstr a:
+                sb.Append(a.Slot).Append(',');
+                RenderValue(a.Value, sb);
+                break;
+            case CompInstr c:
+                sb.Append(c.Op).Append(',');
+                RenderValue(c.Left, sb);
+                sb.Append(',');
+                RenderValue(c.Right, sb);
+                break;
+            case ConstraintInstr constraint:
+                sb.Append(constraint.Method.Name).Append(':');
+                foreach (PlanValue argument in constraint.Arguments)
+                {
+                    RenderValue(argument, sb);
+                    sb.Append(';');
+                }
+                break;
+            case LoopBindInstr l:
+                sb.Append(l.Slot).Append(',').Append(l.IndexVar);
+                break;
+            case IndexInitInstr init:
+                sb.Append(init.IndexVar);
+                break;
+            case IndexIncrInstr incr:
+                sb.Append(incr.IndexVar);
+                break;
+            case CallInstr call:
+                sb.Append(call.PredicateType.Name).Append('/').Append(call.Arity).Append(':');
+                foreach (int slot in call.ArgumentSlots)
+                    sb.Append(slot).Append(',');
+                sb.Append(call.IsTabledCall);
+                break;
+            case NotInstr n:
+                foreach (PlanInstruction s in n.SubGoalInstructions)
+                    RenderInstruction(s, sb);
+                break;
+        }
+        sb.Append(')');
+    }
+
+    private static void RenderTerminator(PlanTerminator terminator, StringBuilder sb)
+    {
+        sb.Append(terminator.GetType().Name).Append('(');
+        switch (terminator)
+        {
+            case GotoTerm g:
+                sb.Append(g.TargetLabel);
+                break;
+            case ChoiceTerm c:
+                sb.Append(c.NextLabel).Append(',').Append(c.AlternativeLabel).Append(',').Append(c.TrailSlot);
+                break;
+            case LoopCheckTerm l:
+                sb.Append(l.BodyLabel).Append(',').Append(l.FailLabel).Append(',').Append(l.IndexVar);
+                break;
+        }
+        sb.Append(')');
+    }
+
+    private static void RenderValue(PlanValue value, StringBuilder sb)
+    {
+        switch (value)
+        {
+            case SlotValue s:
+                sb.Append("Slot(").Append(s.Slot).Append(')');
+                break;
+            case ConstValue c:
+                sb.Append("Const(").Append(c.Value?.ToString() ?? "null").Append(')');
+                break;
+            case FieldValue f:
+                RenderValue(f.Target, sb);
+                sb.Append('.').Append(f.MemberName);
+                break;
+            case ArithValue a:
+                sb.Append("Arith(").Append(a.Op).Append(',');
+                RenderValue(a.Left, sb);
+                sb.Append(',');
+                RenderValue(a.Right, sb);
+                sb.Append(')');
+                break;
+            case ListEmptyValue:
+                sb.Append("[]");
+                break;
+            case ListConsValue cons:
+                sb.Append("Cons(");
+                RenderValue(cons.Head, sb);
+                sb.Append(',');
+                RenderValue(cons.Tail, sb);
+                sb.Append(')');
+                break;
+            default:
+                sb.Append(value.GetType().Name);
+                break;
+        }
     }
 }
 
@@ -831,21 +1182,6 @@ public sealed class OptimizationPipeline
 /// Any call that does not satisfy all eligibility criteria is left as a <see cref="CallInstr"/>
 /// and falls back to normal predicate-invocation state-machine execution.
 /// </summary>
-/// <remarks>
-/// Eligibility criteria (all must be satisfied):
-/// <list type="bullet">
-///   <item><description>Call is not tabled (<see cref="CallInstr.IsTabledCall"/> is false).</description></item>
-///   <item><description>Callee plan is registered in the provided lookup dictionary.</description></item>
-///   <item><description>Callee has no recursive calls in its <see cref="RecursivePlanMetadata"/>.</description></item>
-///   <item><description>Argument count does not exceed <see cref="DefaultMaxArgumentCount"/>.</description></item>
-///   <item><description>Callee plan has a single block (no disjunctions or additional branches).</description></item>
-///   <item><description>Callee entry block ends with <see cref="SucceedTerm"/> (deterministic).</description></item>
-///   <item><description>Callee entry block contains no loop, call, or negation instructions.</description></item>
-/// </list>
-/// <para>
-/// Calls inside <see cref="NotInstr"/> sub-goal instruction lists are never traversed for inlining.
-/// </para>
-/// </remarks>
 public sealed class PredicateCallInlining : IPlanOptimization
 {
     /// <summary>Default maximum argument count above which inlining is skipped.</summary>
@@ -853,6 +1189,8 @@ public sealed class PredicateCallInlining : IPlanOptimization
 
     private readonly IReadOnlyDictionary<string, PlanProgram> _calleePrograms;
     private readonly int _maxArgumentCount;
+
+    public string Name => nameof(PredicateCallInlining);
 
     /// <summary>Initializes an instance with no registered callee plans (all calls fall back).</summary>
     public PredicateCallInlining()
@@ -879,74 +1217,134 @@ public sealed class PredicateCallInlining : IPlanOptimization
     public static string GetCalleeKey(INamedTypeSymbol predicateType, int arity) =>
         $"{predicateType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat)}/{arity}";
 
-    public PlanProgram Apply(PlanProgram program)
+    public PlanOptimizationResult Optimize(PlanProgram program, PlanOptimizationContext context)
     {
+        if (!context.Options.EnablePredicateCallInlining)
+            return new PlanOptimizationResult(program, ImmutableArray<PlanOptimizationChange>.Empty);
+
         int nextFreshSlot = PlanAnalysis.NextAnonymousSlot(program);
-        return PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, ref nextFreshSlot));
+        var changes = ImmutableArray.CreateBuilder<PlanOptimizationChange>();
+        PlanProgram optimized = PlanAnalysis.RewriteBlocks(program, block => TransformBlock(block, ref nextFreshSlot, context, changes));
+        return new PlanOptimizationResult(optimized, changes.ToImmutable());
     }
 
-    private PlanBlock TransformBlock(PlanBlock block, ref int nextFreshSlot)
+    private PlanBlock TransformBlock(
+        PlanBlock block,
+        ref int nextFreshSlot,
+        PlanOptimizationContext context,
+        ImmutableArray<PlanOptimizationChange>.Builder changes)
     {
         bool changed = false;
         var instructions = new List<PlanInstruction>(block.Instructions.Count);
 
         foreach (PlanInstruction instruction in block.Instructions)
         {
-            if (instruction is CallInstr call
-                && TryBuildInlinedInstructions(call, ref nextFreshSlot, out IReadOnlyList<PlanInstruction>? inlined))
+            if (instruction is CallInstr call)
             {
-                instructions.AddRange(inlined!);
-                changed = true;
+                InlineDecision decision = EvaluateInlineDecision(call, context);
+                if (decision.CanInline
+                    && TryBuildInlinedInstructions(call, decision, ref nextFreshSlot, out IReadOnlyList<PlanInstruction>? inlined))
+                {
+                    instructions.AddRange(inlined!);
+                    changes.Add(new PlanOptimizationChange(
+                        Name,
+                        PlanChangeKind.InlinedPredicateCall,
+                        $"{call.PredicateType.Name}/{call.Arity}",
+                        $"instruction-count={decision.EstimatedInstructionCount}"));
+                    changed = true;
+                    continue;
+                }
+
+                changes.Add(new PlanOptimizationChange(
+                    Name,
+                    PlanChangeKind.SkippedCandidate,
+                    $"{call.PredicateType.Name}/{call.Arity}",
+                    decision.RejectReason?.ToString() ?? nameof(InlineRejectReason.SlotMappingFailure)));
             }
-            else
-            {
-                // NotInstr sub-goal instructions are not traversed for inlining (conservative).
-                instructions.Add(instruction);
-            }
+
+            instructions.Add(instruction);
         }
 
         return changed ? block with { Instructions = instructions } : block;
     }
 
+    private InlineDecision EvaluateInlineDecision(CallInstr call, PlanOptimizationContext context)
+    {
+        string predicateName = call.PredicateType.Name;
+
+        if (context.Options.MaxInlineDepth < 1)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.TooDeep, 0);
+
+        if (call.IsTabledCall)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.Tabled, 0);
+
+        if (call.ArgumentSlots.Count > _maxArgumentCount)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.TooLarge, call.ArgumentSlots.Count);
+
+        string key = GetCalleeKey(call.PredicateType, call.Arity);
+        if (!_calleePrograms.TryGetValue(key, out PlanProgram? callee))
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.UnknownPredicate, 0);
+
+        if (callee.Metadata?.RecursiveCalls.Count > 0)
+        {
+            bool directlyRecursive = callee.Metadata.RecursiveCalls.Any(recursiveCall =>
+                string.Equals(recursiveCall.CallingPredicateName, recursiveCall.TargetPredicateName, StringComparison.Ordinal));
+            return new InlineDecision(
+                false,
+                predicateName,
+                call.Arity,
+                directlyRecursive ? InlineRejectReason.Recursive : InlineRejectReason.MutuallyRecursive,
+                callee.Entry.Instructions.Count);
+        }
+
+        if (callee.Blocks.Count > 0)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.MultipleBodies, callee.Entry.Instructions.Count);
+
+        if (callee.Entry.Terminator is not SucceedTerm)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.WouldChangeBacktracking, callee.Entry.Instructions.Count);
+
+        if (callee.Entry.Instructions.Any(instruction => instruction is NotInstr))
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.NegationBoundary, callee.Entry.Instructions.Count);
+
+        if (callee.Entry.Instructions.Any(IsNonInlinableInstruction))
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.UnsupportedInstruction, callee.Entry.Instructions.Count);
+
+        if (callee.Entry.Instructions.Count > context.Options.MaxInlineInstructionCount)
+            return new InlineDecision(false, predicateName, call.Arity, InlineRejectReason.TooLarge, callee.Entry.Instructions.Count);
+
+        // A call site occupies one instruction before inlining, so growth is measured
+        // relative to replacing that single CallInstr with the callee body.
+        int growthPercent = callee.Entry.Instructions.Count <= 1
+            ? 0
+            : (callee.Entry.Instructions.Count - 1) * 100;
+        if (growthPercent > context.Options.MaxGeneratedInstructionGrowthPercent)
+        {
+            return new InlineDecision(
+                false,
+                predicateName,
+                call.Arity,
+                InlineRejectReason.GrowthLimitExceeded,
+                callee.Entry.Instructions.Count);
+        }
+
+        return new InlineDecision(true, predicateName, call.Arity, null, callee.Entry.Instructions.Count);
+    }
+
     private bool TryBuildInlinedInstructions(
         CallInstr call,
+        InlineDecision decision,
         ref int nextFreshSlot,
         out IReadOnlyList<PlanInstruction>? inlined)
     {
         inlined = null;
 
-        // Never inline tabled calls.
-        if (call.IsTabledCall)
-            return false;
-
-        // Callee plan must be registered.
         string key = GetCalleeKey(call.PredicateType, call.Arity);
         if (!_calleePrograms.TryGetValue(key, out PlanProgram? callee))
             return false;
 
-        // Never inline recursive or mutually recursive callees.
-        if (callee.Metadata?.RecursiveCalls.Count > 0)
+        if (call.Arity > call.ArgumentSlots.Count)
             return false;
 
-        // Argument count must be within the threshold.
-        if (call.ArgumentSlots.Count > _maxArgumentCount)
-            return false;
-
-        // Callee must have a single block (entry only; no additional blocks).
-        if (callee.Blocks.Count > 0)
-            return false;
-
-        // Callee entry block must end deterministically.
-        if (callee.Entry.Terminator is not SucceedTerm)
-            return false;
-
-        // Callee must not contain loop, call, or negation instructions.
-        if (callee.Entry.Instructions.Any(IsNonInlinableInstruction))
-            return false;
-
-        // Build the slot remapping.
-        // Callee parameter slots (0..arity-1) → caller argument slots.
-        // Additional callee slots → fresh anonymous caller slots.
         var slotMap = new Dictionary<int, int>();
         for (int i = 0; i < call.Arity && i < call.ArgumentSlots.Count; i++)
             slotMap[i] = call.ArgumentSlots[i];

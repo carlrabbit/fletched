@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -141,3 +142,89 @@ public sealed record RecursivePlanMetadata(
     IReadOnlyList<MagicModifiedRulePlan> ModifiedRules,
     IReadOnlyList<MagicPropagationRulePlan> PropagationRules,
     IReadOnlyList<RecursiveAccessPathPlan> AccessPaths);
+
+// ─── Optimization contract types ────────────────────────────────────────────
+
+public enum PlanChangeKind
+{
+    RemovedInstruction,
+    ReorderedConjunction,
+    SelectedIndex,
+    HoistedConstraint,
+    InlinedPredicateCall,
+    SkippedCandidate,
+    SimplifiedUnification,
+    RemovedUnreachableBlock,
+    RemovedDeadBinding,
+    SpecializedLoop
+}
+
+public sealed record PlanOptimizationChange(
+    string Pass,
+    PlanChangeKind Kind,
+    string Target,
+    string Reason);
+
+public sealed record PlanOptimizationResult(
+    PlanProgram Program,
+    ImmutableArray<PlanOptimizationChange> Changes);
+
+public sealed record PlanOptimizationPassTrace(
+    string PassName,
+    string InputHash,
+    string OutputHash,
+    ImmutableArray<PlanOptimizationChange> Changes);
+
+public sealed record PlanOptimizationTrace(
+    ImmutableArray<PlanOptimizationPassTrace> Passes);
+
+public sealed record OptimizationOptions
+{
+    public bool EnablePredicateCallInlining { get; init; } = true;
+    public bool EnableDeadBindingElimination { get; init; } = true;
+    public bool EnableLoopSpecialization { get; init; } = true;
+
+    public int MaxInlineInstructionCount { get; init; } = 32;
+    public int MaxInlineDepth { get; init; } = 2;
+    public int MaxGeneratedInstructionGrowthPercent { get; init; } = 150;
+
+    public bool EmitOptimizationTrace { get; init; } = false;
+}
+
+public sealed class PlanOptimizationContext
+{
+    public OptimizationOptions Options { get; init; } = new();
+}
+
+public enum InlineRejectReason
+{
+    Recursive,
+    MutuallyRecursive,
+    Tabled,
+    TooLarge,
+    TooDeep,
+    GrowthLimitExceeded,
+    MultipleBodies,
+    UnsupportedInstruction,
+    NegationBoundary,
+    UnknownPredicate,
+    WouldChangeProjection,
+    WouldChangeBacktracking,
+    SlotMappingFailure
+}
+
+public sealed record InlineDecision(
+    bool CanInline,
+    string PredicateName,
+    int Arity,
+    InlineRejectReason? RejectReason,
+    int EstimatedInstructionCount);
+
+public sealed record InstructionEffects(
+    ImmutableHashSet<int> Reads,
+    ImmutableHashSet<int> Writes,
+    bool MayFail,
+    bool MayProduceMultipleResults,
+    bool IsNegationBoundary,
+    bool IsTableBoundary,
+    bool RequiresGroundInputs);
