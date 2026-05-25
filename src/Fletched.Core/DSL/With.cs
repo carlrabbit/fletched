@@ -60,6 +60,50 @@ public static class Logic
         new(new AllDistinctNode(values.Node!, typeof(T)));
 
     /// <summary>
+    /// Explicit disjunction over pre-built branch expressions.
+    /// Branches are combined left-to-right.
+    /// </summary>
+    public static LogicExpr<bool> Or(params LogicExpr<bool>[] branches)
+    {
+        if (branches is null)
+            throw new ArgumentNullException(nameof(branches));
+        if (branches.Length < 2)
+            throw new ArgumentException("Logic.Or requires at least two branches.", nameof(branches));
+
+        ExprNode result = branches[0].Node ?? throw new ArgumentException("Branch expression cannot be null.", nameof(branches));
+        for (int branchIndex = 1; branchIndex < branches.Length; branchIndex++)
+        {
+            ExprNode branchNode = branches[branchIndex].Node
+                ?? throw new ArgumentException("Branch expression cannot be null.", nameof(branches));
+            result = new DisjNode(result, branchNode);
+        }
+
+        return new LogicExpr<bool>(result);
+    }
+
+    /// <summary>
+    /// Explicit disjunction over lazy branch factories.
+    /// Branches are invoked and combined left-to-right.
+    /// </summary>
+    public static LogicExpr<bool> Or(params Func<LogicExpr<bool>>[] branches)
+    {
+        if (branches is null)
+            throw new ArgumentNullException(nameof(branches));
+        if (branches.Length < 2)
+            throw new ArgumentException("Logic.Or requires at least two branches.", nameof(branches));
+
+        var materialized = new LogicExpr<bool>[branches.Length];
+        for (int branchIndex = 0; branchIndex < branches.Length; branchIndex++)
+        {
+            Func<LogicExpr<bool>> branchFactory = branches[branchIndex]
+                ?? throw new ArgumentException("Branch factory cannot be null.", nameof(branches));
+            materialized[branchIndex] = branchFactory();
+        }
+
+        return Or(materialized);
+    }
+
+    /// <summary>
     /// Creates an empty logical list of type <typeparamref name="T"/>.
     /// Produces a <see cref="ListEmptyNode"/> in the IR.
     /// </summary>

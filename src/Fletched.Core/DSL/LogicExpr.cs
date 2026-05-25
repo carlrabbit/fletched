@@ -75,6 +75,22 @@ public readonly struct LogicExpr<T>
     public static LogicExpr<T> operator -(LogicExpr<T> left, LogicExpr<T> right) =>
         new(new ArithNode(ArithOp.Subtract, left.Node!, right.Node!));
 
+    /// <summary>Arithmetic multiplication (* in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator *(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Multiply, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic division (/ in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator /(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Divide, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic modulo (% in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator %(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Modulo, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic unary negation (-x in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator -(LogicExpr<T> value) =>
+        new(new ArithNode(ArithOp.Subtract, new ConstNode(LogicExprHelpers.Zero<T>(), typeof(T)), value.Node!));
+
     // ── Conjunction / Disjunction ─────────────────────────────────────────────
     // C# expands `a && b` as: LogicExpr<T>.false(a) ? a : (a & b)
     // So we need true/false operators plus & and | for && and || to work.
@@ -99,6 +115,25 @@ public readonly struct LogicExpr<T>
 
 internal static class LogicExprHelpers
 {
+    public static T Zero<T>()
+    {
+        Type type = typeof(T);
+        object value = type == typeof(byte) ? (byte)0
+            : type == typeof(sbyte) ? (sbyte)0
+            : type == typeof(short) ? (short)0
+            : type == typeof(ushort) ? (ushort)0
+            : type == typeof(int) ? 0
+            : type == typeof(uint) ? 0u
+            : type == typeof(long) ? 0L
+            : type == typeof(ulong) ? 0UL
+            : type == typeof(float) ? 0f
+            : type == typeof(double) ? 0d
+            : type == typeof(decimal) ? 0m
+            : throw new InvalidOperationException($"Unary negation is only supported for numeric LogicExpr types. Type '{type.FullName}' is not supported.");
+
+        return (T)value;
+    }
+
     public static bool NotEqual<T>(T a, T b) => !Equals(a, b);
     public static bool LessThan<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) < 0;
     public static bool GreaterThan<T>(T a, T b) => System.Collections.Generic.Comparer<T>.Default.Compare(a, b) > 0;

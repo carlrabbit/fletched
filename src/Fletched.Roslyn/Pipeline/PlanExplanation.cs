@@ -1204,6 +1204,9 @@ internal sealed class PlanningExplanationBuilder
         {
             ArithOp.Add => "+",
             ArithOp.Subtract => "-",
+            ArithOp.Multiply => "*",
+            ArithOp.Divide => "/",
+            ArithOp.Modulo => "%",
             _ => "?"
         };
     }
