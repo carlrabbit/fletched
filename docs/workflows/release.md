@@ -22,3 +22,8 @@ Prepare and publish intentional public package releases.
 
 - `0.2.0` is the first intentional pre-1.0 package line.
 - `0.1.0.0` was premature and is not compatibility-preserved.
+
+## Automation Notes
+
+- Use `.github/workflows/release-preparation.yml` for the quality-gate portion of release preparation.
+- Keep release-preparation workflow behavior synchronized with `docs/workflows/release-preparation.md`.

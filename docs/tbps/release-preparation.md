@@ -9,8 +9,10 @@ Prepare package and release changes without drifting from the repository's docum
 
 # Required Reading
 
+- `docs/workflows/release-preparation.md`
 - `docs/workflows/nuget-pack-and-publish.md`
 - `docs/engineering/packaging.md`
+- `.github/workflows/release-preparation.yml`
 - `.github/workflows/nuget-pack-and-publish.yml`
 
 # Execution Steps
@@ -18,8 +20,9 @@ Prepare package and release changes without drifting from the repository's docum
 1. Confirm the package set and version source match the documented workflow intent.
 2. Update package metadata and workflow documentation before changing publish implementation.
 3. Validate restore, release build, and the relevant automated tests.
-4. Confirm artifact naming, tag rules, and publish gating remain synchronized.
-5. Record any long-term release direction change in `docs/decisions/` if it changes repository policy.
+4. Run the release-preparation workflow (or equivalent `./eng/release-check.sh <version>`) before publish/tag execution.
+5. Confirm artifact naming, tag rules, and publish gating remain synchronized.
+6. Record any long-term release direction change in `docs/decisions/` if it changes repository policy.
 
 # Validation
 
@@ -35,11 +38,14 @@ Prepare package and release changes without drifting from the repository's docum
 
 # Synchronization Requirements
 
+- Keep this TBP synchronized with `docs/workflows/release-preparation.md`.
 - Keep this TBP synchronized with `docs/workflows/nuget-pack-and-publish.md`.
+- Keep this TBP synchronized with `.github/workflows/release-preparation.yml`.
 - Update `docs/decisions/` when release policy changes materially.
 - Update issue templates when release work needs additional routing prompts.
 
 # Related Documents
 
 - `docs/tbps/workflow-changes.md`
+- `docs/workflows/release-preparation.md`
 - `docs/workflows/nuget-pack-and-publish.md`
