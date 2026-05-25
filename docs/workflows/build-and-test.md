@@ -41,7 +41,7 @@ Validate repository restore, release build, and automated test execution for the
 
 - Restore failure
 - Release build, fast test, or formatting-verification failure from `./eng/check.sh`
-- Any core, feature, or integration test failure during the coverage-producing rerun (excluding long-running integration tests unless `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` is set)
+- Any core, feature, or integration test failure during the coverage-producing rerun
 - Coverage artifact generation failure caused by missing prerequisite outputs
 
 # Synchronization Rules

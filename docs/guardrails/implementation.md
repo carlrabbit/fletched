@@ -27,7 +27,7 @@ This document defines implementation constraints for source code and documentati
 
 1. **Run `./eng/check.sh` before declaring work complete.**
 2. **Do not run benchmarks by default.** Use `./eng/benchmark.sh` only when explicitly required.
-3. **Do not enable long-running tests by default.** Respect `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS`.
+3. **Do not enable long-running tests by default.** All integration tests run as part of `eng/test.sh`.
 4. **Read `docs/ENGINEERING.md` and `docs/GUARDRAILS.md` before starting implementation work.**
 5. **Keep `AGENTS.md` and `.github/copilot-instructions.md` synchronized.**
 
