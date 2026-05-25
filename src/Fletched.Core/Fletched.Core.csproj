@@ -6,12 +6,17 @@
     <IsPackable>true</IsPackable>
     <PackageId>Fletched.Core</PackageId>
     <Authors>Fletched Contributors</Authors>
-    <Description>Core runtime, DSL, and attributes for the Fletched typed relational engine.</Description>
+    <Description>Typed runtime and DSL primitives for Fletched, a source-generated logic programming engine for .NET.</Description>
     <RepositoryUrl>https://github.com/carlrabbit/fletched</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/carlrabbit/fletched</PackageProjectUrl>
-    <PackageTags>fletched;logic;dsl;source-generator;dotnet</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>prolog;logic-programming;source-generator;roslyn;dotnet;dsl;query-engine</PackageTags>
+    <PackageReadmeFile>Fletched.Core.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
+
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -24,6 +29,6 @@
 
   <ItemGroup>
     <PackageReference Include="System.Collections.Immutable" />
-    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../public-docs/nuget/Fletched.Core.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

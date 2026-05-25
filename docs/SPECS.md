@@ -54,6 +54,7 @@ Specs are not architecture overviews.
 | [`specs/Observability.md`](specs/Observability.md) | Runtime observability and metrics specification |
 | [`specs/Overview.md`](specs/Overview.md) | System overview specification |
 | [`specs/Performance.md`](specs/Performance.md) | Performance specification |
+| [`specs/PublicApi.md`](specs/PublicApi.md) | Public package/API contract and compatibility policy |
 | [`specs/PredicateInvocation.md`](specs/PredicateInvocation.md) | Predicate invocation specification |
 | [`specs/RecursiveMemoization.md`](specs/RecursiveMemoization.md) | Runtime memoization behavior for tabled recursion |
 | [`specs/RecursiveAccessPaths.md`](specs/RecursiveAccessPaths.md) | Recursive access-path selection specification |

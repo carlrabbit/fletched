@@ -7,30 +7,22 @@ Read first:
 - `docs/WORKFLOWS.md`
 - `docs/TBPS.md`
 - `docs/ENGINEERING.md`
+- `docs/PUBLIC-DOCS.md`
 - `docs/GUARDRAILS.md`
+- `docs/research/project-setup-guide-v5.md`
+- `docs/research/engineering-guide-v4.md`
 - `docs/agent-context/project-context.md`
 
 When changing workflows:
 - update `docs/workflows/` first
 - keep `.github/workflows/` synchronized
 
-When introducing terminology:
-- update `docs/TERMINOLOGY.md`
-
-When introducing recurring execution patterns:
-- add or update a document in `docs/tbps/`
-
-When changing architecture:
-- update `docs/architecture/`
-- record the decision in `docs/decisions/` when the change affects long-term direction
+When changing public package/API behavior:
+- update `public-docs/`
+- update `docs/specs/PublicApi.md`
+- keep `public-docs/api-baselines/` synchronized via `./eng/public-api.sh`
 
 When running validation:
-- use `./eng/check.sh` as the canonical completion gate
+- use `./eng/check.sh` as canonical completion gate
+- use `./eng/release-check.sh <version>` for release readiness
 - do not run benchmarks or long-running tests by default
-- see `docs/GUARDRAILS.md` and `docs/engineering/command-contract.md` for rules
-
-Avoid:
-- duplicated architectural documentation
-- duplicated workflow descriptions
-- prose-heavy instructions that drift from authoritative docs
-- README files under `docs/**` (use ALLCAPS index documents instead)

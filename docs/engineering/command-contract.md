@@ -17,6 +17,10 @@ CI workflows and agents must use these scripts instead of duplicating command lo
 | `./eng/check.sh` | Canonical completion gate | Calls restore + build + fast tests + formatting verification |
 | `./eng/benchmark.sh` | Build benchmarks | Optional; repository decision `0002` keeps this build-only |
 | `./eng/package.sh <version>` | Pack maintained NuGet projects | Requires one SemVer-compatible version; writes to `artifacts/nuget` |
+| `./eng/package-smoke.sh [version]` | Validate package consumption via local NuGet artifacts | Uses packed packages (not project references) in a clean consumer project |
+| `./eng/public-api.sh` | Validate public API baselines | Fails on accidental API drift unless baseline update is explicit |
+| `./eng/public-docs.sh [version]` | Validate public documentation layer | Checks required files, snippets, and policy references |
+| `./eng/release-check.sh <version>` | Full release-readiness gate | Runs check + public-api + public-docs + pack + package-smoke + hygiene checks |
 | `./eng/publish.sh` | Publish packaged artifacts | Requires `NUGET_API_KEY`; pushes `artifacts/nuget/*.nupkg` with `--skip-duplicate` |
 
 ## Canonical Completion Gate

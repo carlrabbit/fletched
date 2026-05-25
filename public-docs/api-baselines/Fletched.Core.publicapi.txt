@@ -1,0 +1,316 @@
+T: Fletched.Core.FactAttribute
+  C: Void .ctor()
+T: Fletched.Core.FactIndexAttribute
+  C: Void .ctor(System.String[])
+  M: Boolean Unique
+  M: Fletched.Core.FactIndexKind Kind
+  M: System.String Name
+  M: System.String[] Members
+T: Fletched.Core.FactIndexKind
+  M: Fletched.Core.FactIndexKind Equality
+  M: Fletched.Core.FactIndexKind Range
+  M: Int32 value__
+T: Fletched.Core.Logic
+  M: Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]] Cons[T](Fletched.Core.LogicExpr`1[T], Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]])
+  M: Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]] Empty[T]()
+  M: Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]] List[T]()
+  M: Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]] List[T](Fletched.Core.LogicExpr`1[T][])
+  M: Fletched.Core.LogicExpr`1[Fletched.Core.LogicList`1[T]] List[T](T[])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] AllDistinct[T](Fletched.Core.LogicExpr`1[T[]])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] Not(Fletched.Core.LogicExpr`1[System.Boolean])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] Or(Fletched.Core.LogicExpr`1[System.Boolean][])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] Or(System.Func`1[Fletched.Core.LogicExpr`1[System.Boolean]][])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] With[T1,T2,T3](System.Func`4[Fletched.Core.Proxy`1[T1],Fletched.Core.Proxy`1[T2],Fletched.Core.Proxy`1[T3],Fletched.Core.LogicExpr`1[System.Boolean]])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] With[T1,T2](System.Func`3[Fletched.Core.Proxy`1[T1],Fletched.Core.Proxy`1[T2],Fletched.Core.LogicExpr`1[System.Boolean]])
+  M: Fletched.Core.LogicExpr`1[System.Boolean] With[T1](System.Func`2[Fletched.Core.Proxy`1[T1],Fletched.Core.LogicExpr`1[System.Boolean]])
+T: Fletched.Core.LogicExpr`1
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.LogicExpr`1[T] Constant(T)
+  M: Int32 GetHashCode()
+T: Fletched.Core.LogicList
+  M: Fletched.Core.LogicList`1[T] Cons[T](T, Fletched.Core.LogicList`1[T])
+  M: Fletched.Core.LogicList`1[T] Empty[T]()
+  M: Fletched.Core.LogicList`1[T] From[T](System.Collections.Generic.IEnumerable`1[T])
+  M: Fletched.Core.LogicList`1[T] From[T](T[])
+T: Fletched.Core.LogicListCons`1
+  C: Void .ctor(T, Fletched.Core.LogicList`1[T])
+  M: Boolean Equals(Fletched.Core.LogicListCons`1[T])
+  M: Boolean Equals(Fletched.Core.LogicList`1[T])
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.LogicList`1[T] <Clone>$()
+  M: Fletched.Core.LogicList`1[T] Tail
+  M: Int32 GetHashCode()
+  M: System.String ToString()
+  M: T Head
+  M: Void Deconstruct(T ByRef, Fletched.Core.LogicList`1[T] ByRef)
+T: Fletched.Core.LogicListEmpty`1
+  C: Void .ctor()
+  M: Boolean Equals(Fletched.Core.LogicListEmpty`1[T])
+  M: Boolean Equals(Fletched.Core.LogicList`1[T])
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.LogicList`1[T] <Clone>$()
+  M: Int32 GetHashCode()
+  M: System.String ToString()
+T: Fletched.Core.LogicList`1
+  M: Boolean Equals(Fletched.Core.LogicList`1[T])
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.LogicList`1[T] <Clone>$()
+  M: Fletched.Core.LogicList`1[T] Cons(T, Fletched.Core.LogicList`1[T])
+  M: Fletched.Core.LogicList`1[T] Create(T[])
+  M: Fletched.Core.LogicList`1[T] Empty()
+  M: Fletched.Core.LogicList`1[T] From(System.Collections.Generic.IEnumerable`1[T])
+  M: Fletched.Core.LogicList`1[T] From(T[])
+  M: Fletched.Core.LogicList`1[T] FromEnumerable(System.Collections.Generic.IEnumerable`1[T])
+  M: Int32 GetHashCode()
+  M: System.String ToString()
+T: Fletched.Core.ModuleAttribute
+  C: Void .ctor()
+T: Fletched.Core.PredicateAttribute
+  C: Void .ctor()
+T: Fletched.Core.PredicateBodyAttribute
+  C: Void .ctor()
+T: Fletched.Core.Proxy`1
+  C: Void .ctor(System.String)
+  M: System.String VariableName
+T: Fletched.Core.Runtime.AnswerTable`1
+  C: Void .ctor()
+  M: Boolean TryAddAnswer(TAnswer)
+  M: Fletched.Core.Runtime.TableStatus Status
+  M: System.Collections.Generic.IReadOnlyList`1[TAnswer] Answers
+  M: System.Exception Fault
+  M: Void MarkComplete()
+  M: Void MarkFaulted(System.Exception)
+  M: Void ThrowIfFaulted()
+T: Fletched.Core.Runtime.BuiltIns
+  M: Boolean AllDistinctPartial[T](T[], Boolean[])
+T: Fletched.Core.Runtime.ChoicePoint
+  M: Int32 LabelId
+  M: Int32 TrailTop
+T: Fletched.Core.Runtime.EngineContext
+  C: Void .ctor()
+  M: Fletched.Core.Runtime.EngineRuntimeOptions RuntimeOptions
+  M: Int32 CurrentRecursionDepth
+  M: Void EnterNegationScope()
+  M: Void EnterPredicateInvocation(System.String, System.Object)
+  M: Void ExitNegationScope()
+  M: Void ExitPredicateInvocation()
+T: Fletched.Core.Runtime.EngineRuntimeOptions
+  C: Void .ctor()
+  M: System.Nullable`1[System.Int32] MaxRecursionDepth
+T: Fletched.Core.Runtime.FactTable`1
+  C: Void .ctor()
+  C: Void .ctor(T[])
+  M: Boolean TryGetIndex(Fletched.Core.Runtime.GeneratedFactIndexAccessor`1[T], System.Object, Int32[] ByRef)
+  M: Boolean TryGetIndex(System.String, System.Object, Int32[] ByRef)
+  M: Boolean TryGetIndex[TKey](Fletched.Core.Runtime.GeneratedFactIndexAccessor`2[T,TKey], TKey, Int32[] ByRef)
+  M: Boolean TryGetRange[TKey](Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor`2[T,TKey], Boolean, TKey, Boolean, Boolean, TKey, Boolean, Int32[] ByRef)
+  M: Boolean TryGetRange[TKey](Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor`2[T,TKey], TKey, Boolean, TKey, Boolean, Int32[] ByRef)
+  M: T[] Data
+  M: Void Add(T)
+  M: Void AddRange(System.Collections.Generic.IEnumerable`1[T])
+  M: Void RebuildIndexes()
+T: Fletched.Core.Runtime.FactTable`2
+  C: Void .ctor(T[], System.Collections.Generic.Dictionary`2[TKey,System.Int32[]])
+  M: System.Collections.Generic.Dictionary`2[TKey,System.Int32[]] Index
+  M: T[] Data
+T: Fletched.Core.Runtime.GeneratedFactIndexAccessor`1
+  C: Void .ctor(System.String, System.Func`2[T,System.Object])
+  M: Boolean Equals(Fletched.Core.Runtime.GeneratedFactIndexAccessor`1[T])
+  M: Boolean Equals(System.Object)
+  M: Int32 GetHashCode()
+  M: System.Func`2[T,System.Object] GetValue
+  M: System.String Name
+  M: System.String ToString()
+  M: Void Deconstruct(System.String ByRef, System.Func`2[T,System.Object] ByRef)
+T: Fletched.Core.Runtime.GeneratedFactIndexAccessor`2
+  C: Void .ctor(System.String, System.Collections.Immutable.ImmutableArray`1[System.String], System.Func`2[TFact,TKey])
+  M: Boolean Equals(Fletched.Core.Runtime.GeneratedFactIndexAccessor`2[TFact,TKey])
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.GeneratedFactIndexAccessor`2[TFact,TKey] <Clone>$()
+  M: Int32 GetHashCode()
+  M: System.Collections.Immutable.ImmutableArray`1[System.String] Members
+  M: System.Func`2[TFact,TKey] GetKey
+  M: System.String Name
+  M: System.String ToString()
+  M: Void Deconstruct(System.String ByRef, System.Collections.Immutable.ImmutableArray`1[System.String] ByRef, System.Func`2[TFact,TKey] ByRef)
+T: Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor`2
+  C: Void .ctor(System.String, System.String, System.Func`2[TFact,TKey])
+  M: Boolean Equals(Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor`2[TFact,TKey])
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor`2[TFact,TKey] <Clone>$()
+  M: Int32 GetHashCode()
+  M: System.Func`2[TFact,TKey] GetKey
+  M: System.String Member
+  M: System.String Name
+  M: System.String ToString()
+  M: Void Deconstruct(System.String ByRef, System.String ByRef, System.Func`2[TFact,TKey] ByRef)
+T: Fletched.Core.Runtime.InvalidRecursionDepthConfigurationException
+  C: Void .ctor(Int32)
+  M: Int32 ConfiguredDepth
+  M: System.String DiagnosticId
+  M: System.String DiagnosticIdValue
+T: Fletched.Core.Runtime.MagicSource`1
+  C: Void .ctor()
+  M: Boolean TryAdd(TTuple)
+  M: System.Collections.Generic.IReadOnlyList`1[TTuple] Tuples
+T: Fletched.Core.Runtime.QueryExecutionOptions
+  C: Void .ctor()
+  M: Boolean Equals(Fletched.Core.Runtime.QueryExecutionOptions)
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.QueryExecutionOptions <Clone>$()
+  M: Fletched.Core.Runtime.QueryMetrics Metrics
+  M: Int32 GetHashCode()
+  M: System.String ToString()
+T: Fletched.Core.Runtime.QueryMagicRuntime
+  M: Fletched.Core.Runtime.QueryMagicStore`1[TTuple] GetStore[TTuple](System.Object)
+  M: QueryScope EnterScope(System.Object)
+T: Fletched.Core.Runtime.QueryMagicRuntime+QueryScope
+  M: Void Dispose()
+T: Fletched.Core.Runtime.QueryMagicStore`1
+  C: Void .ctor()
+  M: Boolean TryGetSource(System.String, Fletched.Core.Runtime.MagicSource`1[TTuple] ByRef)
+  M: Fletched.Core.Runtime.MagicSource`1[TTuple] GetOrAddSource(System.String)
+  M: Void Clear()
+T: Fletched.Core.Runtime.QueryMetrics
+  C: Void .ctor()
+  M: Fletched.Core.Runtime.QueryMetricsSnapshot Snapshot()
+  M: Int64 Backtracks
+  M: Int64 CompositeIndexLookups
+  M: Int64 ConstraintEvaluations
+  M: Int64 ConstraintFailures
+  M: Int64 EqualityIndexLookups
+  M: Int64 FactRowsScanned
+  M: Int64 IndexHits
+  M: Int64 IndexLookups
+  M: Int64 IndexMisses
+  M: Int64 IndexRowsReturned
+  M: Int64 MagicSourceHits
+  M: Int64 MagicSourceMisses
+  M: Int64 MagicSourceProbes
+  M: Int64 PredicateCallResults
+  M: Int64 PredicateCalls
+  M: Int64 RangeIndexLookups
+  M: Int64 ResidualConstraintEvaluations
+  M: Int64 ResidualConstraintFailures
+  M: Int64 ResultsEmitted
+  M: Int64 TableHits
+  M: Int64 TableInserts
+  M: Int64 TableMisses
+  M: Int64 TableProbes
+  M: Int64 UnificationAttempts
+  M: Int64 UnificationFailures
+  M: Int64 UnificationSuccesses
+T: Fletched.Core.Runtime.QueryMetricsDerived
+  C: Void .ctor(System.Nullable`1[System.Double], System.Nullable`1[System.Double], System.Nullable`1[System.Double], System.Nullable`1[System.Double], System.Nullable`1[System.Double], System.Nullable`1[System.Double], System.Nullable`1[System.Double])
+  M: Boolean Equals(Fletched.Core.Runtime.QueryMetricsDerived)
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.QueryMetricsDerived <Clone>$()
+  M: Fletched.Core.Runtime.QueryMetricsDerived FromSnapshot(Fletched.Core.Runtime.QueryMetricsSnapshot)
+  M: Int32 GetHashCode()
+  M: System.Nullable`1[System.Double] ConstraintFailureRate
+  M: System.Nullable`1[System.Double] EqualityIndexShare
+  M: System.Nullable`1[System.Double] IndexHitRate
+  M: System.Nullable`1[System.Double] MagicSourceHitRate
+  M: System.Nullable`1[System.Double] ScanToResultRatio
+  M: System.Nullable`1[System.Double] TableHitRate
+  M: System.Nullable`1[System.Double] UnificationFailureRate
+  M: System.String ToString()
+  M: Void Deconstruct(System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef, System.Nullable`1[System.Double] ByRef)
+T: Fletched.Core.Runtime.QueryMetricsSnapshot
+  C: Void .ctor(Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64, Int64)
+  M: Boolean Equals(Fletched.Core.Runtime.QueryMetricsSnapshot)
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.QueryMetricsSnapshot <Clone>$()
+  M: Int32 GetHashCode()
+  M: Int64 Backtracks
+  M: Int64 CompositeIndexLookups
+  M: Int64 ConstraintEvaluations
+  M: Int64 ConstraintFailures
+  M: Int64 EqualityIndexLookups
+  M: Int64 FactRowsScanned
+  M: Int64 IndexHits
+  M: Int64 IndexLookups
+  M: Int64 IndexMisses
+  M: Int64 IndexRowsReturned
+  M: Int64 MagicSourceHits
+  M: Int64 MagicSourceMisses
+  M: Int64 MagicSourceProbes
+  M: Int64 PredicateCallResults
+  M: Int64 PredicateCalls
+  M: Int64 RangeIndexLookups
+  M: Int64 ResidualConstraintEvaluations
+  M: Int64 ResidualConstraintFailures
+  M: Int64 ResultsEmitted
+  M: Int64 TableHits
+  M: Int64 TableInserts
+  M: Int64 TableMisses
+  M: Int64 TableProbes
+  M: Int64 UnificationAttempts
+  M: Int64 UnificationFailures
+  M: Int64 UnificationSuccesses
+  M: System.String ToString()
+  M: Void Deconstruct(Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef, Int64 ByRef)
+T: Fletched.Core.Runtime.QueryTableRuntime
+  M: Fletched.Core.Runtime.QueryTableStore`1[TAnswer] GetStore[TAnswer](System.Object)
+  M: QueryScope EnterScope(System.Object)
+T: Fletched.Core.Runtime.QueryTableRuntime+QueryScope
+  M: Void Dispose()
+T: Fletched.Core.Runtime.QueryTableStore`1
+  C: Void .ctor()
+  M: Boolean TryGetTable(Fletched.Core.Runtime.TableKey, Fletched.Core.Runtime.AnswerTable`1[TAnswer] ByRef)
+  M: Fletched.Core.Runtime.AnswerTable`1[TAnswer] GetOrAddTable(Fletched.Core.Runtime.TableKey, Boolean ByRef)
+  M: Void Clear()
+T: Fletched.Core.Runtime.RecursionGuard
+  M: Int32 GetCurrentDepth(System.Object)
+  M: Void EnterNegationScope(System.Object)
+  M: Void EnterPredicateInvocation(System.Object, System.String, System.Object)
+  M: Void ExitNegationScope(System.Object)
+  M: Void ExitPredicateInvocation(System.Object)
+  M: Void SetMaxRecursionDepth(System.Object, System.Nullable`1[System.Int32])
+T: Fletched.Core.Runtime.RecursiveDepthExceededException
+  C: Void .ctor(System.String, Int32, Int32, System.Collections.Generic.IReadOnlyList`1[System.String], Boolean)
+  M: Boolean IsInsideNegation
+  M: Int32 Depth
+  M: Int32 MaxDepth
+  M: System.Collections.Generic.IReadOnlyList`1[System.String] CallChain
+  M: System.String DiagnosticId
+  M: System.String PredicateName
+  M: System.String RecursiveDepthExceededDiagnosticId
+  M: System.String RecursiveGuardInsideNegationDiagnosticId
+T: Fletched.Core.Runtime.TableKey
+  C: Void .ctor(System.String, Int32, System.String)
+  M: Boolean Equals(Fletched.Core.Runtime.TableKey)
+  M: Boolean Equals(System.Object)
+  M: Fletched.Core.Runtime.TableKey Create(System.String, Int32, System.String)
+  M: Int32 Arity
+  M: Int32 GetHashCode()
+  M: System.String CanonicalCall
+  M: System.String PredicateIdentity
+  M: System.String ToString()
+  M: Void Deconstruct(System.String ByRef, Int32 ByRef, System.String ByRef)
+T: Fletched.Core.Runtime.TableKeyFormatter
+  M: System.String Format(System.Object)
+T: Fletched.Core.Runtime.TableStatus
+  M: Fletched.Core.Runtime.TableStatus Complete
+  M: Fletched.Core.Runtime.TableStatus Faulted
+  M: Fletched.Core.Runtime.TableStatus Producing
+  M: Int32 value__
+T: Fletched.Core.Runtime.Trail
+  C: Void .ctor(Int32)
+  M: Fletched.Core.Runtime.TrailEntry PopEntry()
+  M: Int32 Top
+  M: Void Push(Int32, Boolean)
+  M: Void UnwindTo(Int32, System.Action`2[System.Int32,System.Boolean])
+T: Fletched.Core.Runtime.TrailEntry
+  M: Boolean WasBound
+  M: Int32 Slot
+T: Fletched.Core.TabledAttribute
+  C: Void .ctor()
+  C: Void .ctor(Fletched.Core.TablingMode)
+  M: Fletched.Core.TablingMode Mode
+T: Fletched.Core.TablingMode
+  M: Fletched.Core.TablingMode Subsumptive
+  M: Fletched.Core.TablingMode Variant
+  M: Int32 value__
+T: Fletched.Core.TerminalVar`1
+  C: Void .ctor(System.String)

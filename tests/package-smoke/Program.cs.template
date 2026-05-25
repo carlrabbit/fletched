@@ -1,0 +1,38 @@
+using System;
+using System.Linq;
+using Fletched.Core;
+using Fletched.Core.Runtime;
+
+public static class Program
+{
+    public static void Main()
+    {
+        var ctx = new EngineContext();
+        ctx.Persons = new FactTable<Person>(new[]
+        {
+            new Person("Alice", 42),
+            new Person("Bob", 17)
+        });
+
+        var names = default(Adult).Execute(ctx).Select(x => x.name).ToArray();
+        if (names.Length != 1 || names[0] != "Alice")
+        {
+            throw new InvalidOperationException("Expected exactly one adult result named Alice.");
+        }
+
+        Console.WriteLine("SMOKE_OK");
+    }
+}
+
+[Fact]
+public readonly partial record struct Person(string Name, int Age);
+
+[Predicate]
+public readonly partial record struct Adult
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.With<Person>(p =>
+            p.Name == name &&
+            p.Age >= 18);
+}

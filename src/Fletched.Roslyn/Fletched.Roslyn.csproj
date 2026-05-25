@@ -8,12 +8,16 @@
     <IsPackable>true</IsPackable>
     <PackageId>Fletched.Roslyn</PackageId>
     <Authors>Fletched Contributors</Authors>
-    <Description>Roslyn source generator for the Fletched typed relational engine.</Description>
+    <Description>Roslyn source generator and analyzers for Fletched typed logic predicates.</Description>
     <RepositoryUrl>https://github.com/carlrabbit/fletched</RepositoryUrl>
     <RepositoryType>git</RepositoryType>
     <PackageProjectUrl>https://github.com/carlrabbit/fletched</PackageProjectUrl>
-    <PackageTags>fletched;logic;dsl;source-generator;roslyn</PackageTags>
-    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <PackageTags>prolog;logic-programming;source-generator;roslyn;dotnet;dsl;query-engine</PackageTags>
+    <PackageReadmeFile>Fletched.Roslyn.md</PackageReadmeFile>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PublishRepositoryUrl>true</PublishRepositoryUrl>
+    <EmbedUntrackedSources>true</EmbedUntrackedSources>
+    <ContinuousIntegrationBuild>true</ContinuousIntegrationBuild>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
     <IncludeSymbols>true</IncludeSymbols>
     <SymbolPackageFormat>snupkg</SymbolPackageFormat>
@@ -34,6 +38,6 @@
     <None Include="$(OutputPath)$(AssemblyName).dll" Pack="true" PackagePath="analyzers/dotnet/cs" />
   </ItemGroup>
   <ItemGroup>
-    <None Include="../../README.md" Pack="true" PackagePath="\" />
+    <None Include="../../public-docs/nuget/Fletched.Roslyn.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

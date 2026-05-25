@@ -15,6 +15,16 @@
     <ContinuousIntegrationBuild Condition="'$(CI)' == 'true'">true</ContinuousIntegrationBuild>
   </PropertyGroup>
 
+
+  <PropertyGroup>
+    <VersionPrefix>0.2.0</VersionPrefix>
+    <Version>$(VersionPrefix)</Version>
+    <PackageVersion>$(VersionPrefix)</PackageVersion>
+    <AssemblyVersion>0.2.0.0</AssemblyVersion>
+    <FileVersion>0.2.0.0</FileVersion>
+    <InformationalVersion>$(Version)+$(SourceRevisionId)</InformationalVersion>
+  </PropertyGroup>
+
   <PropertyGroup Condition="$([System.String]::Copy('$(MSBuildProjectName)').Contains('.Tests'))">
     <IsTestProject>true</IsTestProject>
     <NoWarn>$(NoWarn);CS0436;CS0649;CS8602;FLM3002;FLM3004</NoWarn>

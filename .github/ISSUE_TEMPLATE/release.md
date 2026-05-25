@@ -7,27 +7,26 @@ labels: release
 
 # Required Reading
 
-- `docs/WORKFLOWS.md`
-- `docs/workflows/nuget-pack-and-publish.md`
-- `docs/TBPS.md`
-- `docs/tbps/release-preparation.md`
+- `docs/workflows/release.md`
+- `docs/PUBLIC-DOCS.md`
+- `docs/specs/PublicApi.md`
 - `docs/ENGINEERING.md`
-- `docs/engineering/command-contract.md`
 
 # Release Goal
 
-# Included Milestones
+# Validation Checklist
 
-List the milestones included in this release:
-
-- docs/milestones/...
-
-# Validation Status
-
+- [ ] Version chosen
+- [ ] Public docs updated for version
+- [ ] Package READMEs updated
+- [ ] Public API baselines updated if intentional
 - [ ] `./eng/check.sh` passes
-- [ ] All required milestones complete
-- [ ] NuGet pack succeeds locally
+- [ ] `./eng/release-check.sh <version>` passes
+- [ ] Tag created
+- [ ] Packages verified on NuGet
+- [ ] GitHub release created
 
-# Open Risks
+# Versioning Policy Reminder
 
-# Follow-Up Work
+- `0.1.0.0` was premature and has no compatibility guarantees.
+- `0.2.0` is the first intentional pre-1.0 package line.
