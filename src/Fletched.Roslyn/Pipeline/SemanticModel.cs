@@ -62,7 +62,14 @@ public record CallExpr(
 public enum CompOp { NotEqual, LessThan, GreaterThan, LessThanOrEqual, GreaterThanOrEqual }
 
 /// <summary>Arithmetic operator kind.</summary>
-public enum ArithOp { Add, Subtract }
+public enum ArithOp
+{
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo
+}
 
 /// <summary>Binary comparison constraint (!=, &lt;, &gt;, &lt;=, &gt;= in DSL).</summary>
 public record CompExpr(CompOp Op, SemanticExpr Left, SemanticExpr Right, ITypeSymbol BoolType)

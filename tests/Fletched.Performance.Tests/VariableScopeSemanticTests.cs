@@ -249,6 +249,67 @@ public partial record struct UnresolvedWithTypePredicate
         await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnsupportedOrAmbiguousWithResolution.Id)).IsTrue();
     }
 
+    [Test]
+    public async Task SemanticAnalyzer_LogicOrInvocation_BuildsDisjunction()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct OrFactA(string Name);
+
+[Fact]
+public partial record struct OrFactB(string Name);
+
+[Predicate]
+public partial record struct OrPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> name) =>
+        Logic.Or(
+            () => Logic.With<OrFactA>(a => a.Name == name),
+            () => Logic.With<OrFactB>(b => b.Name == name));
+}
+""";
+
+        (PredicateModel? model, DiagnosticReporter reporter) = Analyze("OrPredicate", source);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(model).IsNotNull();
+        await Assert.That(model!.Body).IsTypeOf<DisjExpr>();
+    }
+
+    [Test]
+    public async Task SemanticAnalyzer_ExpandedArithmeticOperators_AreAccepted()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+public partial record struct NumberFact(int Value);
+
+[Predicate]
+public partial record struct ArithmeticPredicate
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> value) =>
+        Logic.With<NumberFact>(n =>
+            n.Value == value &&
+            n.Value * 2 > 0 &&
+            n.Value / 2 >= 0 &&
+            n.Value % 2 == 0 &&
+            -n.Value < 0);
+}
+""";
+
+        (PredicateModel? model, DiagnosticReporter reporter) = Analyze("ArithmeticPredicate", source);
+        PlanProgram? plan = Lower(model, reporter);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        await Assert.That(model).IsNotNull();
+        await Assert.That(plan).IsNotNull();
+    }
+
     private static (PredicateModel? Model, DiagnosticReporter Reporter) Analyze(string predicateName, string source)
     {
         CSharpCompilation compilation = CreateCompilation(source);

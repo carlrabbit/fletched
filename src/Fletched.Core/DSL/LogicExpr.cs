@@ -75,6 +75,22 @@ public readonly struct LogicExpr<T>
     public static LogicExpr<T> operator -(LogicExpr<T> left, LogicExpr<T> right) =>
         new(new ArithNode(ArithOp.Subtract, left.Node!, right.Node!));
 
+    /// <summary>Arithmetic multiplication (* in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator *(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Multiply, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic division (/ in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator /(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Divide, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic modulo (% in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator %(LogicExpr<T> left, LogicExpr<T> right) =>
+        new(new ArithNode(ArithOp.Modulo, left.Node!, right.Node!));
+
+    /// <summary>Arithmetic unary negation (-x in DSL). Returns a LogicExpr of the same type.</summary>
+    public static LogicExpr<T> operator -(LogicExpr<T> value) =>
+        new(new ArithNode(ArithOp.Subtract, new ConstNode(default(T), typeof(T)), value.Node!));
+
     // ── Conjunction / Disjunction ─────────────────────────────────────────────
     // C# expands `a && b` as: LogicExpr<T>.false(a) ? a : (a & b)
     // So we need true/false operators plus & and | for && and || to work.

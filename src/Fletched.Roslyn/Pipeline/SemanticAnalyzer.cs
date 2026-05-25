@@ -201,6 +201,15 @@ public sealed class SemanticAnalyzer
                 // Allow implicit cast — DSL uses implicit operator from T to LogicExpr<T>
                 return AnalyzeExpr(cast.Expression, expectedType);
 
+            case PrefixUnaryExpressionSyntax unary when unary.Kind() == SyntaxKind.UnaryMinusExpression:
+                {
+                    SemanticExpr? operand = AnalyzeExpr(unary.Operand, null);
+                    if (operand is null) return null;
+
+                    SemanticExpr zero = CreateZeroConstant(operand.Type);
+                    return new ArithExpr(ArithOp.Subtract, zero, operand);
+                }
+
             default:
                 _reporter.Error(DiagnosticsCatalog.UnsupportedExpression,
                     syntax.GetLocation(),
@@ -289,11 +298,21 @@ public sealed class SemanticAnalyzer
             // ── Arithmetic operators ───────────────────────────────────────────
             case SyntaxKind.AddExpression:
             case SyntaxKind.SubtractExpression:
+            case SyntaxKind.MultiplyExpression:
+            case SyntaxKind.DivideExpression:
+            case SyntaxKind.ModuloExpression:
                 {
                     SemanticExpr? left = AnalyzeExpr(bin.Left, null);
                     SemanticExpr? right = AnalyzeExpr(bin.Right, null);
                     if (left is null || right is null) return null;
-                    ArithOp op = bin.Kind() == SyntaxKind.AddExpression ? ArithOp.Add : ArithOp.Subtract;
+                    ArithOp op = bin.Kind() switch
+                    {
+                        SyntaxKind.AddExpression => ArithOp.Add,
+                        SyntaxKind.SubtractExpression => ArithOp.Subtract,
+                        SyntaxKind.MultiplyExpression => ArithOp.Multiply,
+                        SyntaxKind.DivideExpression => ArithOp.Divide,
+                        _ => ArithOp.Modulo
+                    };
                     return new ArithExpr(op, left, right);
                 }
 
@@ -588,6 +607,12 @@ public sealed class SemanticAnalyzer
             if (method.Name == "Not" && method.ContainingType?.Name == "Logic")
             {
                 return AnalyzeNot(inv);
+            }
+
+            // Check if it's Logic.Or(...)
+            if (method.Name == "Or" && method.ContainingType?.Name == "Logic")
+            {
+                return AnalyzeOr(inv);
             }
 
             // Check if it's Logic.Empty<T>()
@@ -1094,6 +1119,94 @@ public sealed class SemanticAnalyzer
         if (goal is null) return null;
 
         return new NotExpr(goal, boolType);
+    }
+
+    /// <summary>Analyzes <c>Logic.Or(...)</c> and lowers it into nested <see cref="DisjExpr"/> branches.</summary>
+    private SemanticExpr? AnalyzeOr(InvocationExpressionSyntax inv)
+    {
+        ITypeSymbol boolType = _semanticModel.Compilation.GetSpecialType(SpecialType.System_Boolean);
+        if (inv.ArgumentList.Arguments.Count < 2)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, inv.GetLocation(),
+                "Logic.Or() requires at least two branches");
+            return null;
+        }
+
+        SemanticExpr? result = null;
+        foreach (ArgumentSyntax argument in inv.ArgumentList.Arguments)
+        {
+            SemanticExpr? branch = AnalyzeOrBranch(argument.Expression, boolType);
+            if (branch is null)
+                return null;
+
+            result = result is null
+                ? branch
+                : new DisjExpr(result, branch, boolType);
+        }
+
+        return result;
+    }
+
+    private SemanticExpr? AnalyzeOrBranch(ExpressionSyntax branchExpression, ITypeSymbol boolType)
+    {
+        if (branchExpression is ParenthesizedLambdaExpressionSyntax parenthesized)
+        {
+            if (parenthesized.ParameterList.Parameters.Count != 0)
+            {
+                _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, parenthesized.GetLocation(),
+                    "Logic.Or branch lambda must be parameterless");
+                return null;
+            }
+
+            return AnalyzeLambdaBranchBody(parenthesized.Body, boolType);
+        }
+
+        if (branchExpression is SimpleLambdaExpressionSyntax simple)
+        {
+            _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, simple.GetLocation(),
+                "Logic.Or branch lambda must be parameterless");
+            return null;
+        }
+
+        return AnalyzeExpr(branchExpression, boolType);
+    }
+
+    private SemanticExpr? AnalyzeLambdaBranchBody(CSharpSyntaxNode body, ITypeSymbol boolType)
+    {
+        if (body is ExpressionSyntax exprBody)
+            return AnalyzeExpr(exprBody, boolType);
+
+        if (body is BlockSyntax block &&
+            block.Statements.Count == 1 &&
+            block.Statements[0] is ReturnStatementSyntax ret &&
+            ret.Expression is not null)
+        {
+            return AnalyzeExpr(ret.Expression, boolType);
+        }
+
+        _reporter.Error(DiagnosticsCatalog.InvalidPredicateBody, body.GetLocation(),
+            "Logic.Or branch lambda must contain a single expression");
+        return null;
+    }
+
+    private ConstExpr CreateZeroConstant(ITypeSymbol type)
+    {
+        object? value = type.SpecialType switch
+        {
+            SpecialType.System_SByte => (sbyte)0,
+            SpecialType.System_Byte => (byte)0,
+            SpecialType.System_Int16 => (short)0,
+            SpecialType.System_UInt16 => (ushort)0,
+            SpecialType.System_Int32 => 0,
+            SpecialType.System_UInt32 => 0u,
+            SpecialType.System_Int64 => 0L,
+            SpecialType.System_UInt64 => 0UL,
+            SpecialType.System_Single => 0f,
+            SpecialType.System_Double => 0d,
+            SpecialType.System_Decimal => 0m,
+            _ => 0
+        };
+        return new ConstExpr(value, type);
     }
 
     private VariableKind ClassifyWithVariableKind(ITypeSymbol typeSymbol, Location location)

@@ -138,4 +138,35 @@ public class ListDslTests
         await Assert.That(second.Head).IsEqualTo(5);
         await Assert.That(second.Tail).IsTypeOf<LogicListEmpty<int>>();
     }
+
+    [Test]
+    public async Task LogicListStatic_Empty_ReturnsEmptyList()
+    {
+        LogicList<int> list = LogicList.Empty<int>();
+
+        await Assert.That(list).IsTypeOf<LogicListEmpty<int>>();
+    }
+
+    [Test]
+    public async Task LogicListStatic_Cons_PrependsHead()
+    {
+        LogicList<int> tail = LogicList.From(2, 3);
+        LogicList<int> list = LogicList.Cons(1, tail);
+
+        var first = (LogicListCons<int>)list;
+        await Assert.That(first.Head).IsEqualTo(1);
+        await Assert.That(first.Tail).IsEqualTo(tail);
+    }
+
+    [Test]
+    public async Task LogicListStatic_From_BuildsConcreteLogicalList()
+    {
+        LogicList<int> list = LogicList.From(7, 8);
+
+        var first = (LogicListCons<int>)list;
+        await Assert.That(first.Head).IsEqualTo(7);
+        var second = (LogicListCons<int>)first.Tail;
+        await Assert.That(second.Head).IsEqualTo(8);
+        await Assert.That(second.Tail).IsTypeOf<LogicListEmpty<int>>();
+    }
 }

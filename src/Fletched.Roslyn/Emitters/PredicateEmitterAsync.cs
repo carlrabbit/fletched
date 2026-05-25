@@ -1149,9 +1149,15 @@ public sealed class PredicateEmitterAsync
             SlotValue sv => $"state.{SlotName(sv.Slot)}",
             ConstValue cv => EmitConstant(cv.Value, cv.TypeName),
             FieldValue fv => $"{EmitValue(fv.Target)}.{fv.MemberName}",
-            ArithValue av => av.Op == ArithOp.Add
-                ? $"({EmitValue(av.Left)} + {EmitValue(av.Right)})"
-                : $"({EmitValue(av.Left)} - {EmitValue(av.Right)})",
+            ArithValue av => av.Op switch
+            {
+                ArithOp.Add => $"({EmitValue(av.Left)} + {EmitValue(av.Right)})",
+                ArithOp.Subtract => $"({EmitValue(av.Left)} - {EmitValue(av.Right)})",
+                ArithOp.Multiply => $"({EmitValue(av.Left)} * {EmitValue(av.Right)})",
+                ArithOp.Divide => $"({EmitValue(av.Left)} / {EmitValue(av.Right)})",
+                ArithOp.Modulo => $"({EmitValue(av.Left)} % {EmitValue(av.Right)})",
+                _ => $"({EmitValue(av.Left)} + {EmitValue(av.Right)})"
+            },
             ListEmptyValue lev =>
                 $"new global::Fletched.Core.LogicListEmpty<{lev.ElementTypeName}>()",
             ListConsValue lcv =>

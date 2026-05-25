@@ -44,7 +44,14 @@ public record ListEmptyNode(Type ElementType) : ExprNode;
 public record ListConsNode(ExprNode Head, ExprNode Tail) : ExprNode;
 
 /// <summary>Arithmetic operation kind used in the DSL.</summary>
-public enum ArithOp { Add, Subtract }
+public enum ArithOp
+{
+    Add,
+    Subtract,
+    Multiply,
+    Divide,
+    Modulo
+}
 
 /// <summary>Binary arithmetic expression (+, - in DSL). Produces a value of the same type.</summary>
 public record ArithNode(ArithOp Op, ExprNode Left, ExprNode Right) : ExprNode;
