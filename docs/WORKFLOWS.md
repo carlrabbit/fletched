@@ -19,6 +19,7 @@ GitHub Actions YAML files are implementation artifacts.
 | [`build-and-test.md`](workflows/build-and-test.md) | Validate restore, build, and automated test execution |
 | [`build-and-test-long-running.md`](workflows/build-and-test-long-running.md) | Validate restore, build, and automated test execution with long-running integration tests enabled |
 | [`nuget-pack-and-publish.md`](workflows/nuget-pack-and-publish.md) | Pack NuGet artifacts and publish tagged releases |
+| [`release-preparation.md`](workflows/release-preparation.md) | Run release-readiness quality gates without publishing |
 | [`release.md`](workflows/release.md) | Human release process and pre-publish gate sequence |
 | [`performance-testing.md`](workflows/performance-testing.md) | Run performance-focused tests and benchmarks |
 

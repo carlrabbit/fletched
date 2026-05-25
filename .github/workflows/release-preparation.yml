@@ -1,0 +1,34 @@
+name: Release Preparation
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: SemVer candidate version to validate (for example 0.2.0 or 0.2.0-beta.1)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release-preparation:
+    name: Release Preparation
+    runs-on: ubuntu-latest
+    container:
+      image: mcr.microsoft.com/dotnet/sdk:10.0-noble
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run release readiness checks
+        run: ./eng/release-check.sh ${{ inputs.version }}
+
+      - name: Upload NuGet packages
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-preparation-nuget-${{ inputs.version }}
+          path: artifacts/nuget/*
+          if-no-files-found: warn
