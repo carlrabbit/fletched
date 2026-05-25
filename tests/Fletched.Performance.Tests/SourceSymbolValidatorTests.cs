@@ -46,6 +46,41 @@ public partial class Person
     }
 
     [Test]
+    public async Task ValidateFactType_RejectsUnknownIndexMember()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+[FactIndex("Missing")]
+public partial record struct Person(string Name);
+""";
+
+        DiagnosticReporter reporter = Validate("Person", source, static (validator, symbol) => validator.ValidateFactType(symbol));
+
+        await Assert.That(reporter.HasErrors).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.UnknownIndexMember.Id)).IsTrue();
+    }
+
+    [Test]
+    public async Task ValidateFactType_RejectsDuplicateIndexDeclaration()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+[FactIndex(nameof(Person.Name))]
+[FactIndex(nameof(Person.Name))]
+public partial record struct Person(string Name);
+""";
+
+        DiagnosticReporter reporter = Validate("Person", source, static (validator, symbol) => validator.ValidateFactType(symbol));
+
+        await Assert.That(reporter.HasErrors).IsTrue();
+        await Assert.That(reporter.Diagnostics.Any(d => d.Id == DiagnosticsCatalog.DuplicateIndexDeclaration.Id)).IsTrue();
+    }
+
+    [Test]
     public async Task ValidatePredicateType_RejectsNonRecordStructPredicate()
     {
         const string source = """

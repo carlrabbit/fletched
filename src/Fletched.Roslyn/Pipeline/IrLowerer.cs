@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Microsoft.CodeAnalysis;
 
@@ -425,94 +426,356 @@ public sealed class IrLowerer
         ref SemanticExpr? body,
         LoweringContext ctx)
     {
-        if (body is null)
+        if (body is null || variable.Type is not INamedTypeSymbol factType)
             return null;
 
         IReadOnlyList<SemanticExpr> parts = body is ConjExpr conj ? conj.Parts : new[] { body };
-        int candidateIndex = FindLookupCandidateIndex(parts, variable, preferConstants: true);
-        if (candidateIndex < 0)
-            candidateIndex = FindLookupCandidateIndex(parts, variable, preferConstants: false);
-
-        if (candidateIndex < 0)
+        ImmutableArray<FactIndexDeclaration> indexes = FactIndexModel.GetIndexes(factType);
+        if (indexes.Length == 0)
             return null;
 
-        UnifyExpr candidate = (UnifyExpr)parts[candidateIndex];
-        (FieldExpr field, SemanticExpr key) = candidate.Left is FieldExpr leftField
-            ? (leftField, candidate.Right)
-            : ((FieldExpr)candidate.Right, candidate.Left);
+        EqualityConstraint[] equalities = parts
+            .Select((part, index) => TryExtractEqualityConstraint(part, index, variable, ctx))
+            .Where(part => part is not null)
+            .Cast<EqualityConstraint>()
+            .ToArray();
 
-        if (key is ConstExpr)
-            body = RemovePart(body, parts, candidateIndex);
+        RangeConstraint[] ranges = parts
+            .Select((part, index) => TryExtractRangeConstraint(part, index, variable, ctx))
+            .Where(part => part is not null)
+            .Cast<RangeConstraint>()
+            .ToArray();
 
-        return new IndexedLookupSpec(field.Member.Name, LowerValue(key, ctx));
-    }
+        var validCandidates = new List<IndexedLookupCandidate>();
+        var skippedCandidates = new List<SkippedFactIndexCandidate>();
 
-    private static int FindLookupCandidateIndex(
-        IReadOnlyList<SemanticExpr> parts,
-        VariableSymbol variable,
-        bool preferConstants)
-    {
-        for (int index = 0; index < parts.Count; index++)
+        foreach (FactIndexDeclaration index in indexes)
         {
-            if (parts[index] is not UnifyExpr unify)
-                continue;
-
-            if (!TryMatchLookup(unify.Left, unify.Right, variable, preferConstants)
-                && !TryMatchLookup(unify.Right, unify.Left, variable, preferConstants))
+            IndexedLookupCandidate? candidate = index.Kind switch
             {
+                FactIndexKindModel.Equality => BuildEqualityCandidate(factType, index, equalities),
+                FactIndexKindModel.Range => BuildRangeCandidate(factType, index, ranges),
+                _ => null
+            };
+
+            if (candidate is null)
+            {
+                skippedCandidates.Add(new SkippedFactIndexCandidate(
+                    new FactIndexCandidate(
+                        factType.Name,
+                        index.Name,
+                        index.Kind,
+                        index.Members,
+                        ImmutableArray<SlotId>.Empty,
+                        ImmutableArray<PlanInstructionId>.Empty,
+                        0,
+                        "index requirements are not satisfied by the current fact constraints"),
+                    "required members are not constrained at the lookup point"));
                 continue;
             }
 
-            return index;
+            validCandidates.Add(candidate);
         }
 
-        return -1;
-    }
+        IndexedLookupCandidate? selected = validCandidates
+            .OrderByDescending(candidate => candidate.Candidate.Score)
+            .ThenByDescending(candidate => candidate.Candidate.SatisfiedConstraints.Length)
+            .ThenBy(candidate => candidate.Declaration.DeclarationOrder)
+            .ThenBy(candidate => candidate.Candidate.IndexName, StringComparer.Ordinal)
+            .FirstOrDefault();
 
-    private static bool TryMatchLookup(
-        SemanticExpr fieldExpr,
-        SemanticExpr keyExpr,
-        VariableSymbol variable,
-        bool preferConstants)
-    {
-        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr }
-            || !Equals(varExpr.Variable, variable))
-        {
-            return false;
-        }
-
-        bool isConstant = keyExpr is ConstExpr;
-        bool isSlot = keyExpr is VarExpr;
-        if (!isConstant && !isSlot)
-            return false;
-
-        if (preferConstants != isConstant)
-            return false;
-
-        return true;
-    }
-
-    private static SemanticExpr? RemovePart(
-        SemanticExpr originalBody,
-        IReadOnlyList<SemanticExpr> parts,
-        int removeIndex)
-    {
-        if (parts.Count == 1)
+        if (selected is null)
             return null;
 
-        var remaining = new List<SemanticExpr>(parts.Count - 1);
-        for (int index = 0; index < parts.Count; index++)
+        foreach (IndexedLookupCandidate candidate in validCandidates.Where(candidate => !ReferenceEquals(candidate, selected)))
         {
-            if (index == removeIndex)
-                continue;
-
-            remaining.Add(parts[index]);
+            skippedCandidates.Add(new SkippedFactIndexCandidate(
+                candidate.Candidate,
+                "a higher-ranked candidate was selected deterministically"));
         }
 
-        return remaining.Count == 1
-            ? remaining[0]
-            : new ConjExpr(remaining, originalBody.Type);
+        ImmutableArray<string> residuals = parts
+            .Select(DescribeConstraint)
+            .Where(text => !selected.SatisfiedConstraintTexts.Contains(text, StringComparer.Ordinal))
+            .ToImmutableArray();
+
+        return new IndexedLookupSpec(
+            selected.Declaration.Name,
+            selected.Declaration.FieldName,
+            selected.Declaration.IsImplicit,
+            selected.AccessPathKind,
+            selected.Declaration.Members,
+            selected.EqualityParts,
+            selected.Range,
+            selected.BoundInputNames,
+            selected.SatisfiedConstraintTexts,
+            residuals,
+            skippedCandidates.ToImmutableArray(),
+            selected.Candidate.Reason);
     }
+
+    private IndexedLookupCandidate? BuildEqualityCandidate(
+        INamedTypeSymbol factType,
+        FactIndexDeclaration declaration,
+        EqualityConstraint[] equalities)
+    {
+        var parts = new List<EqualityLookupPart>(declaration.Members.Length);
+        var boundInputs = ImmutableArray.CreateBuilder<SlotId>();
+        var boundInputNames = ImmutableArray.CreateBuilder<string>();
+        var satisfiedIds = ImmutableArray.CreateBuilder<PlanInstructionId>();
+        var satisfiedTexts = ImmutableArray.CreateBuilder<string>();
+        int constantMatches = 0;
+
+        foreach (string member in declaration.Members)
+        {
+            EqualityConstraint? match = equalities
+                .Where(equality => string.Equals(equality.MemberName, member, StringComparison.Ordinal))
+                .OrderBy(equality => equality.IsConstant ? 0 : 1)
+                .ThenBy(equality => equality.Order)
+                .FirstOrDefault();
+
+            if (match is null)
+                return null;
+
+            parts.Add(new EqualityLookupPart(member, match.Key));
+            satisfiedIds.Add(match.Id);
+            satisfiedTexts.Add(match.Text);
+            if (match.IsConstant)
+                constantMatches++;
+
+            if (match.Slot is not null)
+            {
+                boundInputs.Add(new SlotId(match.Slot.Value));
+                boundInputNames.Add(match.BoundInputName);
+            }
+        }
+
+        int score = declaration.Unique ? 1_000 : 0;
+        score += declaration.IsCompositeEquality ? 800 + declaration.Members.Length * 10 : 700;
+        score += constantMatches * 5;
+        string reason = declaration.IsCompositeEquality
+            ? "all composite index members are constrained"
+            : constantMatches > 0
+                ? "single equality member is constrained by a constant"
+                : "single equality member is constrained";
+
+        return new IndexedLookupCandidate(
+            declaration,
+            declaration.IsCompositeEquality ? FactAccessPathKind.CompositeEqualityIndex : FactAccessPathKind.EqualityIndex,
+            parts.ToImmutableArray(),
+            Range: null,
+            boundInputNames.ToImmutable(),
+            satisfiedTexts.ToImmutable(),
+            new FactIndexCandidate(
+                factType.Name,
+                declaration.Name,
+                declaration.Kind,
+                declaration.Members,
+                boundInputs.ToImmutable(),
+                satisfiedIds.ToImmutable(),
+                score,
+                reason));
+    }
+
+    private IndexedLookupCandidate? BuildRangeCandidate(
+        INamedTypeSymbol factType,
+        FactIndexDeclaration declaration,
+        RangeConstraint[] ranges)
+    {
+        RangeConstraint? lower = ranges
+            .Where(range => string.Equals(range.MemberName, declaration.Members[0], StringComparison.Ordinal) && range.IsLowerBound)
+            .OrderBy(range => range.Order)
+            .FirstOrDefault();
+        RangeConstraint? upper = ranges
+            .Where(range => string.Equals(range.MemberName, declaration.Members[0], StringComparison.Ordinal) && !range.IsLowerBound)
+            .OrderBy(range => range.Order)
+            .FirstOrDefault();
+
+        if (lower is null && upper is null)
+            return null;
+
+        var boundInputs = ImmutableArray.CreateBuilder<SlotId>();
+        var boundInputNames = ImmutableArray.CreateBuilder<string>();
+        var satisfiedIds = ImmutableArray.CreateBuilder<PlanInstructionId>();
+        var satisfiedTexts = ImmutableArray.CreateBuilder<string>();
+
+        foreach (RangeConstraint range in new[] { lower, upper }.Where(range => range is not null).Cast<RangeConstraint>())
+        {
+            satisfiedIds.Add(range.Id);
+            satisfiedTexts.Add(range.Text);
+            if (range.Slot is not null)
+            {
+                boundInputs.Add(new SlotId(range.Slot.Value));
+                boundInputNames.Add(range.BoundInputName);
+            }
+        }
+
+        bool twoSided = lower is not null && upper is not null;
+        return new IndexedLookupCandidate(
+            declaration,
+            FactAccessPathKind.RangeIndex,
+            ImmutableArray<EqualityLookupPart>.Empty,
+            new RangeLookupSpec(
+                declaration.Members[0],
+                lower?.Key,
+                lower?.Inclusive ?? true,
+                upper?.Key,
+                upper?.Inclusive ?? true),
+            boundInputNames.ToImmutable(),
+            satisfiedTexts.ToImmutable(),
+            new FactIndexCandidate(
+                factType.Name,
+                declaration.Name,
+                declaration.Kind,
+                declaration.Members,
+                boundInputs.ToImmutable(),
+                satisfiedIds.ToImmutable(),
+                twoSided ? 600 : 500,
+                twoSided
+                    ? "both range bounds are constrained"
+                    : "at least one range bound is constrained"));
+    }
+
+    private EqualityConstraint? TryExtractEqualityConstraint(SemanticExpr expr, int order, VariableSymbol variable, LoweringContext ctx)
+    {
+        if (expr is not UnifyExpr unify)
+            return null;
+
+        return TryCreateEqualityConstraint(unify.Left, unify.Right, order, variable, ctx)
+            ?? TryCreateEqualityConstraint(unify.Right, unify.Left, order, variable, ctx);
+    }
+
+    private EqualityConstraint? TryCreateEqualityConstraint(
+        SemanticExpr fieldExpr,
+        SemanticExpr keyExpr,
+        int order,
+        VariableSymbol variable,
+        LoweringContext ctx)
+    {
+        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr } field
+            || !Equals(varExpr.Variable, variable))
+        {
+            return null;
+        }
+
+        if (keyExpr is not ConstExpr && keyExpr is not VarExpr)
+            return null;
+
+        return new EqualityConstraint(
+            field.Member.Name,
+            LowerValue(keyExpr, ctx),
+            order,
+            keyExpr is ConstExpr,
+            keyExpr is VarExpr keyVar ? ctx.GetSlot(keyVar.Variable) : null,
+            keyExpr is VarExpr keyVarExpr ? keyVarExpr.Variable.Name : DescribeConstraint(keyExpr),
+            DescribeConstraint(new UnifyExpr(fieldExpr, keyExpr)),
+            new PlanInstructionId($"eq_{order}_{field.Member.Name}"));
+    }
+
+    private RangeConstraint? TryExtractRangeConstraint(SemanticExpr expr, int order, VariableSymbol variable, LoweringContext ctx)
+    {
+        if (expr is not CompExpr comparison)
+            return null;
+
+        return TryCreateRangeConstraint(comparison.Op, comparison.Left, comparison.Right, order, variable, ctx)
+            ?? TryCreateRangeConstraint(Reverse(comparison.Op), comparison.Right, comparison.Left, order, variable, ctx);
+    }
+
+    private RangeConstraint? TryCreateRangeConstraint(
+        CompOp op,
+        SemanticExpr fieldExpr,
+        SemanticExpr keyExpr,
+        int order,
+        VariableSymbol variable,
+        LoweringContext ctx)
+    {
+        if (fieldExpr is not FieldExpr { Target: VarExpr varExpr } field
+            || !Equals(varExpr.Variable, variable))
+        {
+            return null;
+        }
+
+        if (keyExpr is not ConstExpr && keyExpr is not VarExpr)
+            return null;
+
+        bool isLower = op is CompOp.GreaterThan or CompOp.GreaterThanOrEqual;
+        bool inclusive = op is CompOp.GreaterThanOrEqual or CompOp.LessThanOrEqual;
+        string text = $"{DescribeConstraint(fieldExpr)} {DescribeOperator(op)} {DescribeConstraint(keyExpr)}";
+        return new RangeConstraint(
+            field.Member.Name,
+            LowerValue(keyExpr, ctx),
+            isLower,
+            inclusive,
+            order,
+            keyExpr is VarExpr keyVar ? ctx.GetSlot(keyVar.Variable) : null,
+            keyExpr is VarExpr keyVarExpr ? keyVarExpr.Variable.Name : DescribeConstraint(keyExpr),
+            text,
+            new PlanInstructionId($"range_{order}_{field.Member.Name}_{op}"));
+    }
+
+    private static CompOp Reverse(CompOp op) =>
+        op switch
+        {
+            CompOp.GreaterThan => CompOp.LessThan,
+            CompOp.GreaterThanOrEqual => CompOp.LessThanOrEqual,
+            CompOp.LessThan => CompOp.GreaterThan,
+            CompOp.LessThanOrEqual => CompOp.GreaterThanOrEqual,
+            _ => op
+        };
+
+    private static string DescribeConstraint(SemanticExpr expr) =>
+        expr switch
+        {
+            VarExpr variable => variable.Variable.Name,
+            ConstExpr constant when constant.Value is string text => $"\"{text}\"",
+            ConstExpr constant when constant.Value is null => "null",
+            ConstExpr constant => constant.Value?.ToString() ?? "null",
+            FieldExpr { Target: VarExpr varExpr } field => $"{varExpr.Variable.Name}.{field.Member.Name}",
+            UnifyExpr unify => $"{DescribeConstraint(unify.Left)} == {DescribeConstraint(unify.Right)}",
+            CompExpr comparison => $"{DescribeConstraint(comparison.Left)} {DescribeOperator(comparison.Op)} {DescribeConstraint(comparison.Right)}",
+            _ => expr.ToString() ?? string.Empty
+        };
+
+    private static string DescribeOperator(CompOp op) =>
+        op switch
+        {
+            CompOp.NotEqual => "!=",
+            CompOp.LessThan => "<",
+            CompOp.GreaterThan => ">",
+            CompOp.LessThanOrEqual => "<=",
+            CompOp.GreaterThanOrEqual => ">=",
+            _ => "?"
+        };
+
+    private sealed record EqualityConstraint(
+        string MemberName,
+        PlanValue Key,
+        int Order,
+        bool IsConstant,
+        int? Slot,
+        string BoundInputName,
+        string Text,
+        PlanInstructionId Id);
+
+    private sealed record RangeConstraint(
+        string MemberName,
+        PlanValue Key,
+        bool IsLowerBound,
+        bool Inclusive,
+        int Order,
+        int? Slot,
+        string BoundInputName,
+        string Text,
+        PlanInstructionId Id);
+
+    private sealed record IndexedLookupCandidate(
+        FactIndexDeclaration Declaration,
+        FactAccessPathKind AccessPathKind,
+        ImmutableArray<EqualityLookupPart> EqualityParts,
+        RangeLookupSpec? Range,
+        ImmutableArray<string> BoundInputNames,
+        ImmutableArray<string> SatisfiedConstraintTexts,
+        FactIndexCandidate Candidate);
 
     private void AppendInstructions(SemanticExpr expr, LoweringContext ctx, List<PlanInstruction> instructions)
     {

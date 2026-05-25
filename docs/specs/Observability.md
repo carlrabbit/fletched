@@ -24,6 +24,15 @@ Query-scoped runtime metrics are available through:
 
 These counters are mutable per query execution, are not global, and are not thread-safe.
 
+Advanced fact indexing additionally distinguishes:
+
+- `EqualityIndexLookups`
+- `CompositeIndexLookups`
+- `RangeIndexLookups`
+- `IndexRowsReturned`
+
+Implementations may also expose residual-constraint counters when index filtering is followed by additional predicate constraints.
+
 ## Observer Callbacks
 
 `IExecutionObserver` includes recursion-aware callbacks:

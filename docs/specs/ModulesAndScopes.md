@@ -74,6 +74,7 @@ public static partial class UserQueries
 - Facts inside a module extend `<Module>.EngineContext` instead of the global engine context.
 - Predicates inside a module execute against the module-owned `EngineContext`.
 - Non-module scopes do not change storage ownership.
+- Fact indexes declared on module-owned facts use the same `[FactIndex]` model and generate module-scoped typed descriptors alongside module storage.
 
 ---
 

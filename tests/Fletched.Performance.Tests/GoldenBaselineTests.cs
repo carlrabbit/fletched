@@ -88,7 +88,7 @@ public partial record struct DisjunctionScan
     private const int SimpleScanExpectedInstructions = 4;
 
     private const int FilteredScanExpectedIRNodeCount = 10;
-    private const int FilteredScanExpectedInstructions = 4;
+    private const int FilteredScanExpectedInstructions = 5;
 
     private const int DisjunctionExpectedIRNodeCount = 20;
     private const int DisjunctionExpectedInstructions = 7;

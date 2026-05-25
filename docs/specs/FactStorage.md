@@ -25,13 +25,12 @@ sealed class FactTable<T>
 
 Indexed Fact Table
 
-sealed class FactTable<T, TKey>
-{
-    public T[] Data;
-    public Dictionary<TKey, int[]> Index;
-}
+`FactTable<T>` owns dense fact storage plus explicit declared indexes.
 
-Index maps key → array of indices into Data
+- Equality indexes map a single or composite key to fact-row indices.
+- Range indexes map a comparable member key to fact-row indices.
+- Indexes preserve fact insertion order.
+- `Add`, `AddRange`, and `RebuildIndexes()` update the declared indexes deterministically.
 
 
 
@@ -61,8 +60,8 @@ record FullScanSource(Type FactType) : PlanDataSource;
 
 record IndexedSource(
     Type FactType,
-    MemberInfo KeyMember,
-    int KeySlot
+    string IndexName,
+    string[] Members
 ) : PlanDataSource;
 
 

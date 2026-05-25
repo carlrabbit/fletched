@@ -22,7 +22,10 @@ public sealed class SourceSymbolValidator
             return false;
 
         if (factType is { IsRecord: true, TypeKind: TypeKind.Struct } && IsPartial(factType))
+        {
+            _ = FactIndexModel.GetIndexes(factType, _reporter);
             return !_reporter.HasErrors;
+        }
 
         _reporter.Error(
             DiagnosticsCatalog.InvalidFactType,

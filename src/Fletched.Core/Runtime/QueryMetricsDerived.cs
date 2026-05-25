@@ -2,6 +2,7 @@ namespace Fletched.Core.Runtime;
 
 public sealed record QueryMetricsDerived(
     double? IndexHitRate,
+    double? EqualityIndexShare,
     double? UnificationFailureRate,
     double? ConstraintFailureRate,
     double? TableHitRate,
@@ -11,6 +12,7 @@ public sealed record QueryMetricsDerived(
     public static QueryMetricsDerived FromSnapshot(QueryMetricsSnapshot snapshot) =>
         new(
             Divide(snapshot.IndexHits, snapshot.IndexLookups),
+            Divide(snapshot.EqualityIndexLookups + snapshot.CompositeIndexLookups, snapshot.IndexLookups),
             Divide(snapshot.UnificationFailures, snapshot.UnificationAttempts),
             Divide(snapshot.ConstraintFailures, snapshot.ConstraintEvaluations),
             Divide(snapshot.TableHits, snapshot.TableProbes),
@@ -20,4 +22,3 @@ public sealed record QueryMetricsDerived(
     private static double? Divide(long numerator, long denominator) =>
         denominator == 0 ? null : (double)numerator / denominator;
 }
-

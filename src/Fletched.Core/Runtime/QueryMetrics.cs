@@ -9,6 +9,10 @@ public sealed class QueryMetrics
     public long IndexLookups;
     public long IndexHits;
     public long IndexMisses;
+    public long EqualityIndexLookups;
+    public long CompositeIndexLookups;
+    public long RangeIndexLookups;
+    public long IndexRowsReturned;
 
     public long UnificationAttempts;
     public long UnificationSuccesses;
@@ -16,6 +20,8 @@ public sealed class QueryMetrics
 
     public long ConstraintEvaluations;
     public long ConstraintFailures;
+    public long ResidualConstraintEvaluations;
+    public long ResidualConstraintFailures;
 
     public long PredicateCalls;
     public long PredicateCallResults;
@@ -38,11 +44,17 @@ public sealed class QueryMetrics
             IndexLookups,
             IndexHits,
             IndexMisses,
+            EqualityIndexLookups,
+            CompositeIndexLookups,
+            RangeIndexLookups,
+            IndexRowsReturned,
             UnificationAttempts,
             UnificationSuccesses,
             UnificationFailures,
             ConstraintEvaluations,
             ConstraintFailures,
+            ResidualConstraintEvaluations,
+            ResidualConstraintFailures,
             PredicateCalls,
             PredicateCallResults,
             Backtracks,
@@ -55,4 +67,3 @@ public sealed class QueryMetrics
             MagicSourceHits,
             MagicSourceMisses);
 }
-

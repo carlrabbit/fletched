@@ -374,8 +374,6 @@ public sealed class PredicateEmitterAsync
     {
         string tableProp = TablePropertyName(init.FactType);
         string matchesVar = IndexMatchesVar(init.IndexVar);
-        string factTypeName = init.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
-        string accessorExpression = $"new global::Fletched.Core.Runtime.GeneratedFactIndexAccessor<{factTypeName}>(\"{init.IndexedLookup?.MemberName}\", static fact => fact.{init.IndexedLookup?.MemberName})";
 
         if (init.IndexedLookup is null)
         {
@@ -385,58 +383,29 @@ public sealed class PredicateEmitterAsync
             return;
         }
 
-        switch (init.IndexedLookup.Key)
+        if (init.IndexedLookup.AccessPathKind == FactAccessPathKind.RangeIndex)
         {
-            case SlotValue slot:
-                {
-                    string slotName = SlotName(slot.Slot);
-                    ctx.AppendLine($"{init.IndexVar} = 0;");
-                    ctx.AppendLine($"if (state.{slotName}_bound)");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                    {
-                        ctx.AppendQueryMetricIncrement("IndexLookups");
-                        ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar}))");
-                        ctx.AppendLine("{");
-                        using (ctx.Indent())
-                        {
-                            ctx.AppendMetricIncrement("IndexHits");
-                            ctx.AppendQueryMetricIncrement("IndexHits");
-                            ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                        }
-                        ctx.AppendLine("}");
-                        ctx.AppendLine("else");
-                        ctx.AppendLine("{");
-                        using (ctx.Indent())
-                        {
-                            ctx.AppendQueryMetricIncrement("IndexMisses");
-                            ctx.AppendLine($"_pc = {PcFail};");
-                            ctx.AppendLine("break;");
-                        }
-                        ctx.AppendLine("}");
-                    }
-                    ctx.AppendLine("}");
-                    ctx.AppendLine("else");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                    {
-                        ctx.AppendLine($"{matchesVar} = null;");
-                        ctx.AppendMetricIncrement("FactScans");
-                        ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
-                    }
-                    ctx.AppendLine("}");
-                    return;
-                }
+            string accessorExpression = BuildRangeAccessorExpression(init);
+            string keyTypeName = GetIndexMemberTypeName(init.FactType, init.IndexedLookup.Members[0]);
+            string hasLowerExpression = BuildRangeBoundPresenceExpression(init.IndexedLookup.Range!.Lower);
+            string lowerExpression = BuildRangeBoundValueExpression(init.IndexedLookup.Range!.Lower, keyTypeName);
+            string hasUpperExpression = BuildRangeBoundPresenceExpression(init.IndexedLookup.Range!.Upper);
+            string upperExpression = BuildRangeBoundValueExpression(init.IndexedLookup.Range!.Upper, keyTypeName);
 
-            default:
-                ctx.AppendLine($"{init.IndexVar} = 0;");
+            ctx.AppendLine($"{init.IndexVar} = 0;");
+            ctx.AppendLine($"if ({hasLowerExpression} || {hasUpperExpression})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
                 ctx.AppendQueryMetricIncrement("IndexLookups");
-                ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessorExpression}, {EmitValue(init.IndexedLookup.Key)}, out {matchesVar}))");
+                ctx.AppendQueryMetricIncrement("RangeIndexLookups");
+                ctx.AppendLine($"if (ctx.{tableProp}.TryGetRange({accessorExpression}, {hasLowerExpression}, {lowerExpression}, {init.IndexedLookup.Range.LowerInclusive.ToString().ToLowerInvariant()}, {hasUpperExpression}, {upperExpression}, {init.IndexedLookup.Range.UpperInclusive.ToString().ToLowerInvariant()}, out {matchesVar}))");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
                     ctx.AppendMetricIncrement("IndexHits");
                     ctx.AppendQueryMetricIncrement("IndexHits");
+                    ctx.AppendQueryMetricAdd("IndexRowsReturned", $"{matchesVar}.Length");
                     ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
                 }
                 ctx.AppendLine("}");
@@ -449,8 +418,90 @@ public sealed class PredicateEmitterAsync
                     ctx.AppendLine("break;");
                 }
                 ctx.AppendLine("}");
-                return;
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("else");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine($"{matchesVar} = null;");
+                ctx.AppendMetricIncrement("FactScans");
+                ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+            }
+            ctx.AppendLine("}");
+            return;
         }
+
+        string accessor = BuildEqualityAccessorExpression(init);
+        string keyExpression = BuildEqualityKeyExpression(init.IndexedLookup);
+        string boundCondition = BuildEqualityBoundCondition(init.IndexedLookup);
+        string lookupCounter = init.IndexedLookup.AccessPathKind == FactAccessPathKind.CompositeEqualityIndex
+            ? "CompositeIndexLookups"
+            : "EqualityIndexLookups";
+
+        ctx.AppendLine($"{init.IndexVar} = 0;");
+        if (!string.IsNullOrEmpty(boundCondition))
+        {
+            ctx.AppendLine($"if ({boundCondition})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendQueryMetricIncrement("IndexLookups");
+                ctx.AppendQueryMetricIncrement(lookupCounter);
+                ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessor}, {keyExpression}, out {matchesVar}))");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendMetricIncrement("IndexHits");
+                    ctx.AppendQueryMetricIncrement("IndexHits");
+                    ctx.AppendQueryMetricAdd("IndexRowsReturned", $"{matchesVar}.Length");
+                    ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("else");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendQueryMetricIncrement("IndexMisses");
+                    ctx.AppendLine($"_pc = {PcFail};");
+                    ctx.AppendLine("break;");
+                }
+                ctx.AppendLine("}");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("else");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine($"{matchesVar} = null;");
+                ctx.AppendMetricIncrement("FactScans");
+                ctx.AppendLine($"observer?.OnFactScan(\"{init.FactType.Name}\");");
+            }
+            ctx.AppendLine("}");
+            return;
+        }
+
+        ctx.AppendQueryMetricIncrement("IndexLookups");
+        ctx.AppendQueryMetricIncrement(lookupCounter);
+        ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessor}, {keyExpression}, out {matchesVar}))");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendMetricIncrement("IndexHits");
+            ctx.AppendQueryMetricIncrement("IndexHits");
+            ctx.AppendQueryMetricAdd("IndexRowsReturned", $"{matchesVar}.Length");
+            ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+        }
+        ctx.AppendLine("}");
+        ctx.AppendLine("else");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendQueryMetricIncrement("IndexMisses");
+            ctx.AppendLine($"_pc = {PcFail};");
+            ctx.AppendLine("break;");
+        }
+        ctx.AppendLine("}");
     }
 
     private void EmitLoopBind(LoopBindInstr bind, EmitContext ctx)
@@ -467,36 +518,54 @@ public sealed class PredicateEmitterAsync
         }
 
         string matchesVar = IndexMatchesVar(bind.IndexVar);
-        switch (bind.IndexedLookup.Key)
+        if (bind.IndexedLookup.AccessPathKind == FactAccessPathKind.RangeIndex)
         {
-            case SlotValue keySlot:
-                {
-                    string keySlotName = SlotName(keySlot.Slot);
-                    ctx.AppendLine($"if (state.{keySlotName}_bound)");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                    {
-                        ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
-                        ctx.AppendLine($"state.{slotName}_bound = true;");
-                    }
-                    ctx.AppendLine("}");
-                    ctx.AppendLine("else");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                    {
-                        ctx.AppendQueryMetricIncrement("FactRowsScanned");
-                        ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
-                        ctx.AppendLine($"state.{slotName}_bound = true;");
-                    }
-                    ctx.AppendLine("}");
-                    return;
-                }
-
-            default:
+            string hasIndexCondition = BuildRangeHasIndexCondition(bind.IndexedLookup);
+            ctx.AppendLine($"if ({hasIndexCondition})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
                 ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
                 ctx.AppendLine($"state.{slotName}_bound = true;");
-                return;
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("else");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendQueryMetricIncrement("FactRowsScanned");
+                ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
+                ctx.AppendLine($"state.{slotName}_bound = true;");
+            }
+            ctx.AppendLine("}");
+            return;
         }
+
+        string boundCondition = BuildEqualityBoundCondition(bind.IndexedLookup);
+        if (!string.IsNullOrEmpty(boundCondition))
+        {
+            ctx.AppendLine($"if ({boundCondition})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
+                ctx.AppendLine($"state.{slotName}_bound = true;");
+            }
+            ctx.AppendLine("}");
+            ctx.AppendLine("else");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendQueryMetricIncrement("FactRowsScanned");
+                ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
+                ctx.AppendLine($"state.{slotName}_bound = true;");
+            }
+            ctx.AppendLine("}");
+            return;
+        }
+
+        ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{matchesVar}![{bind.IndexVar}]];");
+        ctx.AppendLine($"state.{slotName}_bound = true;");
     }
 
     private void EmitLoopCheck(LoopCheckTerm loopCheck, EmitContext ctx)
@@ -512,32 +581,105 @@ public sealed class PredicateEmitterAsync
         }
 
         string matchesVar = IndexMatchesVar(loopCheck.IndexVar);
-        switch (loopCheck.IndexedLookup.Key)
-        {
-            case SlotValue slot:
-                {
-                    string slotName = SlotName(slot.Slot);
-                    ctx.AppendLine($"if (state.{slotName}_bound)");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                        ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
-                    ctx.AppendLine("}");
-                    ctx.AppendLine("else");
-                    ctx.AppendLine("{");
-                    using (ctx.Indent())
-                        ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
-                    ctx.AppendLine("}");
-                    ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
-                    ctx.AppendLine("break;");
-                    return;
-                }
+        string hasIndexCondition = loopCheck.IndexedLookup.AccessPathKind == FactAccessPathKind.RangeIndex
+            ? BuildRangeHasIndexCondition(loopCheck.IndexedLookup)
+            : BuildEqualityBoundCondition(loopCheck.IndexedLookup);
 
-            default:
+        if (!string.IsNullOrEmpty(hasIndexCondition))
+        {
+            ctx.AppendLine($"if ({hasIndexCondition})");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
                 ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
-                ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
-                ctx.AppendLine("break;");
-                return;
+            ctx.AppendLine("}");
+            ctx.AppendLine("else");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+                ctx.AppendLine($"if ({loopCheck.IndexVar} >= ctx.{tableProp}.Data.Length) {{ _pc = {PcFail}; break; }}");
+            ctx.AppendLine("}");
+            ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+            ctx.AppendLine("break;");
+            return;
         }
+
+        ctx.AppendLine($"if ({matchesVar} is null || {loopCheck.IndexVar} >= {matchesVar}.Length) {{ _pc = {PcFail}; break; }}");
+        ctx.AppendLine($"_pc = {_labelIds[loopCheck.BodyLabel]};");
+        ctx.AppendLine("break;");
+    }
+
+    private string BuildEqualityAccessorExpression(IndexInitInstr init)
+    {
+        string factTypeName = init.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (!init.IndexedLookup!.IsImplicit)
+            return $"{FactIndexModel.GetIndexClassQualifiedName((INamedTypeSymbol)init.FactType)}.{init.IndexedLookup.AccessorFieldName}";
+
+        string keyType = init.IndexedLookup.Members.Length == 1
+            ? GetIndexMemberTypeName(init.FactType, init.IndexedLookup.Members[0])
+            : $"({string.Join(", ", init.IndexedLookup.Members.Select(member => GetIndexMemberTypeName(init.FactType, member)))})";
+        string membersExpression = $"global::System.Collections.Immutable.ImmutableArray.Create<string>({string.Join(", ", init.IndexedLookup.Members.Select(member => $"\"{member}\""))})";
+        string getterExpression = init.IndexedLookup.Members.Length == 1
+            ? $"fact.{init.IndexedLookup.Members[0]}"
+            : $"({string.Join(", ", init.IndexedLookup.Members.Select(member => $"fact.{member}"))})";
+        return $"new global::Fletched.Core.Runtime.GeneratedFactIndexAccessor<{factTypeName}, {keyType}>(\"{init.IndexedLookup.IndexName}\", {membersExpression}, static fact => {getterExpression})";
+    }
+
+    private string BuildRangeAccessorExpression(IndexInitInstr init)
+    {
+        string factTypeName = init.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
+        if (!init.IndexedLookup!.IsImplicit)
+            return $"{FactIndexModel.GetIndexClassQualifiedName((INamedTypeSymbol)init.FactType)}.{init.IndexedLookup.AccessorFieldName}";
+
+        string memberName = init.IndexedLookup.Members[0];
+        string keyType = GetIndexMemberTypeName(init.FactType, memberName);
+        return $"new global::Fletched.Core.Runtime.GeneratedFactRangeIndexAccessor<{factTypeName}, {keyType}>(\"{init.IndexedLookup.IndexName}\", \"{memberName}\", static fact => fact.{memberName})";
+    }
+
+    private string BuildEqualityKeyExpression(IndexedLookupSpec lookup) =>
+        lookup.EqualityParts.Length switch
+        {
+            1 => EmitValue(lookup.EqualityParts[0].Key),
+            _ => $"({string.Join(", ", lookup.EqualityParts.Select(part => EmitValue(part.Key)))})"
+        };
+
+    private string BuildEqualityBoundCondition(IndexedLookupSpec lookup)
+    {
+        string[] slotConditions = lookup.EqualityParts
+            .Select(part => part.Key)
+            .OfType<SlotValue>()
+            .Select(slot => $"state.{SlotName(slot.Slot)}_bound")
+            .ToArray();
+        return string.Join(" && ", slotConditions);
+    }
+
+    private string BuildRangeHasIndexCondition(IndexedLookupSpec lookup)
+    {
+        string lower = BuildRangeBoundPresenceExpression(lookup.Range!.Lower);
+        string upper = BuildRangeBoundPresenceExpression(lookup.Range!.Upper);
+        return $"{lower} || {upper}";
+    }
+
+    private string BuildRangeBoundPresenceExpression(PlanValue? value) =>
+        value switch
+        {
+            null => "false",
+            SlotValue slot => $"state.{SlotName(slot.Slot)}_bound",
+            _ => "true"
+        };
+
+    private string BuildRangeBoundValueExpression(PlanValue? value, string keyTypeName) =>
+        value is null
+            ? $"default({keyTypeName})"
+            : EmitValue(value);
+
+    private string GetIndexMemberTypeName(ITypeSymbol factType, string memberName)
+    {
+        ISymbol member = factType.GetMembers().First(symbol => symbol.Name == memberName);
+        return member switch
+        {
+            IPropertySymbol property => property.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            IFieldSymbol field => field.Type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat),
+            _ => "global::System.Object"
+        };
     }
 
     private void EmitCall(CallInstr call, string blockLabel, EmitContext ctx)
@@ -1090,11 +1232,11 @@ public sealed class PredicateEmitterAsync
                 AddIfMissing(slotNames, bind.Slot, $"_slot{bind.Slot}");
                 AddIfMissing(slotTypes, bind.Slot, bind.FactType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat));
                 if (bind.IndexedLookup is not null)
-                    CollectSlots(bind.IndexedLookup.Key, slotNames, slotTypes);
+                    CollectLookupSlots(bind.IndexedLookup, slotNames, slotTypes);
                 break;
 
             case IndexInitInstr init when init.IndexedLookup is not null:
-                CollectSlots(init.IndexedLookup.Key, slotNames, slotTypes);
+                CollectLookupSlots(init.IndexedLookup, slotNames, slotTypes);
                 break;
 
             case CallInstr call:
@@ -1135,6 +1277,21 @@ public sealed class PredicateEmitterAsync
                 CollectSlots(cons.Tail, slotNames, slotTypes);
                 break;
         }
+    }
+
+    private static void CollectLookupSlots(
+        IndexedLookupSpec lookup,
+        IDictionary<int, string> slotNames,
+        IDictionary<int, string> slotTypes)
+    {
+        foreach (EqualityLookupPart part in lookup.EqualityParts)
+            CollectSlots(part.Key, slotNames, slotTypes);
+
+        if (lookup.Range?.Lower is not null)
+            CollectSlots(lookup.Range.Lower, slotNames, slotTypes);
+
+        if (lookup.Range?.Upper is not null)
+            CollectSlots(lookup.Range.Upper, slotNames, slotTypes);
     }
 
     private static string InferTypeName(PlanValue value)

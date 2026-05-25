@@ -6,9 +6,11 @@ using TUnit;
 namespace Fletched.Performance.Tests;
 
 [Fact]
+[FactIndex(nameof(MetricUser.Login))]
 public partial record struct MetricUser(string Login, bool Active);
 
 [Fact]
+[FactIndex(nameof(MetricEdge.Parent))]
 public partial record struct MetricEdge(string Parent, string Child);
 
 [Predicate]
@@ -122,6 +124,7 @@ public class QueryScopedMetricsTests
         _ = default(MetricUsersLookupHit).Execute(ctx, options: new QueryExecutionOptions { Metrics = hitMetrics }).ToList();
         await Assert.That(hitMetrics.IndexLookups).IsGreaterThan(0);
         await Assert.That(hitMetrics.IndexHits).IsGreaterThan(0);
+        await Assert.That(hitMetrics.EqualityIndexLookups + hitMetrics.CompositeIndexLookups + hitMetrics.RangeIndexLookups).IsGreaterThan(0);
 
         var missMetrics = new QueryMetrics();
         _ = default(MetricUsersLookupMiss).Execute(ctx, options: new QueryExecutionOptions { Metrics = missMetrics }).ToList();
@@ -201,11 +204,17 @@ public class QueryScopedMetricsTests
             IndexLookups: 0,
             IndexHits: 0,
             IndexMisses: 0,
+            EqualityIndexLookups: 0,
+            CompositeIndexLookups: 0,
+            RangeIndexLookups: 0,
+            IndexRowsReturned: 0,
             UnificationAttempts: 0,
             UnificationSuccesses: 0,
             UnificationFailures: 0,
             ConstraintEvaluations: 0,
             ConstraintFailures: 0,
+            ResidualConstraintEvaluations: 0,
+            ResidualConstraintFailures: 0,
             PredicateCalls: 0,
             PredicateCallResults: 0,
             Backtracks: 0,

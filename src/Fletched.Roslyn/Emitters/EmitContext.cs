@@ -53,6 +53,9 @@ public sealed class EmitContext
     public void AppendQueryMetricIncrement(string counterName, string metricsVarName = "metrics") =>
         AppendLine($"if ({metricsVarName} is not null) {metricsVarName}.{counterName}++;");
 
+    public void AppendQueryMetricAdd(string counterName, string expression, string metricsVarName = "metrics") =>
+        AppendLine($"if ({metricsVarName} is not null) {metricsVarName}.{counterName} += {expression};");
+
     public IDisposable Indent()
     {
         IndentLevel++;

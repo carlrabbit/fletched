@@ -115,7 +115,9 @@ public sealed record SlotExplanation(
 public enum AccessPathKind
 {
     FullFactScan,
-    IndexedFactLookup,
+    EqualityIndex,
+    CompositeEqualityIndex,
+    RangeIndex,
     MagicSourceLookup,
     TableLookup
 }
@@ -647,12 +649,20 @@ internal sealed class PlanningExplanationBuilder
                 {
                     accessPaths.Add(new AccessPathExplanation(
                         $"FactTable<{indexed.FactType.Name}>",
-                        AccessPathKind.IndexedFactLookup,
-                        indexed.IndexedLookup?.MemberName,
-                        indexed.IndexedLookup is null ? ImmutableArray<string>.Empty : ExtractBoundInputs(indexed.IndexedLookup.Key),
+                        indexed.IndexedLookup?.AccessPathKind switch
+                        {
+                            FactAccessPathKind.CompositeEqualityIndex => AccessPathKind.CompositeEqualityIndex,
+                            FactAccessPathKind.RangeIndex => AccessPathKind.RangeIndex,
+                            FactAccessPathKind.EqualityIndex => AccessPathKind.EqualityIndex,
+                            _ => AccessPathKind.FullFactScan
+                        },
+                        indexed.IndexedLookup?.IndexName,
+                        indexed.IndexedLookup is null
+                            ? ImmutableArray<string>.Empty
+                            : indexed.IndexedLookup.BoundInputNames,
                         indexed.IndexedLookup is null
                             ? "fallback to full scan"
-                            : $"equality constraint {indexed.FactType.Name}.{indexed.IndexedLookup.MemberName} has bound right side"));
+                            : indexed.IndexedLookup.Reason));
                 }
                 else if (instruction is CallInstr call && call.IsTabledCall)
                 {
@@ -680,7 +690,7 @@ internal sealed class PlanningExplanationBuilder
                     path.Kind switch
                     {
                         RecursiveAccessPathKind.FullFactScan => AccessPathKind.FullFactScan,
-                        RecursiveAccessPathKind.IndexedFactLookup => AccessPathKind.IndexedFactLookup,
+                        RecursiveAccessPathKind.IndexedFactLookup => AccessPathKind.EqualityIndex,
                         RecursiveAccessPathKind.MagicSourceLookup => AccessPathKind.MagicSourceLookup,
                         _ => AccessPathKind.TableLookup
                     },
@@ -984,6 +994,12 @@ internal sealed class PlanningExplanationBuilder
             "FLM3002" => "all-free adornment has no bound seed",
             "FLM3003" => "recursive negation blocks magic-set rewriting",
             "FLM3004" => "recursive bound call has no indexed access path",
+            "FLI4001" => "index declaration references an unknown member",
+            "FLI4002" => "index declaration references an invalid member kind",
+            "FLI4003" => "range index requires a comparable member type",
+            "FLI4004" => "composite range indexes are unsupported",
+            "FLI4005" => "duplicate index declaration detected",
+            "FLI4006" => "multiple index declarations resolved to the same name",
             _ => "compiler invariant failed"
         };
     }
@@ -1000,6 +1016,12 @@ internal sealed class PlanningExplanationBuilder
             "FLG0003" => ImmutableArray.Create("remove negative recursive dependency or rewrite recursion as positive tabled recursion"),
             "FLT2002" => ImmutableArray.Create("remove negated recursive cycle from tabled predicates"),
             "FLM3004" => ImmutableArray.Create("add or generate an index for the bound recursive argument"),
+            "FLI4001" => ImmutableArray.Create("fix the member name or remove the invalid declaration"),
+            "FLI4002" => ImmutableArray.Create("use a readable instance field or property"),
+            "FLI4003" => ImmutableArray.Create("use a comparable member type for the range index"),
+            "FLI4004" => ImmutableArray.Create("split the declaration into single-member range indexes"),
+            "FLI4005" => ImmutableArray.Create("remove the duplicate index declaration"),
+            "FLI4006" => ImmutableArray.Create("rename one of the colliding index declarations"),
             _ => ImmutableArray<string>.Empty
         };
     }
@@ -1209,7 +1231,11 @@ internal sealed class PlanningExplanationBuilder
             AssignInstr assign => $"assign s{assign.Slot} = {RenderValue(assign.Value)}",
             CompInstr comparison => $"compare {RenderValue(comparison.Left)} {RenderComp(comparison.Op)} {RenderValue(comparison.Right)}",
             IndexInitInstr index when index.IndexedLookup is null => $"index-init {index.IndexVar} scan {index.FactType.Name}",
-            IndexInitInstr index => $"index-init {index.IndexVar} lookup {index.FactType.Name}.{index.IndexedLookup!.MemberName} == {RenderValue(index.IndexedLookup.Key)}",
+            IndexInitInstr index when index.IndexedLookup!.AccessPathKind == FactAccessPathKind.RangeIndex
+                => $"index-init {index.IndexVar} range {index.IndexedLookup.IndexName}",
+            IndexInitInstr index when index.IndexedLookup!.AccessPathKind == FactAccessPathKind.CompositeEqualityIndex
+                => $"index-init {index.IndexVar} composite {index.IndexedLookup.IndexName}({string.Join(", ", index.IndexedLookup.EqualityParts.Select(part => RenderValue(part.Key)))})",
+            IndexInitInstr index => $"index-init {index.IndexVar} lookup {index.IndexedLookup!.IndexName} == {RenderValue(index.IndexedLookup.Key)}",
             LoopBindInstr bind => $"loop-bind s{bind.Slot} from {bind.IndexVar}",
             IndexIncrInstr increment => $"index-incr {increment.IndexVar}",
             CallInstr call => $"call {call.PredicateType.Name}/{call.Arity}({string.Join(", ", call.ArgumentSlots.Select(slot => $"s{slot}"))}) tabled={call.IsTabledCall}",

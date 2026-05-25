@@ -240,4 +240,60 @@ public static class DiagnosticsCatalog
         Category,
         DiagnosticSeverity.Warning,
         isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnknownIndexMember = new(
+        "FLI4001",
+        "Unknown index member",
+        "Fact '{0}' index member '{1}' is invalid: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor InvalidIndexMember = new(
+        "FLI4002",
+        "Invalid index member",
+        "Fact '{0}' index member '{1}' is invalid: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedRangeIndexType = new(
+        "FLI4003",
+        "Unsupported range index type",
+        "Fact '{0}' range index member '{1}' is invalid: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor UnsupportedCompositeRangeIndex = new(
+        "FLI4004",
+        "Unsupported composite range index",
+        "Fact '{0}' range index declaration '{1}' is invalid: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateIndexDeclaration = new(
+        "FLI4005",
+        "Duplicate index declaration",
+        "Fact '{0}' index declaration '{1}' is duplicated: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor IndexNameCollision = new(
+        "FLI4006",
+        "Index name collision",
+        "Fact '{0}' index name '{1}' collides: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
+
+    public static readonly DiagnosticDescriptor DuplicateUniqueIndexValue = new(
+        "FLI4007",
+        "Duplicate unique index value",
+        "Fact '{0}' unique index '{1}' received a duplicate value: {2}. Suggested fix: {3}.",
+        Category,
+        DiagnosticSeverity.Error,
+        isEnabledByDefault: true);
 }
