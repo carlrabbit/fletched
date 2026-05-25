@@ -206,7 +206,8 @@ public sealed class SemanticAnalyzer
                     SemanticExpr? operand = AnalyzeExpr(unary.Operand, null);
                     if (operand is null) return null;
 
-                    SemanticExpr zero = CreateZeroConstant(operand.Type);
+                    SemanticExpr? zero = TryCreateZeroConstant(operand.Type, unary.GetLocation());
+                    if (zero is null) return null;
                     return new ArithExpr(ArithOp.Subtract, zero, operand);
                 }
 
@@ -1189,7 +1190,7 @@ public sealed class SemanticAnalyzer
         return null;
     }
 
-    private ConstExpr CreateZeroConstant(ITypeSymbol type)
+    private ConstExpr? TryCreateZeroConstant(ITypeSymbol type, Location location)
     {
         object? value = type.SpecialType switch
         {
@@ -1204,8 +1205,15 @@ public sealed class SemanticAnalyzer
             SpecialType.System_Single => 0f,
             SpecialType.System_Double => 0d,
             SpecialType.System_Decimal => 0m,
-            _ => 0
+            _ => null
         };
+        if (value is null)
+        {
+            _reporter.Error(DiagnosticsCatalog.UnsupportedExpression, location,
+                "Unary minus is only supported for numeric operands");
+            return null;
+        }
+
         return new ConstExpr(value, type);
     }
 
