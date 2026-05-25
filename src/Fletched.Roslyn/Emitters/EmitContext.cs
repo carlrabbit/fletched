@@ -50,6 +50,9 @@ public sealed class EmitContext
         AppendDirective("#endif");
     }
 
+    public void AppendQueryMetricIncrement(string counterName, string metricsVarName = "metrics") =>
+        AppendLine($"if ({metricsVarName} is not null) {metricsVarName}.{counterName}++;");
+
     public IDisposable Indent()
     {
         IndentLevel++;

@@ -19,7 +19,8 @@ public sealed record PlanExplanation(
     RecursivePlanningSummary RecursivePlanning,
     OptimizationSummary Optimization,
     CodeEmissionSummary CodeEmission,
-    ImmutableArray<DiagnosticExplanation> Diagnostics);
+    ImmutableArray<DiagnosticExplanation> Diagnostics,
+    RuntimeMetricsExplanation? RuntimeMetrics = null);
 
 public sealed record QueryIdentity(
     string ContainingType,
@@ -205,6 +206,15 @@ public sealed record DiagnosticExplanation(
     ImmutableArray<string> RelatedSymbols,
     ImmutableArray<string> SuggestedFixes);
 
+public sealed record RuntimeMetricsExplanation(
+    global::Fletched.Core.Runtime.QueryMetricsSnapshot Metrics,
+    ImmutableArray<MetricInterpretation> Interpretations);
+
+public sealed record MetricInterpretation(
+    string Name,
+    string Value,
+    string Reason);
+
 public enum DiagnosticPhase
 {
     SyntaxDiscovery,
@@ -302,6 +312,33 @@ public sealed class PlanExplanationRenderer : IPlanExplanationRenderer
         foreach (DiagnosticExplanation diagnostic in explanation.Diagnostics)
             sb.AppendLine($"  {diagnostic.Id} [{diagnostic.Phase}] {diagnostic.Message}");
 
+        if (explanation.RuntimeMetrics is not null)
+        {
+            sb.AppendLine();
+            sb.AppendLine("RUNTIME METRICS");
+            global::Fletched.Core.Runtime.QueryMetricsSnapshot metrics = explanation.RuntimeMetrics.Metrics;
+            sb.AppendLine($"  FactRowsScanned: {metrics.FactRowsScanned}");
+            sb.AppendLine($"  IndexLookups: {metrics.IndexLookups}");
+            sb.AppendLine($"  IndexHits: {metrics.IndexHits}");
+            sb.AppendLine($"  IndexMisses: {metrics.IndexMisses}");
+            sb.AppendLine($"  UnificationAttempts: {metrics.UnificationAttempts}");
+            sb.AppendLine($"  UnificationSuccesses: {metrics.UnificationSuccesses}");
+            sb.AppendLine($"  UnificationFailures: {metrics.UnificationFailures}");
+            sb.AppendLine($"  ConstraintEvaluations: {metrics.ConstraintEvaluations}");
+            sb.AppendLine($"  ConstraintFailures: {metrics.ConstraintFailures}");
+            sb.AppendLine($"  PredicateCalls: {metrics.PredicateCalls}");
+            sb.AppendLine($"  PredicateCallResults: {metrics.PredicateCallResults}");
+            sb.AppendLine($"  Backtracks: {metrics.Backtracks}");
+            sb.AppendLine($"  ResultsEmitted: {metrics.ResultsEmitted}");
+            sb.AppendLine($"  TableProbes: {metrics.TableProbes}");
+            sb.AppendLine($"  TableHits: {metrics.TableHits}");
+            sb.AppendLine($"  TableMisses: {metrics.TableMisses}");
+            sb.AppendLine($"  TableInserts: {metrics.TableInserts}");
+            sb.AppendLine($"  MagicSourceProbes: {metrics.MagicSourceProbes}");
+            sb.AppendLine($"  MagicSourceHits: {metrics.MagicSourceHits}");
+            sb.AppendLine($"  MagicSourceMisses: {metrics.MagicSourceMisses}");
+        }
+
         return sb.ToString().TrimEnd();
     }
 
@@ -346,6 +383,36 @@ public sealed class PlanExplanationRenderer : IPlanExplanationRenderer
         sb.AppendLine("## Diagnostics");
         foreach (DiagnosticExplanation diagnostic in explanation.Diagnostics)
             sb.AppendLine($"- `{diagnostic.Id}` **{diagnostic.Phase}**: {diagnostic.Message}");
+
+        if (explanation.RuntimeMetrics is not null)
+        {
+            global::Fletched.Core.Runtime.QueryMetricsSnapshot metrics = explanation.RuntimeMetrics.Metrics;
+            sb.AppendLine();
+            sb.AppendLine("## Runtime metrics");
+            sb.AppendLine();
+            sb.AppendLine("| Counter | Value |");
+            sb.AppendLine("| --- | --- |");
+            sb.AppendLine($"| FactRowsScanned | {metrics.FactRowsScanned} |");
+            sb.AppendLine($"| IndexLookups | {metrics.IndexLookups} |");
+            sb.AppendLine($"| IndexHits | {metrics.IndexHits} |");
+            sb.AppendLine($"| IndexMisses | {metrics.IndexMisses} |");
+            sb.AppendLine($"| UnificationAttempts | {metrics.UnificationAttempts} |");
+            sb.AppendLine($"| UnificationSuccesses | {metrics.UnificationSuccesses} |");
+            sb.AppendLine($"| UnificationFailures | {metrics.UnificationFailures} |");
+            sb.AppendLine($"| ConstraintEvaluations | {metrics.ConstraintEvaluations} |");
+            sb.AppendLine($"| ConstraintFailures | {metrics.ConstraintFailures} |");
+            sb.AppendLine($"| PredicateCalls | {metrics.PredicateCalls} |");
+            sb.AppendLine($"| PredicateCallResults | {metrics.PredicateCallResults} |");
+            sb.AppendLine($"| Backtracks | {metrics.Backtracks} |");
+            sb.AppendLine($"| ResultsEmitted | {metrics.ResultsEmitted} |");
+            sb.AppendLine($"| TableProbes | {metrics.TableProbes} |");
+            sb.AppendLine($"| TableHits | {metrics.TableHits} |");
+            sb.AppendLine($"| TableMisses | {metrics.TableMisses} |");
+            sb.AppendLine($"| TableInserts | {metrics.TableInserts} |");
+            sb.AppendLine($"| MagicSourceProbes | {metrics.MagicSourceProbes} |");
+            sb.AppendLine($"| MagicSourceHits | {metrics.MagicSourceHits} |");
+            sb.AppendLine($"| MagicSourceMisses | {metrics.MagicSourceMisses} |");
+        }
 
         return sb.ToString().TrimEnd();
     }

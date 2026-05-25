@@ -265,7 +265,7 @@ public partial record struct Ancestor
 
         string generatedSource = new PredicateEmitter(model, plan!, generateLegacyNames: true).Emit();
 
-        await Assert.That(generatedSource.Contains("ExecuteArity2(ctx, observer).GetEnumerator()", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(generatedSource.Contains("ExecuteArity2(ctx, observer, options).GetEnumerator()", StringComparison.Ordinal)).IsTrue();
     }
 
     [Test]
@@ -356,7 +356,7 @@ public partial record struct Ancestor
 
         string generatedSource = new PredicateEmitterAsync(model, plan!, generateLegacyNames: true).Emit();
 
-        await Assert.That(generatedSource.Contains("foreach (var item in ExecuteTabledArity2(ctx, \"f|f\", observer))", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(generatedSource.Contains("foreach (var item in ExecuteTabledArity2(ctx, \"f|f\", observer, options))", StringComparison.Ordinal)).IsTrue();
     }
 
     [Test]

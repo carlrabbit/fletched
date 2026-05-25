@@ -215,14 +215,14 @@ public sealed class PredicateEmitter
 
             if (_generateLegacyNames)
             {
-                ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+                ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> Execute({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, global::Fletched.Core.Runtime.QueryExecutionOptions? options = null)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
                     if (_isTabledPredicate)
-                        ctx.AppendLine($"return ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer);");
+                        ctx.AppendLine($"return ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer, options);");
                     else
-                        ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer);");
+                        ctx.AppendLine($"return {ExecuteMethodName}(ctx, observer, options);");
                 }
                 ctx.AppendLine("}");
                 ctx.AppendLine();
@@ -264,12 +264,13 @@ public sealed class PredicateEmitter
     private void EmitExecuteMethod(EmitContext ctx)
     {
         _nextCallToEmit = 0;
-        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> {ExecuteMethodName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> {ExecuteMethodName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, global::Fletched.Core.Runtime.QueryExecutionOptions? options = null)");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
             ctx.AppendLine($"var state = {ctx.StateTypeName}.Create();");
             ctx.AppendLine($"var cps = new System.Collections.Generic.Stack<global::Fletched.Core.Runtime.ChoicePoint>();");
+            ctx.AppendLine("var metrics = options?.Metrics;");
 
             // Emit index variables
             EmitIndexVarDecls(ctx);
@@ -293,6 +294,7 @@ public sealed class PredicateEmitter
                     ctx.AppendLine("goto End;");
                 ctx.AppendLine("state.Unwind(_cp.TrailTop);");
                 ctx.AppendMetricIncrement("BacktrackCount");
+                ctx.AppendQueryMetricIncrement("Backtracks");
                 ctx.AppendLine("observer?.OnBacktrack();");
                 ctx.AppendLine("switch (_cp.LabelId)");
                 ctx.AppendLine("{");
@@ -312,6 +314,7 @@ public sealed class PredicateEmitter
             {
                 string projection = string.Join(", ", _model.Parameters.Select(p => $"state.{p.Name}"));
                 ctx.AppendLine($"yield return new {ResultTypeName}({projection});");
+                ctx.AppendQueryMetricIncrement("ResultsEmitted");
                 ctx.AppendLine("goto Resume;");
             }
             ctx.AppendLine();
@@ -331,32 +334,39 @@ public sealed class PredicateEmitter
 
     private void EmitExecuteTabledMethod(EmitContext ctx)
     {
-        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> ExecuteTabledArity{_model.Arity}({_contextTypeName} ctx, string canonicalCall, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+        ctx.AppendLine($"public System.Collections.Generic.IEnumerable<{ResultTypeName}> ExecuteTabledArity{_model.Arity}({_contextTypeName} ctx, string canonicalCall, global::Fletched.Core.Performance.IExecutionObserver? observer = null, global::Fletched.Core.Runtime.QueryExecutionOptions? options = null)");
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
+            ctx.AppendLine("var metrics = options?.Metrics;");
             ctx.AppendLine("if (string.IsNullOrWhiteSpace(canonicalCall))");
             using (ctx.Indent())
                 ctx.AppendLine("throw new global::System.ArgumentException(\"Canonical call must not be null or whitespace.\", nameof(canonicalCall));");
             ctx.AppendLine("using var _tableScope = global::Fletched.Core.Runtime.QueryTableRuntime.EnterScope(ctx);");
             ctx.AppendLine($"var _tableStore = global::Fletched.Core.Runtime.QueryTableRuntime.GetStore<{ResultTypeName}>(ctx);");
             ctx.AppendLine($"var _tableKey = global::Fletched.Core.Runtime.TableKey.Create(\"{_predicateIdentity}\", {_model.Arity}, canonicalCall);");
+            ctx.AppendQueryMetricIncrement("TableProbes");
             ctx.AppendLine("var _table = _tableStore.GetOrAddTable(_tableKey, out bool _isProducer);");
             ctx.AppendLine("if (!_isProducer)");
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
+                ctx.AppendQueryMetricIncrement("TableHits");
                 ctx.AppendLine("_table.ThrowIfFaulted();");
                 ctx.AppendLine("var _snapshot = _table.Answers.ToArray();");
                 ctx.AppendLine("foreach (var _answer in _snapshot)");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
+                {
+                    ctx.AppendQueryMetricIncrement("ResultsEmitted");
                     ctx.AppendLine("yield return _answer;");
+                }
                 ctx.AppendLine("}");
                 ctx.AppendLine("yield break;");
             }
             ctx.AppendLine("}");
-            ctx.AppendLine($"using var _producer = {ExecuteMethodName}(ctx, observer).GetEnumerator();");
+            ctx.AppendQueryMetricIncrement("TableMisses");
+            ctx.AppendLine($"using var _producer = {ExecuteMethodName}(ctx, observer, options).GetEnumerator();");
             ctx.AppendLine("while (true)");
             ctx.AppendLine("{");
             using (ctx.Indent())
@@ -382,7 +392,11 @@ public sealed class PredicateEmitter
                 ctx.AppendLine("}");
                 ctx.AppendLine("if (_table.TryAddAnswer(_answer))");
                 using (ctx.Indent())
+                {
+                    ctx.AppendQueryMetricIncrement("TableInserts");
+                    ctx.AppendQueryMetricIncrement("ResultsEmitted");
                     ctx.AppendLine("yield return _answer;");
+                }
             }
             ctx.AppendLine("}");
             ctx.AppendLine("_table.MarkComplete();");
@@ -408,14 +422,14 @@ public sealed class PredicateEmitter
         ctx.AppendLine("{");
         using (ctx.Indent())
         {
-            ctx.AppendLine($"public static System.Collections.Generic.IEnumerable<{resultTypeName}> {wrapperName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null)");
+            ctx.AppendLine($"public static System.Collections.Generic.IEnumerable<{resultTypeName}> {wrapperName}({_contextTypeName} ctx, global::Fletched.Core.Performance.IExecutionObserver? observer = null, global::Fletched.Core.Runtime.QueryExecutionOptions? options = null)");
             ctx.AppendLine("{");
             using (ctx.Indent())
             {
                 if (_isTabledPredicate)
-                    ctx.AppendLine($"return default({predicateTypeName}).ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer);");
+                    ctx.AppendLine($"return default({predicateTypeName}).ExecuteTabledArity{_model.Arity}(ctx, \"{GetDefaultCanonicalCall()}\", observer, options);");
                 else
-                    ctx.AppendLine($"return default({predicateTypeName}).{ExecuteMethodName}(ctx, observer);");
+                    ctx.AppendLine($"return default({predicateTypeName}).{ExecuteMethodName}(ctx, observer, options);");
             }
             ctx.AppendLine("}");
         }
@@ -540,9 +554,24 @@ public sealed class PredicateEmitter
                     ctx.AppendLine("{");
                     using (ctx.Indent())
                     {
-                        ctx.AppendMetricIncrement("IndexHits");
-                        ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                        ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar})) goto Fail;");
+                        ctx.AppendQueryMetricIncrement("IndexLookups");
+                        ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessorExpression}, state.{slotName}, out {matchesVar}))");
+                        ctx.AppendLine("{");
+                        using (ctx.Indent())
+                        {
+                            ctx.AppendMetricIncrement("IndexHits");
+                            ctx.AppendQueryMetricIncrement("IndexHits");
+                            ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                        }
+                        ctx.AppendLine("}");
+                        ctx.AppendLine("else");
+                        ctx.AppendLine("{");
+                        using (ctx.Indent())
+                        {
+                            ctx.AppendQueryMetricIncrement("IndexMisses");
+                            ctx.AppendLine("goto Fail;");
+                        }
+                        ctx.AppendLine("}");
                     }
                     ctx.AppendLine("}");
                     ctx.AppendLine("else");
@@ -559,9 +588,24 @@ public sealed class PredicateEmitter
 
             default:
                 ctx.AppendLine($"{init.IndexVar} = 0;");
-                ctx.AppendMetricIncrement("IndexHits");
-                ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
-                ctx.AppendLine($"if (!ctx.{tableProp}.TryGetIndex({accessorExpression}, {EmitValue(init.IndexedLookup.Key)}, out {matchesVar})) goto Fail;");
+                ctx.AppendQueryMetricIncrement("IndexLookups");
+                ctx.AppendLine($"if (ctx.{tableProp}.TryGetIndex({accessorExpression}, {EmitValue(init.IndexedLookup.Key)}, out {matchesVar}))");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendMetricIncrement("IndexHits");
+                    ctx.AppendQueryMetricIncrement("IndexHits");
+                    ctx.AppendLine($"observer?.OnIndexHit(\"{init.FactType.Name}\");");
+                }
+                ctx.AppendLine("}");
+                ctx.AppendLine("else");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendQueryMetricIncrement("IndexMisses");
+                    ctx.AppendLine("goto Fail;");
+                }
+                ctx.AppendLine("}");
                 return;
         }
     }
@@ -573,6 +617,7 @@ public sealed class PredicateEmitter
 
         if (bind.IndexedLookup is null)
         {
+            ctx.AppendQueryMetricIncrement("FactRowsScanned");
             ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
             ctx.AppendLine($"state.{slotName}_bound = true;");
             return;
@@ -596,6 +641,7 @@ public sealed class PredicateEmitter
                     ctx.AppendLine("{");
                     using (ctx.Indent())
                     {
+                        ctx.AppendQueryMetricIncrement("FactRowsScanned");
                         ctx.AppendLine($"state.{slotName} = ctx.{tableProp}.Data[{bind.IndexVar}];");
                         ctx.AppendLine($"state.{slotName}_bound = true;");
                     }
@@ -661,6 +707,7 @@ public sealed class PredicateEmitter
         using (ctx.Indent())
         {
             ctx.AppendMetricIncrement("PredicateInvocations");
+            ctx.AppendQueryMetricIncrement("PredicateCalls");
             ctx.AppendLine($"observer?.OnPredicateInvocation(\"{call.PredicateType.Name}\");");
             ctx.AppendLine($"global::Fletched.Core.Runtime.RecursionGuard.EnterPredicateInvocation(ctx, \"{call.PredicateType.Name}\", observer);");
             string recursionDepthVar = $"_recursionDepth_{callInfo.Id}";
@@ -680,9 +727,9 @@ public sealed class PredicateEmitter
             using (ctx.Indent())
             {
                 if (call.IsTabledCall)
-                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, observer).GetEnumerator();");
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, observer, options).GetEnumerator();");
                 else
-                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer).GetEnumerator();");
+                    ctx.AppendLine($"{callInfo.EnumeratorVar} = default({predTypeName}).ExecuteArity{call.Arity}(ctx, observer, options).GetEnumerator();");
             }
             ctx.AppendLine("}");
             ctx.AppendLine("catch");
@@ -744,6 +791,7 @@ public sealed class PredicateEmitter
 
         ctx.AppendLine($"var {resultVar} = {callInfo.EnumeratorVar}.Current;");
         ctx.AppendLine($"{callInfo.ProducedVar} = true;");
+        ctx.AppendQueryMetricIncrement("PredicateCallResults");
         ctx.AppendLine("cps.Push(new global::Fletched.Core.Runtime.ChoicePoint");
         ctx.AppendLine("{");
         using (ctx.Indent())
@@ -783,9 +831,9 @@ public sealed class PredicateEmitter
             using (ctx.Indent())
             {
                 if (call.IsTabledCall)
-                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, null))");
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteTabledArity{call.Arity}(ctx, {EmitCanonicalCallExpression(call)}, null, options))");
                 else
-                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null))");
+                    ctx.AppendLine($"foreach (var {resultVar} in default({predTypeName}).ExecuteArity{call.Arity}(ctx, null, options))");
                 ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
@@ -947,6 +995,7 @@ public sealed class PredicateEmitter
     {
         int slot = _slots.First(s => s.Name == slotName).Slot;
         ctx.AppendMetricIncrement("UnifyAttempts");
+        ctx.AppendQueryMetricIncrement("UnificationAttempts");
         ctx.AppendLine($"observer?.OnUnify({slot});");
         ctx.AppendLine($"if (!state.{slotName}_bound)");
         ctx.AppendLine("{");
@@ -962,10 +1011,12 @@ public sealed class PredicateEmitter
         using (ctx.Indent())
         {
             ctx.AppendMetricIncrement("UnifyFailures");
+            ctx.AppendQueryMetricIncrement("UnificationFailures");
             ctx.AppendLine($"observer?.OnUnifyFailure({slot});");
             ctx.AppendLine("goto Fail;");
         }
         ctx.AppendLine("}");
+        ctx.AppendQueryMetricIncrement("UnificationSuccesses");
     }
 
     private void EmitSlotSlotUnify(string a, string b, EmitContext ctx)
@@ -973,6 +1024,7 @@ public sealed class PredicateEmitter
         int slotA = _slots.First(s => s.Name == a).Slot;
         int slotB = _slots.First(s => s.Name == b).Slot;
         ctx.AppendMetricIncrement("UnifyAttempts");
+        ctx.AppendQueryMetricIncrement("UnificationAttempts");
         ctx.AppendLine($"observer?.OnUnify({slotA});");
         ctx.AppendLine($"if (!state.{a}_bound && !state.{b}_bound) {{ /* both unbound - no-op */ }}");
         ctx.AppendLine($"else if (!state.{a}_bound)");
@@ -998,10 +1050,12 @@ public sealed class PredicateEmitter
         using (ctx.Indent())
         {
             ctx.AppendMetricIncrement("UnifyFailures");
+            ctx.AppendQueryMetricIncrement("UnificationFailures");
             ctx.AppendLine($"observer?.OnUnifyFailure({slotA});");
             ctx.AppendLine("goto Fail;");
         }
         ctx.AppendLine("}");
+        ctx.AppendQueryMetricIncrement("UnificationSuccesses");
     }
 
     private void EmitConstraint(ConstraintInstr c, EmitContext ctx)
@@ -1013,7 +1067,15 @@ public sealed class PredicateEmitter
         {
             string typeName = c.Method.ContainingType.ToDisplayString(SymbolDisplayFormat.FullyQualifiedFormat);
             callArgs = string.Join(", ", c.Arguments.Select(EmitValue));
-            ctx.AppendLine($"if (!{typeName}.{c.Method.Name}({callArgs})) goto Fail;");
+            ctx.AppendQueryMetricIncrement("ConstraintEvaluations");
+            ctx.AppendLine($"if (!{typeName}.{c.Method.Name}({callArgs}))");
+            ctx.AppendLine("{");
+            using (ctx.Indent())
+            {
+                ctx.AppendQueryMetricIncrement("ConstraintFailures");
+                ctx.AppendLine("goto Fail;");
+            }
+            ctx.AppendLine("}");
         }
         else
         {
@@ -1023,7 +1085,15 @@ public sealed class PredicateEmitter
                 receiver = EmitValue(c.Arguments[0]);
                 callArgs = string.Join(", ", c.Arguments.Skip(1).Select(EmitValue));
                 string argStr = callArgs.Length > 0 ? callArgs : "";
-                ctx.AppendLine($"if (!{receiver}.{c.Method.Name}({argStr})) goto Fail;");
+                ctx.AppendQueryMetricIncrement("ConstraintEvaluations");
+                ctx.AppendLine($"if (!{receiver}.{c.Method.Name}({argStr}))");
+                ctx.AppendLine("{");
+                using (ctx.Indent())
+                {
+                    ctx.AppendQueryMetricIncrement("ConstraintFailures");
+                    ctx.AppendLine("goto Fail;");
+                }
+                ctx.AppendLine("}");
             }
         }
     }
@@ -1041,7 +1111,15 @@ public sealed class PredicateEmitter
             CompOp.GreaterThanOrEqual => ">=",
             _ => "!="
         };
-        ctx.AppendLine($"if (!({left} {op} {right})) goto Fail;");
+        ctx.AppendQueryMetricIncrement("ConstraintEvaluations");
+        ctx.AppendLine($"if (!({left} {op} {right}))");
+        ctx.AppendLine("{");
+        using (ctx.Indent())
+        {
+            ctx.AppendQueryMetricIncrement("ConstraintFailures");
+            ctx.AppendLine("goto Fail;");
+        }
+        ctx.AppendLine("}");
     }
 
     private void EmitTerminator(PlanTerminator term, string blockLabel, EmitContext ctx)
