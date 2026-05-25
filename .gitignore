@@ -5,4 +5,5 @@ obj/
 .idea/
 *.suo
 *.userprefs
-artifacts/
+artifacts/*
+!artifacts/.gitkeep

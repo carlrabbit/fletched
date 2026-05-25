@@ -17,6 +17,12 @@ When changing workflows:
 - update `docs/workflows/` first
 - keep `.github/workflows/` synchronized
 
+When introducing terminology:
+- update `docs/TERMINOLOGY.md`
+
+When introducing recurring execution patterns:
+- add or update a document in `docs/tbps/`
+
 When changing public package/API behavior:
 - update `public-docs/`
 - update `docs/specs/PublicApi.md`
