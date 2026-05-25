@@ -11,7 +11,6 @@ Optional modules exist only when the corresponding tooling is present.
 | Capability | Status | Activation Condition |
 | --- | --- | --- |
 | Benchmarks | Active | `benchmarks/` directory exists; `eng/benchmark.sh` available |
-| Long-running integration tests | Active | `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=1` environment variable |
 | Performance testing workflow | Active | Separate workflow; not part of `eng/check.sh` |
 | Blazor/Web UI | Not present | Not applicable |
 | TypeScript tooling | Not present | Not applicable |
@@ -21,7 +20,6 @@ Optional modules exist only when the corresponding tooling is present.
 
 - Optional capabilities must not be included in `eng/check.sh` unless they are always available.
 - Optional capabilities that exist (benchmarks) have a dedicated `eng/` script.
-- Optional capabilities that are environment-controlled (long-running tests) require explicit activation.
 - Optional capabilities not yet present (Blazor, TypeScript, Playwright) have no `eng/` script.
 
 # Authority

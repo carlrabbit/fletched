@@ -391,12 +391,14 @@ public sealed class PredicateEmitter
                 }
                 ctx.AppendLine("}");
                 ctx.AppendLine("if (_table.TryAddAnswer(_answer))");
+                ctx.AppendLine("{");
                 using (ctx.Indent())
                 {
                     ctx.AppendQueryMetricIncrement("TableInserts");
                     ctx.AppendQueryMetricIncrement("ResultsEmitted");
                     ctx.AppendLine("yield return _answer;");
                 }
+                ctx.AppendLine("}");
             }
             ctx.AppendLine("}");
             ctx.AppendLine("_table.MarkComplete();");

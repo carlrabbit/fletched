@@ -18,7 +18,7 @@ This document describes the core toolchain building blocks used in the Fletched 
 | TUnit | Test framework (Microsoft.Testing.Platform) |
 | `Fletched.Core.Tests` | Core runtime behavior tests |
 | `Fletched.Features.Tests` | Feature-level behavioral tests |
-| `Fletched.Integration.Tests` | Integration tests (includes long-running integration tests) |
+| `Fletched.Integration.Tests` | Integration tests |
 | `Fletched.Performance.Tests` | Performance and diagnostics tests |
 | `Fletched.Sample.Tests` | Sample application tests |
 
@@ -36,16 +36,6 @@ This document describes the core toolchain building blocks used in the Fletched 
 | Roslyn Incremental Source Generators | Compile-time code generation |
 | `PredicateEmitter` | Emits generated predicate execution code |
 | `SemanticAnalyzer` | Validates predicate call graphs and semantics |
-
-## Long-Running Test Activation
-
-Long-running integration tests are controlled by an environment variable:
-
-```text
-FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS=1
-```
-
-When not set, long-running tests are skipped automatically.
 
 # Authority
 

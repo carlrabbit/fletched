@@ -1,6 +1,6 @@
 # Goal
 
-Validate repository restore, release build, and automated test execution including long-running integration tests that are guarded by `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS`.
+Validate repository restore, release build, and automated test execution including all integration tests.
 
 # Constraints
 
@@ -8,7 +8,6 @@ Validate repository restore, release build, and automated test execution includi
 - Build in `Release` configuration.
 - Verify formatting with `./eng/format.sh --verify-no-changes`.
 - Use `./eng/ci/collect-coverage.sh long-running` for coverage-producing test execution.
-- Enable long-running integration tests by setting `FLETCHED_RUN_LONG_RUNNING_INTEGRATION_TESTS` during the long-running integration coverage rerun.
 - Keep workflow implementation focused on execution and artifact handling.
 
 # Non-Goals
@@ -44,7 +43,7 @@ Validate repository restore, release build, and automated test execution includi
 - Restore failure
 - Release build failure
 - Formatting verification failure
-- Any core, feature, or integration test failure (including long-running integration tests when enabled)
+- Any core, feature, or integration test failure
 - Coverage artifact generation failure caused by missing prerequisite outputs
 
 # Synchronization Rules
@@ -57,7 +56,6 @@ Validate repository restore, release build, and automated test execution includi
 
 This document is authoritative for:
 - long-running build-and-test workflow intent
-- long-running integration-test enablement convention
 
 This document is not authoritative for:
 - GitHub Actions YAML syntax
