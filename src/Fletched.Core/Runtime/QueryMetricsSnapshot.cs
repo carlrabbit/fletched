@@ -5,11 +5,17 @@ public sealed record QueryMetricsSnapshot(
     long IndexLookups,
     long IndexHits,
     long IndexMisses,
+    long EqualityIndexLookups,
+    long CompositeIndexLookups,
+    long RangeIndexLookups,
+    long IndexRowsReturned,
     long UnificationAttempts,
     long UnificationSuccesses,
     long UnificationFailures,
     long ConstraintEvaluations,
     long ConstraintFailures,
+    long ResidualConstraintEvaluations,
+    long ResidualConstraintFailures,
     long PredicateCalls,
     long PredicateCallResults,
     long Backtracks,
@@ -21,4 +27,3 @@ public sealed record QueryMetricsSnapshot(
     long MagicSourceProbes,
     long MagicSourceHits,
     long MagicSourceMisses);
-

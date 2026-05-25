@@ -29,8 +29,77 @@ public record UnifyInstr(PlanValue Left, PlanValue Right) : PlanInstruction;
 public record ConstraintInstr(IMethodSymbol Method, IReadOnlyList<PlanValue> Arguments) : PlanInstruction;
 public record AssignInstr(int Slot, PlanValue Value) : PlanInstruction;
 
-/// <summary>Metadata for a loop that can use an index on a fact member.</summary>
-public sealed record IndexedLookupSpec(string MemberName, PlanValue Key);
+public readonly record struct SlotId(int Value)
+{
+    public override string ToString() => $"s{Value}";
+}
+
+public readonly record struct PlanInstructionId(string Value)
+{
+    public override string ToString() => Value;
+}
+
+public sealed record FactIndexCandidate(
+    string FactType,
+    string IndexName,
+    FactIndexKindModel Kind,
+    ImmutableArray<string> Members,
+    ImmutableArray<SlotId> BoundInputs,
+    ImmutableArray<PlanInstructionId> SatisfiedConstraints,
+    int Score,
+    string Reason);
+
+public enum FactAccessPathKind
+{
+    FullScan,
+    EqualityIndex,
+    CompositeEqualityIndex,
+    RangeIndex
+}
+
+public sealed record FactAccessPath(
+    string FactType,
+    FactAccessPathKind Kind,
+    string? IndexName,
+    ImmutableArray<string> Members,
+    ImmutableArray<SlotId> BoundInputs,
+    ImmutableArray<PlanInstructionId> ResidualConstraints,
+    string Reason);
+
+public sealed record EqualityLookupPart(string MemberName, PlanValue Key);
+
+public sealed record RangeLookupSpec(
+    string MemberName,
+    PlanValue? Lower,
+    bool LowerInclusive,
+    PlanValue? Upper,
+    bool UpperInclusive);
+
+public sealed record SkippedFactIndexCandidate(
+    FactIndexCandidate Candidate,
+    string Reason);
+
+/// <summary>Metadata for a loop that can use an advanced fact index.</summary>
+public sealed record IndexedLookupSpec(
+    string IndexName,
+    string AccessorFieldName,
+    bool IsImplicit,
+    FactAccessPathKind AccessPathKind,
+    ImmutableArray<string> Members,
+    ImmutableArray<EqualityLookupPart> EqualityParts,
+    RangeLookupSpec? Range,
+    ImmutableArray<string> BoundInputNames,
+    ImmutableArray<string> SatisfiedConstraintTexts,
+    ImmutableArray<string> ResidualConstraintTexts,
+    ImmutableArray<SkippedFactIndexCandidate> SkippedCandidates,
+    string Reason)
+{
+    public string MemberName => Members.IsDefaultOrEmpty ? string.Empty : Members[0];
+
+    public PlanValue Key => EqualityParts.IsDefaultOrEmpty
+        ? throw new InvalidOperationException("Lookup does not contain an equality key.")
+        : EqualityParts[0].Key;
+}
 
 public readonly record struct Adornment(string Pattern)
 {

@@ -6,9 +6,12 @@ using Fletched.Core.Runtime;
 namespace Fletched.Benchmarks;
 
 [Fact]
+[FactIndex(nameof(BenchPerson.Id))]
+[FactIndex(nameof(BenchPerson.City), nameof(BenchPerson.Id))]
 public partial record struct BenchPerson(int Id, string Name, string City);
 
 [Fact]
+[FactIndex(nameof(BenchCity.Name))]
 public partial record struct BenchCity(string Name, string Region);
 
 public static class BenchmarkData

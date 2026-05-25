@@ -574,6 +574,72 @@ public partial record struct ProductBySku
         await Assert.That(generatedSource.Contains("GeneratedFactIndexAccessor", StringComparison.Ordinal)).IsTrue();
     }
 
+    [Test]
+    public async Task IrLowerer_CompositeEqualityIndex_PrefersDeclaredCompositeAccessor()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+[FactIndex(nameof(Person.City), nameof(Person.Age))]
+public partial record struct Person(string Name, string City, int Age);
+
+[Predicate]
+public partial record struct PersonByCityAndAge
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<string> city, TerminalVar<int> age) =>
+        Logic.With<Person>(person => person.City == city && person.Age == age);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "PersonByCityAndAge");
+        PlanProgram? plan = new IrLowerer(reporter).Lower(model);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        IndexInitInstr init = PlanAnalysis.AllBlocks(plan!).SelectMany(block => block.Instructions).OfType<IndexInitInstr>().Single();
+        await Assert.That(init.IndexedLookup).IsNotNull();
+        await Assert.That(init.IndexedLookup!.AccessPathKind).IsEqualTo(FactAccessPathKind.CompositeEqualityIndex);
+        await Assert.That(init.IndexedLookup.IndexName).IsEqualTo("Person.City_Age");
+
+        string generatedSource = new PredicateEmitter(model, plan!, generateLegacyNames: true).Emit();
+        await Assert.That(generatedSource.Contains("PersonFactIndexes.ByCityAndAge", StringComparison.Ordinal)).IsTrue();
+    }
+
+    [Test]
+    public async Task IrLowerer_RangeIndex_SelectsDeclaredRangeAccessor()
+    {
+        const string source = """
+using Fletched.Core;
+
+[Fact]
+[FactIndex(nameof(Person.Age), Kind = FactIndexKind.Range)]
+public partial record struct Person(string Name, int Age);
+
+[Predicate]
+public partial record struct Adults
+{
+    [PredicateBody]
+    public static LogicExpr<bool> Body(TerminalVar<int> minAge) =>
+        Logic.With<Person>(person => person.Age >= minAge);
+}
+""";
+
+        (IReadOnlyList<PredicateModel> models, DiagnosticReporter reporter) = AnalyzeAll(source);
+        PredicateModel model = models.Single(predicate => predicate.Name == "Adults");
+        PlanProgram? plan = new IrLowerer(reporter).Lower(model);
+
+        await Assert.That(reporter.HasErrors).IsFalse();
+        IndexInitInstr init = PlanAnalysis.AllBlocks(plan!).SelectMany(block => block.Instructions).OfType<IndexInitInstr>().Single();
+        await Assert.That(init.IndexedLookup).IsNotNull();
+        await Assert.That(init.IndexedLookup!.AccessPathKind).IsEqualTo(FactAccessPathKind.RangeIndex);
+
+        string generatedSource = new PredicateEmitter(model, plan!, generateLegacyNames: true).Emit();
+        await Assert.That(generatedSource.Contains("TryGetRange", StringComparison.Ordinal)).IsTrue();
+        await Assert.That(generatedSource.Contains("PersonFactIndexes.ByAge", StringComparison.Ordinal)).IsTrue();
+    }
+
     private static (IReadOnlyList<PredicateModel> Models, DiagnosticReporter Reporter) AnalyzeAll(string source)
     {
         CSharpCompilation compilation = CreateCompilation(source);

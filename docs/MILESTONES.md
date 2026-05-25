@@ -21,6 +21,7 @@ They do not define permanent behavioral truth.
 | [`milestones/Milestone08_MagicSetRewritingFactStorage.md`](milestones/Milestone08_MagicSetRewritingFactStorage.md) | Magic-set rewriting and fact-storage refinements |
 | [`milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md`](milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md) | Documentation synchronization and predicate-call inlining |
 | [`milestones/Milestone10_OptimizationMaturity.md`](milestones/Milestone10_OptimizationMaturity.md) | Optimization pipeline maturity: pass contract, trace model, DeadBindingElimination, LoopSpecialization narrowing |
+| Milestone 13: Advanced Fact Indexing | Explicit `[FactIndex]` declarations, typed generated index descriptors, composite equality and range lookups, and planner-aware access-path selection |
 
 # Authority
 

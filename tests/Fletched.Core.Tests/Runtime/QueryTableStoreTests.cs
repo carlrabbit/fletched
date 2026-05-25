@@ -1,9 +1,11 @@
+using System.Collections.Immutable;
 using Fletched.Core.Runtime;
 using TUnit;
 
 namespace Fletched.Core.Tests.Runtime;
 
 public sealed record RuntimeFactRow(string? Parent, string? Child);
+public sealed record IndexedRuntimeFact(string? City, int Age, string? Name);
 
 public class QueryTableStoreTests
 {
@@ -92,6 +94,80 @@ public class QueryTableStoreTests
 
         await Assert.That(found).IsTrue();
         await Assert.That(indices).IsEquivalentTo(new[] { 0, 2 });
+    }
+
+    [Test]
+    public async Task FactTable_CompositeAccessorIndex_ReturnsStableFactIndices()
+    {
+        var table = new FactTable<IndexedRuntimeFact>(
+        [
+            new("berlin", 30, "alice"),
+            new("berlin", 30, "bob"),
+            new("rome", 30, "carol"),
+        ]);
+
+        var accessor = new GeneratedFactIndexAccessor<IndexedRuntimeFact, (string? City, int Age)>(
+            "IndexedRuntimeFact.City_Age",
+            ImmutableArray.Create("City", "Age"),
+            static row => (row.City, row.Age));
+
+        bool found = table.TryGetIndex(accessor, ("berlin", 30), out int[] indices);
+
+        await Assert.That(found).IsTrue();
+        await Assert.That(indices.Length).IsEqualTo(2);
+        await Assert.That(indices[0]).IsEqualTo(0);
+        await Assert.That(indices[1]).IsEqualTo(1);
+    }
+
+    [Test]
+    public async Task FactTable_RangeAccessorIndex_ReturnsRowsInInsertionOrder()
+    {
+        var table = new FactTable<IndexedRuntimeFact>(
+        [
+            new("rome", 40, "older"),
+            new("berlin", 18, "young"),
+            new("paris", 29, "adult"),
+            new("oslo", 24, "mid"),
+        ]);
+
+        var accessor = new GeneratedFactRangeIndexAccessor<IndexedRuntimeFact, int>(
+            "IndexedRuntimeFact.Age.Range",
+            "Age",
+            static row => row.Age);
+
+        bool found = table.TryGetRange(accessor, hasLower: true, lower: 20, lowerInclusive: true, hasUpper: true, upper: 30, upperInclusive: true, out int[] indices);
+
+        await Assert.That(found).IsTrue();
+        await Assert.That(indices.Length).IsEqualTo(2);
+        await Assert.That(indices[0]).IsEqualTo(2);
+        await Assert.That(indices[1]).IsEqualTo(3);
+    }
+
+    [Test]
+    public async Task FactTable_AddAndRebuildIndexes_PreserveLookupResults()
+    {
+        var table = new FactTable<IndexedRuntimeFact>(
+        [
+            new("berlin", 30, "alice"),
+            new("rome", 20, "bob"),
+        ]);
+
+        var accessor = new GeneratedFactIndexAccessor<IndexedRuntimeFact, string?>(
+            "IndexedRuntimeFact.City",
+            ImmutableArray.Create("City"),
+            static row => row.City);
+
+        table.Add(new IndexedRuntimeFact("berlin", 25, "carol"));
+        table.AddRange([new IndexedRuntimeFact("berlin", 31, "dave")]);
+        table.RebuildIndexes();
+
+        bool found = table.TryGetIndex(accessor, "berlin", out int[] indices);
+
+        await Assert.That(found).IsTrue();
+        await Assert.That(indices.Length).IsEqualTo(3);
+        await Assert.That(indices[0]).IsEqualTo(0);
+        await Assert.That(indices[1]).IsEqualTo(2);
+        await Assert.That(indices[2]).IsEqualTo(3);
     }
 
     [Test]

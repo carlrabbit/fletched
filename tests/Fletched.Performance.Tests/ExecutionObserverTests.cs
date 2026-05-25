@@ -9,6 +9,8 @@ namespace Fletched.Performance.Tests;
 // ── Domain types used by observer tests ─────────────────────────────────────
 
 [Fact]
+[FactIndex(nameof(ObserverProduct.Sku))]
+[FactIndex(nameof(ObserverProduct.Category))]
 public partial record struct ObserverProduct(string Sku, string Category, int Price);
 
 [Predicate]
@@ -53,6 +55,7 @@ public partial record struct ObserverSkuJoin
 }
 
 [Fact]
+[FactIndex(nameof(ObserverEdge.Parent))]
 public partial record struct ObserverEdge(string Parent, string Child);
 
 [Predicate]

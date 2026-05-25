@@ -23,6 +23,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="System.Collections.Immutable" />
     <None Include="../../README.md" Pack="true" PackagePath="\" />
   </ItemGroup>
 </Project>

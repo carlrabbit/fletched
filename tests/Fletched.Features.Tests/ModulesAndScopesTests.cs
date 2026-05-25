@@ -8,6 +8,7 @@ namespace Fletched.Features.Tests;
 public static partial class IdentityModule
 {
     [Fact]
+    [FactIndex(nameof(User.Name))]
     public partial record struct User(string Login, string Name);
 
     [Predicate]

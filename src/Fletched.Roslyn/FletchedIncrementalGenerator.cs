@@ -54,6 +54,14 @@ public sealed class FletchedIncrementalGenerator : IIncrementalGenerator
             spc.AddSource(
                 SourceSymbolHelpers.GetHintName(factType, "EngineContext.g.cs"),
                 emitter.EmitEngineContextProperty());
+
+            string indexesSource = emitter.EmitIndexes();
+            if (!string.IsNullOrWhiteSpace(indexesSource))
+            {
+                spc.AddSource(
+                    SourceSymbolHelpers.GetHintName(factType, "Indexes.g.cs"),
+                    indexesSource);
+            }
         });
 
         // ── [Predicate] types ─────────────────────────────────────────────
