@@ -22,6 +22,32 @@ This document routes packaging and release work to the authoritative workflow an
 - Writes package artifacts to `artifacts/nuget`.
 
 ```sh
+./eng/package-smoke.sh [version]
+```
+
+- Validates consumption from locally packed NuGet artifacts (not project references).
+- Verifies generator/analyzer loading and an expected diagnostic emission path.
+
+```sh
+./eng/public-api.sh
+```
+
+- Builds package projects, extracts contracted public API baselines, and fails on drift.
+- Intentional changes update baselines via `UPDATE_PUBLIC_API_BASELINE=1 ./eng/public-api.sh`.
+
+```sh
+./eng/public-docs.sh [version]
+```
+
+- Validates required `public-docs/` content, package README mapping, version snippets, and diagnostics coverage.
+
+```sh
+./eng/release-check.sh <version>
+```
+
+- Full release gate: `check`, `public-api`, `public-docs`, `package`, and `package-smoke` plus hygiene checks.
+
+```sh
 ./eng/publish.sh
 ```
 

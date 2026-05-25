@@ -1,34 +1,14 @@
 # Copilot Instructions
 
-Primary repository documentation:
+Primary repository docs:
 - `docs/TERMINOLOGY.md`
 - `docs/SPECS.md`
 - `docs/ENGINEERING.md`
+- `docs/PUBLIC-DOCS.md`
 - `docs/GUARDRAILS.md`
-- `docs/architecture/`
-- `docs/decisions/`
+- `docs/research/project-setup-guide-v5.md`
+- `docs/research/engineering-guide-v4.md`
 - `docs/workflows/`
 - `docs/tbps/`
-- `docs/agent-context/project-context.md`
 
-Repository conventions:
-- Use canonical terminology from `docs/TERMINOLOGY.md`
-- Prefer minimal, targeted changes over broad rewrites
-- Keep `README.md` as a navigation document, not an architectural specification
-- Keep detailed design material in `specs/` and authoritative operational guidance in `docs/`
-- Use `./eng/check.sh` as the canonical completion gate before declaring work complete
-- Do not run benchmarks or long-running tests by default
-
-Implementation conventions:
-- Target C# 14 and .NET 10 where appropriate
-- Prefer file-scoped namespaces
-- Use nullable reference types
-- Use async APIs for I/O-bound work
-- Use TUnit for tests and await all assertions
-
-Workflow synchronization rules:
-- Workflow intent is defined in `docs/workflows/`
-- GitHub workflow files in `.github/workflows/` must remain synchronized
-- New recurring processes belong in `docs/tbps/`
-- New terminology belongs in `docs/TERMINOLOGY.md`
-- New or revised behavioral specifications belong in `docs/specs/` and stay indexed in `docs/SPECS.md`
+Use `./eng/check.sh` as the standard gate and `./eng/release-check.sh <version>` for release readiness.

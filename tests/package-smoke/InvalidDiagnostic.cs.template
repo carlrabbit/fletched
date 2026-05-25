@@ -1,0 +1,6 @@
+using Fletched.Core;
+
+[Predicate]
+public class InvalidPredicateType
+{
+}

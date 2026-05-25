@@ -1,0 +1,2 @@
+# Fletched.Roslyn is an analyzer/source-generator package.
+# No supported runtime public API surface is contracted.
