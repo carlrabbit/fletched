@@ -2,5 +2,6 @@
 set -eu
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+DOTNET_BIN=$("${REPO_ROOT}/eng/dotnet.sh")
 
-dotnet restore "${REPO_ROOT}/Fletched.slnx"
+"${DOTNET_BIN}" restore "${REPO_ROOT}/Fletched.slnx"

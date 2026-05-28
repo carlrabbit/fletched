@@ -920,6 +920,10 @@ Do not use it to determine whether a product is safe to consume.
 
 The sample must not claim that its output is complete, authoritative, or clinically safe.
 
+## Implementation Status (2026-05-28)
+
+Implemented in `samples/Ontology.FoodSafety/` with curated fixture CSV data, ontology facts/predicates, deterministic console output, and repository index updates in `docs/MILESTONES.md` and `docs/engineering/samples.md`.
+
 ## Acceptance Criteria
 
 ```text
