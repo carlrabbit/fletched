@@ -16,14 +16,14 @@ fi
 
 mkdir -p "${REPO_ROOT}/artifacts/nuget"
 
-dotnet pack "${REPO_ROOT}/src/Fletched.Core/Fletched.Core.csproj" \
+"${DOTNET_BIN}" pack "${REPO_ROOT}/src/Fletched.Core/Fletched.Core.csproj" \
   -c Release \
   --no-build \
   -o "${REPO_ROOT}/artifacts/nuget" \
   -p:ContinuousIntegrationBuild=true \
   -p:Version="${VERSION}"
 
-dotnet pack "${REPO_ROOT}/src/Fletched.Roslyn/Fletched.Roslyn.csproj" \
+"${DOTNET_BIN}" pack "${REPO_ROOT}/src/Fletched.Roslyn/Fletched.Roslyn.csproj" \
   -c Release \
   --no-build \
   -o "${REPO_ROOT}/artifacts/nuget" \

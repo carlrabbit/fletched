@@ -2,5 +2,6 @@
 set -eu
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+DOTNET_BIN=$("${REPO_ROOT}/eng/dotnet.sh")
 
-dotnet build "${REPO_ROOT}/Fletched.slnx" -c Release --no-restore
+"${DOTNET_BIN}" build "${REPO_ROOT}/Fletched.slnx" -c Release --no-restore

@@ -3,5 +3,6 @@
 set -eu
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+DOTNET_BIN=$("${REPO_ROOT}/eng/dotnet.sh")
 
-dotnet build "${REPO_ROOT}/benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj" -c Release
+"${DOTNET_BIN}" build "${REPO_ROOT}/benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj" -c Release

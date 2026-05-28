@@ -10,7 +10,7 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 "${REPO_ROOT}/eng/package.sh" "${VERSION}"
 
 SMOKE_DIR="${TMP_DIR}/consumer"
-dotnet new console --framework net10.0 --output "${SMOKE_DIR}"
+"${DOTNET_BIN}" new console --framework net10.0 --output "${SMOKE_DIR}"
 
 cat > "${SMOKE_DIR}/NuGet.config" <<CFG
 <?xml version="1.0" encoding="utf-8"?>
@@ -40,22 +40,22 @@ EOF_CSPROJ
 
 cp "${REPO_ROOT}/tests/package-smoke/Program.cs.template" "${SMOKE_DIR}/Program.cs"
 
-dotnet restore "${SMOKE_DIR}/consumer.csproj" --configfile "${SMOKE_DIR}/NuGet.config"
-dotnet build "${SMOKE_DIR}/consumer.csproj" -c Release --no-restore --nologo | tee "${TMP_DIR}/consumer-build.log"
+"${DOTNET_BIN}" restore "${SMOKE_DIR}/consumer.csproj" --configfile "${SMOKE_DIR}/NuGet.config"
+"${DOTNET_BIN}" build "${SMOKE_DIR}/consumer.csproj" -c Release --no-restore --nologo | tee "${TMP_DIR}/consumer-build.log"
 
 if ! grep -q 'Fletched\.Roslyn\.FletchedIncrementalGenerator' "${TMP_DIR}/consumer-build.log"; then
   echo "PKG0005 PackageSmokeFailed: generated code not found in consumer obj output." >&2
   exit 1
 fi
 
-RUN_OUTPUT=$(dotnet run --project "${SMOKE_DIR}/consumer.csproj" -c Release --no-build)
+RUN_OUTPUT=$("${DOTNET_BIN}" run --project "${SMOKE_DIR}/consumer.csproj" -c Release --no-build)
 echo "${RUN_OUTPUT}" | grep -q "SMOKE_OK" || {
   echo "PKG0005 PackageSmokeFailed: minimal query execution failed." >&2
   exit 1
 }
 
 cp "${REPO_ROOT}/tests/package-smoke/InvalidDiagnostic.cs.template" "${SMOKE_DIR}/InvalidDiagnostic.cs"
-if dotnet build "${SMOKE_DIR}/consumer.csproj" -c Release --no-restore --nologo > "${TMP_DIR}/invalid-build.log" 2>&1; then
+if "${DOTNET_BIN}" build "${SMOKE_DIR}/consumer.csproj" -c Release --no-restore --nologo > "${TMP_DIR}/invalid-build.log" 2>&1; then
   echo "PKG0005 PackageSmokeFailed: expected invalid DSL diagnostic build failure." >&2
   exit 1
 fi
@@ -67,8 +67,8 @@ grep -q "FLTCH011" "${TMP_DIR}/invalid-build.log" || {
 }
 
 rm -rf "${SMOKE_DIR}/obj" "${SMOKE_DIR}/bin"
-dotnet nuget locals all --clear >/dev/null
+"${DOTNET_BIN}" nuget locals all --clear >/dev/null
 
-dotnet restore "${SMOKE_DIR}/consumer.csproj" --configfile "${SMOKE_DIR}/NuGet.config" >/dev/null
+"${DOTNET_BIN}" restore "${SMOKE_DIR}/consumer.csproj" --configfile "${SMOKE_DIR}/NuGet.config" >/dev/null
 
 echo "Package smoke validation passed."

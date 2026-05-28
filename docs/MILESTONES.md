@@ -22,6 +22,7 @@ They do not define permanent behavioral truth.
 | [`milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md`](milestones/Milestone09_DocumentationSynchronizationAndPredicateCallInlining.md) | Documentation synchronization and predicate-call inlining |
 | [`milestones/Milestone10_OptimizationMaturity.md`](milestones/Milestone10_OptimizationMaturity.md) | Optimization pipeline maturity: pass contract, trace model, DeadBindingElimination, LoopSpecialization narrowing |
 | Milestone 13: Advanced Fact Indexing | Explicit `[FactIndex]` declarations, typed generated index descriptors, composite equality and range lookups, and planner-aware access-path selection |
+| [`milestones/016-food-ontology-sample.md`](milestones/016-food-ontology-sample.md) | Food ontology sample with curated fixture data, recursive classification, profile safety checks, and deterministic console output |
 
 # Authority
 

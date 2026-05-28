@@ -83,3 +83,8 @@ When the command contract changes, review and update:
 - workflow-specific helpers under `eng/ci/`
 - workflow specifications under `docs/workflows/`
 - GitHub workflow files under `.github/workflows/`
+
+
+## Environment Notes
+
+- Codex Cloud Universal only: `eng/restore.sh` probes `~/.dotnet/dotnet` when `dotnet` is not on `PATH` to support non-interactive shell execution in that environment.
