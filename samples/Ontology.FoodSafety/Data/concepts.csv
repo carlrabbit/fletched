@@ -1,0 +1,16 @@
+Id,Label,Kind
+almond,Almond,ingredient
+tree_nut,Tree Nut,category
+nut,Nut,category
+major_allergen,Major Allergen,allergen
+milk,Milk,ingredient
+dairy,Dairy,category
+wheat,Wheat,ingredient
+gluten_source,Gluten Source,category
+soy,Soy,ingredient
+legume,Legume,category
+rice,Rice,ingredient
+plant_food,Plant Food,category
+snack,Snack,product_category
+bakery,Bakery,product_category
+beverage,Beverage,product_category

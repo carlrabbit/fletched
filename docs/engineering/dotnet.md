@@ -81,6 +81,19 @@ dotnet format whitespace Fletched.slnx
 dotnet build benchmarks/Fletched.Benchmarks/Fletched.Benchmarks.csproj -c Release
 ```
 
+
+## Codex Cloud Universal Environment Note
+
+In some Codex Cloud Universal runtime images, the .NET SDK is installed under:
+
+```text
+~/.dotnet/dotnet
+```
+
+but that directory is not always exported on `PATH` for non-interactive shell execution.
+
+The repository `eng/restore.sh` script includes a Codex-Cloud-only fallback probe for `~/.dotnet/dotnet` to keep canonical `eng/` commands usable in that environment. This fallback is environment-specific and is not required for standard local developer machines or CI agents where `dotnet` is already on `PATH`.
+
 ## Shared Repository Configuration
 
 The repository standardizes .NET policy through root configuration files:

@@ -1,0 +1,11 @@
+Child,Parent
+almond,tree_nut
+tree_nut,nut
+nut,major_allergen
+milk,dairy
+dairy,major_allergen
+wheat,gluten_source
+gluten_source,major_allergen
+soy,legume
+legume,plant_food
+rice,plant_food

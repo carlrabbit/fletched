@@ -16,6 +16,22 @@ This document defines the repository sample overview and execution guidance.
 - prints the first five valid balanced assignments;
 - prints in-memory engine metrics collected through `System.Diagnostics.Metrics`.
 
+
+### `samples/Ontology.FoodSafety`
+
+`Ontology.FoodSafety` is a .NET console sample that:
+
+- loads deterministic, curated food ontology fixture data from CSV files;
+- models ontology-style subclass traversal with recursive predicates;
+- classifies unsafe and safe products for dietary profiles using negation and transitive reasoning;
+- demonstrates major-allergen classification through ontology hierarchy.
+
+Run the sample:
+
+```sh
+dotnet run --project samples/Ontology.FoodSafety
+```
+
 ## Run the Sample
 
 ### Generated input
@@ -71,6 +87,8 @@ This document is not authoritative for:
 
 - `docs/ENGINEERING.md`
 - `samples/WorkAssignment/`
+- `samples/Ontology.FoodSafety/`
+- `samples/Ontology.FoodSafety/`
 
 ## Must Be Updated Together
 

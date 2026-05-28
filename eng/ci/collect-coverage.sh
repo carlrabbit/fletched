@@ -8,7 +8,7 @@ run_with_coverage() {
   project_path=$1
   coverage_output=$2
 
-  dotnet run --no-build -c Release \
+  "${DOTNET_BIN}" run --no-build -c Release \
     --project "${REPO_ROOT}/${project_path}" \
     -- --coverage --coverage-output-format cobertura \
     --coverage-output "${coverage_output}"

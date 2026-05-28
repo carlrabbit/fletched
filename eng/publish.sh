@@ -2,6 +2,7 @@
 set -eu
 
 REPO_ROOT=$(cd "$(dirname "$0")/.." && pwd)
+DOTNET_BIN=$("${REPO_ROOT}/eng/dotnet.sh")
 
 if [ "${NUGET_API_KEY:-}" = "" ]; then
   echo "NUGET_API_KEY is required to publish packages." >&2
@@ -15,7 +16,7 @@ for package_path in "${REPO_ROOT}"/artifacts/nuget/*.nupkg; do
   fi
 
   PACKAGES_FOUND=1
-  dotnet nuget push "${package_path}" \
+  "${DOTNET_BIN}" nuget push "${package_path}" \
     --api-key "${NUGET_API_KEY}" \
     --source "https://api.nuget.org/v3/index.json" \
     --skip-duplicate

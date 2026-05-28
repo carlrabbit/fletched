@@ -8,8 +8,8 @@ trap 'rm -rf "${TMP_DIR}"' EXIT
 
 mkdir -p "${BASELINE_DIR}"
 
-dotnet build "${REPO_ROOT}/src/Fletched.Core/Fletched.Core.csproj" -c Release --nologo
-dotnet build "${REPO_ROOT}/src/Fletched.Roslyn/Fletched.Roslyn.csproj" -c Release --nologo
+"${DOTNET_BIN}" build "${REPO_ROOT}/src/Fletched.Core/Fletched.Core.csproj" -c Release --nologo
+"${DOTNET_BIN}" build "${REPO_ROOT}/src/Fletched.Roslyn/Fletched.Roslyn.csproj" -c Release --nologo
 
 cat > "${TMP_DIR}/ApiExtractor.csproj" <<'CSPROJ'
 <Project Sdk="Microsoft.NET.Sdk">
@@ -77,7 +77,7 @@ foreach (var line in lines)
 }
 CS
 
-dotnet build "${TMP_DIR}/ApiExtractor.csproj" -c Release --nologo
+"${DOTNET_BIN}" build "${TMP_DIR}/ApiExtractor.csproj" -c Release --nologo
 EXTRACTOR_DLL="${TMP_DIR}/bin/Release/net10.0/ApiExtractor.dll"
 
 CORE_DLL=$(find "${REPO_ROOT}/src/Fletched.Core/bin/Release" -type f -name Fletched.Core.dll | head -n 1)
@@ -86,7 +86,7 @@ if [ -z "${CORE_DLL}" ]; then
   exit 1
 fi
 
-dotnet "${EXTRACTOR_DLL}" "${CORE_DLL}" > "${TMP_DIR}/Fletched.Core.publicapi.txt"
+"${DOTNET_BIN}" "${EXTRACTOR_DLL}" "${CORE_DLL}" > "${TMP_DIR}/Fletched.Core.publicapi.txt"
 cat > "${TMP_DIR}/Fletched.Roslyn.publicapi.txt" <<'TXT'
 # Fletched.Roslyn is an analyzer/source-generator package.
 # No supported runtime public API surface is contracted.
