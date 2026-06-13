@@ -9,9 +9,10 @@ Read first:
 - `docs/ENGINEERING.md`
 - `docs/PUBLIC-DOCS.md`
 - `docs/GUARDRAILS.md`
-- `docs/research/project-setup-guide-v5.md`
-- `docs/research/engineering-guide-v4.md`
 - `docs/agent-context/project-context.md`
+
+Guide-system metadata:
+- `.guide-profile.json` records planning traceability only; ordinary implementation agents must use the localized documents above rather than external guide repositories.
 
 When changing workflows:
 - update `docs/workflows/` first

@@ -7,10 +7,13 @@ They are non-authoritative and must be promoted into authoritative docs before t
 
 ## Available Research Documents
 
-| Document | Purpose |
-| --- | --- |
-| [`research/project-setup-guide-v5.md`](research/project-setup-guide-v5.md) | Current repository setup model (V5) |
-| [`research/engineering-guide-v4.md`](research/engineering-guide-v4.md) | Current engineering substrate model (V4) |
+There are currently no active research documents indexed for implementation use.
+
+Copied external setup and engineering guide documents are not stored in this repository as operational documentation. Fletched project truth belongs in the localized authority documents indexed from `README.md`, `AGENTS.md`, and the relevant `docs/` indexes.
+
+## Deprecated Research Entries
+
+The former copied setup and engineering guide documents under `docs/research/` are deprecated and removed from the active research index.
 
 ## Non-Authoritativeness Rule
 
