@@ -1,0 +1,65 @@
+{
+  "schema": "https://github.com/carlrabbit/agentic-project-guides/schema/guide-profile.schema.json",
+  "guideSystem": "agentic-project-guides",
+  "guideRepository": "carlrabbit/agentic-project-guides",
+  "guideVersion": "provisional",
+  "repository": {
+    "name": "fletched",
+    "fullName": "carlrabbit/fletched"
+  },
+  "repositoryRole": "mixed-dogfood",
+  "maturityStage": "public-preview",
+  "profiles": [
+    "base",
+    "dotnet-library",
+    "source-generator",
+    "public-package",
+    "mixed-dogfood"
+  ],
+  "taskModes": [
+    "normal-implementation",
+    "engineering-migration",
+    "documentation-sync",
+    "release-readiness"
+  ],
+  "executionModes": [
+    "ai-assisted",
+    "ai-executed-human-reviewed",
+    "engineering-migration",
+    "release-readiness",
+    "documentation-sync"
+  ],
+  "activeDocumentationLayers": [
+    "README.md",
+    "AGENTS.md",
+    ".github/copilot-instructions.md",
+    "docs/TERMINOLOGY.md",
+    "docs/SPECS.md",
+    "docs/ENGINEERING.md",
+    "docs/engineering/command-contract.md",
+    "docs/MILESTONES.md",
+    "docs/PUBLIC-DOCS.md",
+    "docs/GUARDRAILS.md",
+    "docs/agent-context/project-context.md",
+    "public-docs/"
+  ],
+  "deferredDocumentationLayers": [
+    "broad documentation synchronization",
+    "release notes unless release work is active",
+    "issue template modernization unless explicitly requested"
+  ],
+  "inactiveDocumentationLayers": [
+    "repository-local copied setup guides",
+    "repository-local copied engineering guides",
+    "repository-local copied meta guides",
+    "repository-local copied profile guides",
+    "repository-local copied migration guides",
+    "repository-local copied template guides"
+  ],
+  "implementationAgentRule": "Implementation agents must use localized repository documentation only and must not be required to read the external guide repository.",
+  "notes": [
+    "This file provides guide-system traceability only.",
+    "The external guide system is planning-time authority, not implementation-time required reading.",
+    "Fletched is primarily a reusable .NET runtime/source-generator capability provider with bounded dogfood samples."
+  ]
+}
