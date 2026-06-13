@@ -22,12 +22,7 @@ samples/Ontology.FoodSafety/
 
 ## Research and Repository Requirements
 
-The implementation must follow the current repository guides:
-
-```text
-docs/research/project-setup-guide-v5.md
-docs/research/engineering-guide-v4.md
-```
+This historical milestone must follow the localized repository authority documents indexed from `README.md` and `AGENTS.md`. Copied external setup or engineering guides are no longer repository-local operational authority.
 
 The milestone document must be updated during implementation to meet repository requirements, including updating the milestone index document.
 
@@ -962,8 +957,7 @@ Implemented in `samples/Ontology.FoodSafety/` with curated fixture CSV data, ont
 - Tests or validation scripts cover the required sample behavior.
 - docs/milestones/index.md or the repository's canonical milestone index is updated.
 - This milestone document is updated to meet repository milestone-document requirements.
-- The implementation follows docs/research/project-setup-guide-v5.md.
-- The implementation follows docs/research/engineering-guide-v4.md.
+- The implementation follows the localized repository authority documents indexed from `README.md` and `AGENTS.md`.
 - ./eng/check.sh passes.
 ```
 
